@@ -5,6 +5,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import api from '../services/api';
 
+// Warm up browser for faster auth on Android
+WebBrowser.maybeCompleteAuthSession();
+
 interface User {
   user_id: string;
   email: string;
@@ -47,9 +50,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [provider, setProvider] = useState<Provider | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const extractSessionId = (url: string): string | null => {
+    try {
+      // Try hash first
+      const hashMatch = url.match(/#session_id=([^&]+)/);
+      if (hashMatch) return hashMatch[1];
+      
+      // Try query string
+      const queryMatch = url.match(/[?&]session_id=([^&]+)/);
+      if (queryMatch) return queryMatch[1];
+    } catch (e) {
+      console.error('Error extracting session ID:', e);
+    }
+    return null;
+  };
+
   const processSessionId = useCallback(async (sessionId: string) => {
     try {
       setIsLoading(true);
+      console.log('Processing session ID...');
+      
       const response = await api.post('/auth/session', {}, {
         headers: { 'X-Session-ID': sessionId }
       });
@@ -57,10 +77,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { user: userData, session_token } = response.data;
       
       await AsyncStorage.setItem('session_token', session_token);
+      api.defaults.headers.common['Authorization'] = `Bearer ${session_token}`;
       setUser(userData);
       
       // Check if user has provider profile
-      await refreshUser();
+      try {
+        const meResponse = await api.get('/auth/me');
+        setProvider(meResponse.data.provider);
+      } catch (e) {
+        console.log('No provider profile');
+      }
     } catch (error) {
       console.error('Error processing session:', error);
     } finally {
@@ -68,30 +94,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const extractSessionId = (url: string): string | null => {
-    // Try hash first
-    const hashMatch = url.match(/#session_id=([^&]+)/);
-    if (hashMatch) return hashMatch[1];
-    
-    // Try query string
-    const queryMatch = url.match(/[?&]session_id=([^&]+)/);
-    if (queryMatch) return queryMatch[1];
-    
-    return null;
-  };
-
   const checkExistingSession = useCallback(async () => {
     try {
+      console.log('Checking existing session...');
       const token = await AsyncStorage.getItem('session_token');
+      
       if (token) {
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         const response = await api.get('/auth/me');
         setUser(response.data.user);
         setProvider(response.data.provider);
+        console.log('Session restored');
+      } else {
+        console.log('No existing session');
       }
     } catch (error) {
-      console.error('Session check error:', error);
+      console.log('Session check failed, clearing token');
       await AsyncStorage.removeItem('session_token');
+      delete api.defaults.headers.common['Authorization'];
     } finally {
       setIsLoading(false);
     }
@@ -99,34 +119,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const init = async () => {
-      // Check for session_id in URL (web)
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        const hash = window.location.hash;
-        const sessionId = extractSessionId(hash || window.location.search);
-        if (sessionId) {
-          window.history.replaceState(null, '', window.location.pathname);
-          await processSessionId(sessionId);
-          return;
-        }
-      }
-      
-      // Check for cold start deep link (mobile)
-      if (Platform.OS !== 'web') {
-        const initialUrl = await Linking.getInitialURL();
-        if (initialUrl) {
-          const sessionId = extractSessionId(initialUrl);
+      try {
+        // Check for session_id in URL (web only)
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          const hash = window.location.hash;
+          const search = window.location.search;
+          const sessionId = extractSessionId(hash || search);
+          
           if (sessionId) {
+            // Clean URL
+            window.history.replaceState(null, '', window.location.pathname);
             await processSessionId(sessionId);
             return;
           }
         }
+        
+        // Check for cold start deep link (mobile)
+        if (Platform.OS !== 'web') {
+          try {
+            const initialUrl = await Linking.getInitialURL();
+            if (initialUrl) {
+              const sessionId = extractSessionId(initialUrl);
+              if (sessionId) {
+                await processSessionId(sessionId);
+                return;
+              }
+            }
+          } catch (e) {
+            console.log('No initial URL');
+          }
+        }
+        
+        // Check existing session
+        await checkExistingSession();
+      } catch (error) {
+        console.error('Auth init error:', error);
+        setIsLoading(false);
       }
-      
-      // Check existing session
-      await checkExistingSession();
     };
     
-    init();
+    // Small delay to ensure app is fully loaded
+    const timer = setTimeout(() => {
+      init();
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, [processSessionId, checkExistingSession]);
 
   const login = async () => {
@@ -137,6 +174,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ? window.location.origin + '/'
         : Linking.createURL('/');
       
+      console.log('Redirect URL:', redirectUrl);
+      
       const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
       
       if (Platform.OS === 'web') {
@@ -144,16 +183,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
         
+        console.log('Auth result:', result.type);
+        
         if (result.type === 'success' && result.url) {
           const sessionId = extractSessionId(result.url);
           if (sessionId) {
             await processSessionId(sessionId);
           }
+        } else {
+          setIsLoading(false);
         }
       }
     } catch (error) {
       console.error('Login error:', error);
-    } finally {
       setIsLoading(false);
     }
   };
