@@ -675,7 +675,7 @@ async def root():
         "message": "AchaServiço API",
         "version": "1.0.0",
         "city": "Três Lagoas - MS",
-        "mercadopago": "configured" if sdk else "not configured"
+        "payment_method": "pix_manual"
     }
 
 @api_router.get("/health")
