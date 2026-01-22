@@ -450,23 +450,32 @@ async def create_subscription(request: Request):
             {
                 "id": f"sub_{provider['provider_id']}",
                 "title": "Assinatura Mensal AchaServico",
-                "description": "Assinatura mensal para prestadores - Tres Lagoas/MS",
+                "description": "Assinatura mensal para prestadores de servico em Tres Lagoas MS",
+                "category_id": "services",
                 "quantity": 1,
                 "currency_id": "BRL",
                 "unit_price": 15.00
             }
         ],
         "payer": {
-            "email": user.email
+            "email": user.email,
+            "name": user.name
+        },
+        "payment_methods": {
+            "excluded_payment_methods": [],
+            "excluded_payment_types": [],
+            "installments": 1
         },
         "back_urls": {
             "success": "https://achaservico.preview.emergentagent.com/payment/success",
             "failure": "https://achaservico.preview.emergentagent.com/payment/failure",
             "pending": "https://achaservico.preview.emergentagent.com/payment/pending"
         },
+        "notification_url": "https://achaservico.preview.emergentagent.com/api/webhooks/mercadopago",
         "auto_return": "approved",
         "external_reference": f"{user.user_id}|{provider['provider_id']}",
-        "statement_descriptor": "ACHASERVICO"
+        "statement_descriptor": "ACHASERVICO",
+        "binary_mode": False
     }
     
     try:
