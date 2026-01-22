@@ -471,11 +471,8 @@ async def create_subscription(request: Request):
             "excluded_payment_types": [],
             "excluded_payment_methods": [],
             "installments": 1
-        }
-        "statement_descriptor": "ACHASERVICO",
-        "expires": True,
-        "expiration_date_from": datetime.now(timezone.utc).isoformat(),
-        "expiration_date_to": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
+        },
+        "statement_descriptor": "ACHASERVICO"
     }
     
     try:
