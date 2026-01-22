@@ -540,6 +540,61 @@ async def activate_subscription_manual(request: Request):
     
     return {"success": True, "message": "Assinatura ativada com sucesso!", "expires_at": expires_at.isoformat()}
 
+# ======================== ADMIN ENDPOINTS ========================
+
+@api_router.get("/admin/pending-subscriptions")
+async def get_pending_subscriptions():
+    """Get all pending subscriptions (for admin to activate)"""
+    pending = await db.subscriptions.find({"status": "pending"}, {"_id": 0}).to_list(100)
+    
+    # Get provider details for each subscription
+    result = []
+    for sub in pending:
+        provider = await db.providers.find_one({"provider_id": sub["provider_id"]}, {"_id": 0})
+        if provider:
+            result.append({
+                "subscription": sub,
+                "provider": provider
+            })
+    
+    return result
+
+@api_router.post("/admin/activate/{provider_id}")
+async def admin_activate_subscription(provider_id: str):
+    """Admin endpoint to activate a subscription after PIX payment"""
+    provider = await db.providers.find_one({"provider_id": provider_id})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Prestador não encontrado")
+    
+    expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+    
+    # Update or create subscription
+    await db.subscriptions.update_one(
+        {"provider_id": provider_id},
+        {"$set": {
+            "status": "active",
+            "started_at": datetime.now(timezone.utc),
+            "expires_at": expires_at
+        }},
+        upsert=True
+    )
+    
+    # Activate provider
+    await db.providers.update_one(
+        {"provider_id": provider_id},
+        {"$set": {
+            "subscription_status": "active",
+            "subscription_expires_at": expires_at,
+            "is_active": True
+        }}
+    )
+    
+    return {
+        "success": True, 
+        "message": f"Assinatura de {provider['name']} ativada com sucesso!",
+        "expires_at": expires_at.isoformat()
+    }
+
 # ======================== WEBHOOKS ========================
 
 @api_router.post("/webhooks/mercadopago")
