@@ -444,21 +444,20 @@ async def create_subscription(request: Request):
     if not sdk:
         raise HTTPException(status_code=500, detail="Mercado Pago não configurado")
     
-    # Create payment preference
+    # Create payment preference - simplified for better compatibility
     preference_data = {
         "items": [
             {
                 "id": f"sub_{provider['provider_id']}",
-                "title": "Assinatura Mensal AchaServiço",
-                "description": "Assinatura mensal para prestadores de serviço - Três Lagoas/MS",
+                "title": "Assinatura Mensal AchaServico",
+                "description": "Assinatura mensal para prestadores - Tres Lagoas/MS",
                 "quantity": 1,
                 "currency_id": "BRL",
                 "unit_price": 15.00
             }
         ],
         "payer": {
-            "email": user.email,
-            "name": user.name
+            "email": user.email
         },
         "back_urls": {
             "success": "https://achaservico.preview.emergentagent.com/payment/success",
@@ -467,7 +466,12 @@ async def create_subscription(request: Request):
         },
         "auto_return": "approved",
         "external_reference": f"{user.user_id}|{provider['provider_id']}",
-        "notification_url": "https://achaservico.preview.emergentagent.com/api/webhooks/mercadopago",
+        "statement_descriptor": "ACHASERVICO",
+        "payment_methods": {
+            "excluded_payment_types": [],
+            "excluded_payment_methods": [],
+            "installments": 1
+        }
         "statement_descriptor": "ACHASERVICO",
         "expires": True,
         "expiration_date_from": datetime.now(timezone.utc).isoformat(),
