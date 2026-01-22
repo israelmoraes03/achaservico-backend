@@ -617,67 +617,6 @@ async def pix_webhook(request: Request):
     except Exception as e:
         logger.error(f"Webhook error: {e}")
         return {"status": "error", "message": str(e)}
-                                    "is_active": True
-                                }}
-                            )
-                            
-                            logger.info(f"Subscription activated for provider {provider_id}")
-                        
-                        elif status in ["rejected", "cancelled"]:
-                            await db.subscriptions.update_one(
-                                {"provider_id": provider_id},
-                                {"$set": {"status": "cancelled"}}
-                            )
-                            logger.info(f"Subscription cancelled for provider {provider_id}")
-        
-        # Mark webhook as processed
-        await db.webhooks.update_one(
-            {"data.id": body.get("data", {}).get("id")},
-            {"$set": {"processed": True}}
-        )
-        
-        return {"status": "ok"}
-        
-    except Exception as e:
-        logger.error(f"Webhook error: {e}")
-        return {"status": "error", "message": str(e)}
-
-# ======================== PAYMENT CALLBACKS ========================
-
-@api_router.get("/payment/success")
-async def payment_success(
-    collection_id: Optional[str] = None,
-    collection_status: Optional[str] = None,
-    payment_id: Optional[str] = None,
-    status: Optional[str] = None,
-    external_reference: Optional[str] = None,
-    preference_id: Optional[str] = None
-):
-    """Handle successful payment redirect"""
-    logger.info(f"Payment success callback: payment_id={payment_id}, status={status}, ref={external_reference}")
-    
-    if external_reference and "|" in external_reference and status == "approved":
-        user_id, provider_id = external_reference.split("|")
-        expires_at = datetime.now(timezone.utc) + timedelta(days=30)
-        
-        await db.subscriptions.update_one(
-            {"provider_id": provider_id},
-            {"$set": {
-                "status": "active",
-                "mp_payment_id": payment_id,
-                "started_at": datetime.now(timezone.utc),
-                "expires_at": expires_at
-            }}
-        )
-        
-        await db.providers.update_one(
-            {"provider_id": provider_id},
-            {"$set": {
-                "subscription_status": "active",
-                "subscription_expires_at": expires_at,
-                "is_active": True
-            }}
-        )
     
     return {"status": "success", "message": "Pagamento aprovado! Sua assinatura foi ativada."}
 
