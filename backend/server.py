@@ -20,10 +20,15 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Mercado Pago SDK
-mp_access_token = os.environ.get('MERCADO_PAGO_ACCESS_TOKEN', '')
-mp_public_key = os.environ.get('MERCADO_PAGO_PUBLIC_KEY', '')
-sdk = mercadopago.SDK(mp_access_token) if mp_access_token else None
+# Mercado Pago SDK (disabled - using manual PIX)
+# mp_access_token = os.environ.get('MERCADO_PAGO_ACCESS_TOKEN', '')
+# mp_public_key = os.environ.get('MERCADO_PAGO_PUBLIC_KEY', '')
+# sdk = mercadopago.SDK(mp_access_token) if mp_access_token else None
+
+# PIX Manual Configuration
+PIX_KEY = "66996841531"
+PIX_KEY_TYPE = "telefone"
+PIX_RECEIVER_NAME = "AchaServico"
 
 # Create the main app
 app = FastAPI(title="AchaServiço API", description="API para conectar clientes a prestadores de serviços locais")
