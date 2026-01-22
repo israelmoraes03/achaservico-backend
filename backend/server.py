@@ -617,18 +617,6 @@ async def pix_webhook(request: Request):
     except Exception as e:
         logger.error(f"Webhook error: {e}")
         return {"status": "error", "message": str(e)}
-    
-    return {"status": "success", "message": "Pagamento aprovado! Sua assinatura foi ativada."}
-
-@api_router.get("/payment/failure")
-async def payment_failure():
-    """Handle failed payment redirect"""
-    return {"status": "failure", "message": "Pagamento não foi aprovado. Tente novamente."}
-
-@api_router.get("/payment/pending")
-async def payment_pending():
-    """Handle pending payment redirect"""
-    return {"status": "pending", "message": "Pagamento pendente. Aguarde a confirmação."}
 
 # ======================== ROOT ========================
 
