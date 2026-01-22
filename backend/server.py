@@ -471,8 +471,7 @@ async def create_subscription(request: Request):
             "excluded_payment_types": [],
             "excluded_payment_methods": [],
             "installments": 1
-        },
-        "statement_descriptor": "ACHASERVICO"
+        }
     }
     
     try:
