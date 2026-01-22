@@ -444,7 +444,7 @@ async def create_subscription(request: Request):
     if not sdk:
         raise HTTPException(status_code=500, detail="Mercado Pago não configurado")
     
-    # Create payment preference - simplified for better compatibility
+    # Create payment preference with PIX enabled
     preference_data = {
         "items": [
             {
@@ -468,6 +468,7 @@ async def create_subscription(request: Request):
         "external_reference": f"{user.user_id}|{provider['provider_id']}",
         "statement_descriptor": "ACHASERVICO",
         "payment_methods": {
+            "default_payment_method_id": "pix",
             "excluded_payment_types": [],
             "excluded_payment_methods": [],
             "installments": 1
