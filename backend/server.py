@@ -485,9 +485,7 @@ async def create_subscription(request: Request):
         "pix_key_formatted": "(66) 99684-1531",
         "amount": 15.00,
         "message": "Faça o PIX e aguarde a confirmação"
-    }:
-        logger.error(f"Error creating subscription: {e}")
-        raise HTTPException(status_code=500, detail=f"Erro ao criar assinatura: {str(e)}")
+    }
 
 @api_router.get("/subscriptions/status")
 async def get_subscription_status(request: Request):
