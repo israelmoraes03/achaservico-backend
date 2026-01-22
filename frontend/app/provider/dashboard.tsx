@@ -192,21 +192,33 @@ export default function ProviderDashboardScreen() {
   const handleActivateSubscription = async () => {
     Alert.alert(
       'Ativar Assinatura',
-      'Valor: R$ 15,00/mês\n\nEsta é uma versão de demonstração. O pagamento será simulado.',
+      'Valor: R$ 15,00/mês\n\nVocê será redirecionado para o Mercado Pago para completar o pagamento.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Ativar (MOCK)',
+          text: 'Pagar com Mercado Pago',
           onPress: async () => {
             try {
               setIsActivating(true);
-              await api.post('/subscriptions/create');
-              await fetchData();
-              Alert.alert('Sucesso', 'Assinatura ativada com sucesso! (MOCK)');
+              const response = await api.post('/subscriptions/create');
+              const { init_point, sandbox_init_point } = response.data;
+              
+              // Use sandbox for testing, init_point for production
+              const paymentUrl = sandbox_init_point || init_point;
+              
+              if (Platform.OS === 'web') {
+                // On web, redirect to payment page
+                window.location.href = paymentUrl;
+              } else {
+                // On mobile, open in browser
+                const result = await WebBrowser.openBrowserAsync(paymentUrl);
+                // After returning, refresh data
+                await fetchData();
+                await refreshUser();
+              }
             } catch (error: any) {
-              const message = error.response?.data?.detail || 'Erro ao ativar assinatura.';
+              const message = error.response?.data?.detail || 'Erro ao criar pagamento.';
               Alert.alert('Erro', message);
-            } finally {
               setIsActivating(false);
             }
           }
