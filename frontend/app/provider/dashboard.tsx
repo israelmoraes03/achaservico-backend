@@ -192,35 +192,13 @@ export default function ProviderDashboardScreen() {
   const handleActivateSubscription = async () => {
     Alert.alert(
       'Ativar Assinatura',
-      'Valor: R$ 15,00/mês\n\nVocê será redirecionado para o Mercado Pago para completar o pagamento.',
+      'Valor: R$ 15,00/mês\n\nVocê será direcionado para a tela de pagamento PIX.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Pagar com Mercado Pago',
-          onPress: async () => {
-            try {
-              setIsActivating(true);
-              const response = await api.post('/subscriptions/create');
-              const { init_point } = response.data;
-              
-              // Use init_point for production payments
-              const paymentUrl = init_point;
-              
-              if (Platform.OS === 'web') {
-                // On web, redirect to payment page
-                window.location.href = paymentUrl;
-              } else {
-                // On mobile, open in browser
-                const result = await WebBrowser.openBrowserAsync(paymentUrl);
-                // After returning, refresh data
-                await fetchData();
-                await refreshUser();
-              }
-            } catch (error: any) {
-              const message = error.response?.data?.detail || 'Erro ao criar pagamento.';
-              Alert.alert('Erro', message);
-              setIsActivating(false);
-            }
+          text: 'Continuar',
+          onPress: () => {
+            router.push('/payment/pix');
           }
         },
       ]
