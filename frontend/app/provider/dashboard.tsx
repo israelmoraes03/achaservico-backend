@@ -201,10 +201,10 @@ export default function ProviderDashboardScreen() {
             try {
               setIsActivating(true);
               const response = await api.post('/subscriptions/create');
-              const { init_point, sandbox_init_point } = response.data;
+              const { init_point } = response.data;
               
-              // Use sandbox for testing, init_point for production
-              const paymentUrl = sandbox_init_point || init_point;
+              // Use init_point for production payments
+              const paymentUrl = init_point;
               
               if (Platform.OS === 'web') {
                 // On web, redirect to payment page
