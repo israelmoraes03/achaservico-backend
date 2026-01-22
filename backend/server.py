@@ -430,94 +430,62 @@ async def create_review(review_data: ReviewCreate, request: Request):
     
     return review
 
-# ======================== MERCADO PAGO SUBSCRIPTIONS ========================
+# ======================== PIX MANUAL SUBSCRIPTIONS ========================
 
-@api_router.get("/payments/public-key")
-async def get_public_key():
-    """Get Mercado Pago public key for frontend"""
-    return {"public_key": mp_public_key}
+@api_router.get("/payments/pix-info")
+async def get_pix_info():
+    """Get PIX information for manual payment"""
+    return {
+        "pix_key": PIX_KEY,
+        "pix_key_type": PIX_KEY_TYPE,
+        "pix_key_formatted": "(66) 99684-1531",
+        "receiver_name": PIX_RECEIVER_NAME,
+        "amount": 15.00,
+        "description": "Assinatura Mensal AchaServico"
+    }
 
 @api_router.post("/subscriptions/create")
 async def create_subscription(request: Request):
-    """Create a subscription payment preference with Mercado Pago"""
+    """Create a pending subscription for PIX payment"""
     user = await require_auth(request)
     
     provider = await db.providers.find_one({"user_id": user.user_id}, {"_id": 0})
     if not provider:
         raise HTTPException(status_code=400, detail="Você precisa criar um perfil de prestador primeiro")
     
-    if not sdk:
-        raise HTTPException(status_code=500, detail="Mercado Pago não configurado")
+    # Check if there's already a pending subscription
+    existing = await db.subscriptions.find_one({
+        "provider_id": provider["provider_id"],
+        "status": {"$in": ["pending", "active"]}
+    })
     
-    # Create payment preference with all payment methods enabled
-    preference_data = {
-        "items": [
-            {
-                "id": f"sub_{provider['provider_id']}",
-                "title": "Assinatura Mensal AchaServico",
-                "description": "Assinatura mensal para prestadores de servico em Tres Lagoas MS",
-                "category_id": "services",
-                "quantity": 1,
-                "currency_id": "BRL",
-                "unit_price": 15.00
-            }
-        ],
-        "payer": {
-            "email": user.email,
-            "name": user.name
-        },
-        "payment_methods": {
-            "excluded_payment_methods": [],
-            "excluded_payment_types": [],
-            "installments": 1
-        },
-        "back_urls": {
-            "success": "https://achaservico.preview.emergentagent.com/payment/success",
-            "failure": "https://achaservico.preview.emergentagent.com/payment/failure",
-            "pending": "https://achaservico.preview.emergentagent.com/payment/pending"
-        },
-        "notification_url": "https://achaservico.preview.emergentagent.com/api/webhooks/mercadopago",
-        "auto_return": "approved",
-        "external_reference": f"{user.user_id}|{provider['provider_id']}",
-        "statement_descriptor": "ACHASERVICO",
-        "binary_mode": False
-    }
+    if existing and existing.get("status") == "active":
+        raise HTTPException(status_code=400, detail="Você já possui uma assinatura ativa")
     
-    try:
-        preference_response = sdk.preference().create(preference_data)
-        
-        if preference_response["status"] != 201:
-            logger.error(f"Mercado Pago error: {preference_response}")
-            raise HTTPException(status_code=500, detail="Erro ao criar preferência de pagamento")
-        
-        preference = preference_response["response"]
-        
-        # Create pending subscription record
-        subscription = Subscription(
-            provider_id=provider["provider_id"],
-            user_id=user.user_id,
-            mp_preference_id=preference["id"],
-            status="pending"
-        )
-        
-        await db.subscriptions.insert_one(subscription.model_dump())
-        
-        # Update provider with preference ID
-        await db.providers.update_one(
+    # Create or update pending subscription
+    subscription = Subscription(
+        provider_id=provider["provider_id"],
+        user_id=user.user_id,
+        status="pending",
+        payment_method="pix_manual"
+    )
+    
+    if existing:
+        await db.subscriptions.update_one(
             {"provider_id": provider["provider_id"]},
-            {"$set": {"mp_preference_id": preference["id"]}}
+            {"$set": {"status": "pending", "created_at": datetime.now(timezone.utc)}}
         )
-        
-        return {
-            "success": True,
-            "preference_id": preference["id"],
-            "init_point": preference["init_point"],
-            "sandbox_init_point": preference["sandbox_init_point"],
-            "subscription_id": subscription.subscription_id,
-            "amount": 15.00
-        }
-        
-    except Exception as e:
+    else:
+        await db.subscriptions.insert_one(subscription.model_dump())
+    
+    return {
+        "success": True,
+        "subscription_id": subscription.subscription_id,
+        "pix_key": PIX_KEY,
+        "pix_key_formatted": "(66) 99684-1531",
+        "amount": 15.00,
+        "message": "Faça o PIX e aguarde a confirmação"
+    }:
         logger.error(f"Error creating subscription: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao criar assinatura: {str(e)}")
 
