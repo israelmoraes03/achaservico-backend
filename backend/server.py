@@ -597,57 +597,26 @@ async def admin_activate_subscription(provider_id: str):
 
 # ======================== WEBHOOKS ========================
 
-@api_router.post("/webhooks/mercadopago")
-async def mercadopago_webhook(request: Request):
-    """Handle Mercado Pago webhook notifications"""
+@api_router.post("/webhooks/pix")
+async def pix_webhook(request: Request):
+    """Handle PIX webhook notifications (for future use)"""
     try:
         body = await request.json()
-        logger.info(f"Webhook received: {body}")
+        logger.info(f"PIX Webhook received: {body}")
         
         # Store webhook for audit
         await db.webhooks.insert_one({
-            "type": "mercadopago",
+            "type": "pix",
             "data": body,
             "received_at": datetime.now(timezone.utc),
             "processed": False
         })
         
-        # Process payment notification
-        if body.get("type") == "payment":
-            payment_id = body.get("data", {}).get("id")
-            
-            if payment_id and sdk:
-                # Get payment details from Mercado Pago
-                payment_response = sdk.payment().get(payment_id)
-                
-                if payment_response["status"] == 200:
-                    payment_data = payment_response["response"]
-                    external_ref = payment_data.get("external_reference", "")
-                    status = payment_data.get("status")
-                    
-                    if "|" in external_ref:
-                        user_id, provider_id = external_ref.split("|")
-                        
-                        if status == "approved":
-                            expires_at = datetime.now(timezone.utc) + timedelta(days=30)
-                            
-                            # Update subscription
-                            await db.subscriptions.update_one(
-                                {"provider_id": provider_id},
-                                {"$set": {
-                                    "status": "active",
-                                    "mp_payment_id": str(payment_id),
-                                    "started_at": datetime.now(timezone.utc),
-                                    "expires_at": expires_at
-                                }}
-                            )
-                            
-                            # Activate provider
-                            await db.providers.update_one(
-                                {"provider_id": provider_id},
-                                {"$set": {
-                                    "subscription_status": "active",
-                                    "subscription_expires_at": expires_at,
+        return {"status": "ok"}
+        
+    except Exception as e:
+        logger.error(f"Webhook error: {e}")
+        return {"status": "error", "message": str(e)}
                                     "is_active": True
                                 }}
                             )
