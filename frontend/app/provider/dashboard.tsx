@@ -98,8 +98,11 @@ export default function ProviderDashboardScreen() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      router.replace('/login');
-      return;
+      // Use setTimeout to avoid navigation before mount
+      const timer = setTimeout(() => {
+        router.replace('/login');
+      }, 100);
+      return () => clearTimeout(timer);
     }
     
     fetchData();
