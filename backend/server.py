@@ -548,16 +548,29 @@ async def create_review(review_data: ReviewCreate, request: Request):
     
     await db.reviews.insert_one(review.model_dump())
     
-    # Update provider average rating
-    all_reviews = await db.reviews.find({"provider_id": review_data.provider_id}).to_list(1000)
-    total_rating = sum(r["rating"] for r in all_reviews)
-    avg_rating = total_rating / len(all_reviews)
+    # Update provider average rating using aggregation (optimized)
+    pipeline = [
+        {"$match": {"provider_id": review_data.provider_id}},
+        {"$group": {
+            "_id": None,
+            "avg_rating": {"$avg": "$rating"},
+            "total_reviews": {"$sum": 1}
+        }}
+    ]
+    result = await db.reviews.aggregate(pipeline).to_list(1)
+    
+    if result:
+        avg_rating = result[0]["avg_rating"]
+        total_reviews = result[0]["total_reviews"]
+    else:
+        avg_rating = review_data.rating
+        total_reviews = 1
     
     await db.providers.update_one(
         {"provider_id": review_data.provider_id},
         {"$set": {
             "average_rating": round(avg_rating, 1),
-            "total_reviews": len(all_reviews)
+            "total_reviews": total_reviews
         }}
     )
     
