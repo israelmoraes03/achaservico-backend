@@ -68,6 +68,17 @@ export default function ProviderRegisterScreen() {
     }
   }, [isAuthenticated]);
 
+  // Check if user is already a provider
+  useEffect(() => {
+    if (user?.is_provider) {
+      Alert.alert(
+        'Perfil Existente',
+        'Você já possui um perfil de prestador.',
+        [{ text: 'Ver Meu Painel', onPress: () => router.replace('/provider/dashboard') }]
+      );
+    }
+  }, [user]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
