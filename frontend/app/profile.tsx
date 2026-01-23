@@ -23,13 +23,20 @@ export default function ProfileScreen() {
     }
   }, [isAuthenticated]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Alert.alert(
       'Sair',
       'Tem certeza que deseja sair?',
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Sair', style: 'destructive', onPress: logout },
+        { 
+          text: 'Sair', 
+          style: 'destructive', 
+          onPress: async () => {
+            await logout();
+            router.replace('/');
+          }
+        },
       ]
     );
   };
