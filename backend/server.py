@@ -16,19 +16,17 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
-mongo_url = os.environ['MONGO_URL']
+mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db = client[os.environ.get('DB_NAME', 'achaservico')]
 
-# Mercado Pago SDK (disabled - using manual PIX)
-# mp_access_token = os.environ.get('MERCADO_PAGO_ACCESS_TOKEN', '')
-# mp_public_key = os.environ.get('MERCADO_PAGO_PUBLIC_KEY', '')
-# sdk = mercadopago.SDK(mp_access_token) if mp_access_token else None
+# Auth Backend URL (Emergent Authentication Service)
+AUTH_BACKEND_URL = os.environ.get('AUTH_BACKEND_URL', 'https://demobackend.emergentagent.com')
 
-# PIX Manual Configuration
-PIX_KEY = "49958688875"
-PIX_KEY_TYPE = "cpf"
-PIX_RECEIVER_NAME = "AchaServico"
+# PIX Manual Configuration (from environment variables)
+PIX_KEY = os.environ.get('PIX_KEY', '49958688875')
+PIX_KEY_TYPE = os.environ.get('PIX_KEY_TYPE', 'cpf')
+PIX_RECEIVER_NAME = os.environ.get('PIX_RECEIVER_NAME', 'AchaServico')
 
 # Create the main app
 app = FastAPI(title="AchaServiço API", description="API para conectar clientes a prestadores de serviços locais")
