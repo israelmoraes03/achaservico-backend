@@ -462,6 +462,14 @@ export default function AdminScreen() {
                     <Text style={styles.statLabel}>Pendentes</Text>
                   </View>
                   <View style={styles.statCard}>
+                    <Ionicons name="alert-circle" size={28} color="#EF4444" />
+                    <Text style={[styles.statValue, { color: '#EF4444' }]}>{stats?.expired_subscriptions || 0}</Text>
+                    <Text style={styles.statLabel}>Expiradas</Text>
+                  </View>
+                </View>
+                
+                <View style={styles.statsRow}>
+                  <View style={styles.statCard}>
                     <Ionicons name="star" size={28} color="#FFD700" />
                     <Text style={styles.statValue}>{stats?.total_reviews || 0}</Text>
                     <Text style={styles.statLabel}>Avaliações</Text>
