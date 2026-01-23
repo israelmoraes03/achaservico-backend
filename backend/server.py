@@ -94,6 +94,7 @@ class ProviderUpdate(BaseModel):
     neighborhood: Optional[str] = None
     description: Optional[str] = None
     profile_image: Optional[str] = None
+    service_photos: Optional[List[str]] = None  # Array of base64 images for service gallery
 
 class Review(BaseModel):
     review_id: str = Field(default_factory=lambda: f"rev_{uuid.uuid4().hex[:12]}")
