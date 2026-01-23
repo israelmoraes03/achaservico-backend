@@ -139,8 +139,8 @@ export default function ProviderRegisterScreen() {
       Alert.alert('Erro', 'Por favor, informe um telefone válido.');
       return;
     }
-    if (!category) {
-      Alert.alert('Erro', 'Por favor, selecione uma categoria.');
+    if (selectedCategories.length === 0) {
+      Alert.alert('Erro', 'Por favor, selecione pelo menos uma categoria.');
       return;
     }
     if (!neighborhood) {
@@ -158,7 +158,7 @@ export default function ProviderRegisterScreen() {
       await api.post('/providers', {
         name: name.trim(),
         phone: phone.replace(/\D/g, ''),
-        category,
+        categories: selectedCategories,
         neighborhood,
         description: description.trim(),
         profile_image: profileImage,
@@ -181,7 +181,13 @@ export default function ProviderRegisterScreen() {
 
   const getCategoryName = (categoryId: string) => {
     const cat = categories.find(c => c.id === categoryId);
-    return cat?.name || 'Selecionar categoria';
+    return cat?.name || categoryId;
+  };
+
+  const getSelectedCategoriesText = () => {
+    if (selectedCategories.length === 0) return 'Selecionar categorias';
+    if (selectedCategories.length === 1) return getCategoryName(selectedCategories[0]);
+    return `${selectedCategories.length} categorias selecionadas`;
   };
 
   if (isLoading) {
