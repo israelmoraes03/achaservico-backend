@@ -168,6 +168,72 @@ export default function ProviderDashboardScreen() {
     }
   };
 
+  const pickServicePhoto = async () => {
+    if (servicePhotos.length >= MAX_SERVICE_PHOTOS) {
+      Alert.alert('Limite Atingido', `Você pode adicionar no máximo ${MAX_SERVICE_PHOTOS} fotos de serviços.`);
+      return;
+    }
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permissão Negada', 'Precisamos de permissão para acessar suas fotos.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.6,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets[0].base64) {
+      const newPhoto = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      const updatedPhotos = [...servicePhotos, newPhoto];
+      setServicePhotos(updatedPhotos);
+      
+      // Save immediately
+      await saveServicePhotos(updatedPhotos);
+    }
+  };
+
+  const removeServicePhoto = async (index: number) => {
+    Alert.alert(
+      'Remover Foto',
+      'Deseja remover esta foto?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Remover',
+          style: 'destructive',
+          onPress: async () => {
+            const updatedPhotos = servicePhotos.filter((_, i) => i !== index);
+            setServicePhotos(updatedPhotos);
+            await saveServicePhotos(updatedPhotos);
+          }
+        }
+      ]
+    );
+  };
+
+  const saveServicePhotos = async (photos: string[]) => {
+    if (!provider) return;
+    
+    try {
+      setIsUploadingPhoto(true);
+      await api.put(`/providers/${provider.provider_id}`, {
+        service_photos: photos,
+      });
+      await refreshUser();
+    } catch (error: any) {
+      console.error('Error saving photos:', error);
+      Alert.alert('Erro', 'Erro ao salvar fotos. Tente novamente.');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!provider) return;
     
