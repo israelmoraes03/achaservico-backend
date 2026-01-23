@@ -66,11 +66,19 @@ export default function PaymentPixScreen() {
   const sharePixKey = async () => {
     if (pixData) {
       try {
-        await Share.share({
-          message: `PIX para Assinatura AchaServiço\n\nChave PIX: ${pixData.pix_key_formatted}\nValor: R$ ${pixData.amount.toFixed(2)}\n\nApós o pagamento, sua assinatura será ativada em até 24 horas.`,
+        const result = await Share.share({
+          message: `PIX para Assinatura AchaServiço\n\nChave PIX (CPF): ${pixData.pix_key_formatted}\nValor: R$ ${pixData.amount.toFixed(2)}\n\nApós o pagamento, sua assinatura será ativada em até 24 horas.`,
         });
-      } catch (error) {
-        console.error('Share error:', error);
+        
+        if (result.action === Share.sharedAction) {
+          console.log('Shared successfully');
+        }
+      } catch (error: any) {
+        // Ignore user cancellation
+        if (error.message !== 'User did not share') {
+          console.error('Share error:', error);
+          Alert.alert('Erro', 'Não foi possível compartilhar. Tente copiar a chave PIX.');
+        }
       }
     }
   };
