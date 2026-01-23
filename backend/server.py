@@ -435,19 +435,100 @@ async def update_provider(provider_id: str, provider_data: ProviderUpdate, reque
 
 @api_router.get("/providers/{provider_id}/reviews")
 async def get_provider_reviews(provider_id: str):
-    """Get all reviews for a provider"""
+    """Get all reviews for a provider (ANONYMOUS - no user identification)"""
     reviews = await db.reviews.find({"provider_id": provider_id}, {"_id": 0}).sort("created_at", -1).to_list(100)
-    return reviews
+    
+    # Remove user identification for anonymity
+    anonymous_reviews = []
+    for review in reviews:
+        anonymous_reviews.append({
+            "review_id": review.get("review_id"),
+            "provider_id": review.get("provider_id"),
+            "rating": review.get("rating"),
+            "comment": review.get("comment"),
+            "is_verified": review.get("is_verified", True),
+            "created_at": review.get("created_at")
+            # user_id and user_name are NOT included
+        })
+    
+    return anonymous_reviews
+
+@api_router.post("/providers/{provider_id}/contact")
+async def register_whatsapp_contact(provider_id: str, request: Request):
+    """Register when a user clicks on WhatsApp button (enables reviews)"""
+    user = await get_current_user(request)
+    
+    if not user:
+        # Allow anonymous contact but they won't be able to review
+        return {"success": True, "can_review": False, "message": "Contato registrado (faça login para avaliar depois)"}
+    
+    provider = await db.providers.find_one({"provider_id": provider_id})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Prestador não encontrado")
+    
+    # Check if contact already exists
+    existing_contact = await db.whatsapp_contacts.find_one({
+        "user_id": user.user_id,
+        "provider_id": provider_id
+    })
+    
+    if not existing_contact:
+        contact = WhatsAppContact(
+            user_id=user.user_id,
+            provider_id=provider_id
+        )
+        await db.whatsapp_contacts.insert_one(contact.model_dump())
+    
+    return {"success": True, "can_review": True, "message": "Contato registrado, você poderá avaliar este prestador"}
+
+@api_router.get("/providers/{provider_id}/can-review")
+async def check_can_review(provider_id: str, request: Request):
+    """Check if user can review this provider (must have contacted via WhatsApp)"""
+    user = await get_current_user(request)
+    
+    if not user:
+        return {"can_review": False, "reason": "not_authenticated"}
+    
+    # Check if user already reviewed
+    existing_review = await db.reviews.find_one({
+        "provider_id": provider_id,
+        "user_id": user.user_id
+    })
+    if existing_review:
+        return {"can_review": False, "reason": "already_reviewed"}
+    
+    # Check if user has contacted this provider
+    contact = await db.whatsapp_contacts.find_one({
+        "user_id": user.user_id,
+        "provider_id": provider_id
+    })
+    
+    if not contact:
+        return {"can_review": False, "reason": "no_contact"}
+    
+    return {"can_review": True, "reason": "eligible"}
 
 @api_router.post("/reviews")
 async def create_review(review_data: ReviewCreate, request: Request):
-    """Create a review for a provider (requires auth)"""
+    """Create a review for a provider (requires auth + WhatsApp contact)"""
     user = await require_auth(request)
     
     provider = await db.providers.find_one({"provider_id": review_data.provider_id})
     if not provider:
         raise HTTPException(status_code=404, detail="Prestador não encontrado")
     
+    # Check if user has contacted this provider via WhatsApp
+    contact = await db.whatsapp_contacts.find_one({
+        "user_id": user.user_id,
+        "provider_id": review_data.provider_id
+    })
+    if not contact:
+        raise HTTPException(
+            status_code=403, 
+            detail="Você precisa entrar em contato com o prestador pelo WhatsApp antes de avaliar"
+        )
+    
+    # Check if already reviewed
     existing_review = await db.reviews.find_one({
         "provider_id": review_data.provider_id,
         "user_id": user.user_id
@@ -461,13 +542,15 @@ async def create_review(review_data: ReviewCreate, request: Request):
     review = Review(
         provider_id=review_data.provider_id,
         user_id=user.user_id,
-        user_name=user.name,
+        user_name=user.name,  # Stored but not shown to provider
         rating=review_data.rating,
-        comment=review_data.comment
+        comment=review_data.comment,
+        is_verified=True  # Verified because they contacted via WhatsApp
     )
     
     await db.reviews.insert_one(review.model_dump())
     
+    # Update provider average rating
     all_reviews = await db.reviews.find({"provider_id": review_data.provider_id}).to_list(1000)
     total_rating = sum(r["rating"] for r in all_reviews)
     avg_rating = total_rating / len(all_reviews)
@@ -480,7 +563,15 @@ async def create_review(review_data: ReviewCreate, request: Request):
         }}
     )
     
-    return review
+    # Return anonymous version (without user_id and user_name)
+    return {
+        "review_id": review.review_id,
+        "provider_id": review.provider_id,
+        "rating": review.rating,
+        "comment": review.comment,
+        "is_verified": review.is_verified,
+        "created_at": review.created_at.isoformat()
+    }
 
 # ======================== PIX MANUAL SUBSCRIPTIONS ========================
 
