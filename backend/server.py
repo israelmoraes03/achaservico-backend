@@ -26,8 +26,8 @@ db = client[os.environ['DB_NAME']]
 # sdk = mercadopago.SDK(mp_access_token) if mp_access_token else None
 
 # PIX Manual Configuration
-PIX_KEY = "66996841531"
-PIX_KEY_TYPE = "telefone"
+PIX_KEY = "49958688875"
+PIX_KEY_TYPE = "cpf"
 PIX_RECEIVER_NAME = "AchaServico"
 
 # Create the main app
