@@ -228,6 +228,30 @@ export default function ProviderDetailScreen() {
             <Text style={styles.descriptionText}>{provider.description}</Text>
           </View>
 
+          {/* Service Photos Gallery */}
+          {provider.service_photos && provider.service_photos.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Fotos dos Serviços</Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.galleryContainer}
+              >
+                {provider.service_photos.map((photo, index) => (
+                  <TouchableOpacity 
+                    key={index} 
+                    style={styles.galleryImageWrapper}
+                    onPress={() => {
+                      // Could implement full-screen image viewer here
+                    }}
+                  >
+                    <Image source={{ uri: photo }} style={styles.galleryImage} />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           {/* WhatsApp Button */}
           <TouchableOpacity style={styles.whatsappButton} onPress={openWhatsApp}>
             <Ionicons name="logo-whatsapp" size={24} color="#FFFFFF" />
