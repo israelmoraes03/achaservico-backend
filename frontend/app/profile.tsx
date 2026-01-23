@@ -29,7 +29,7 @@ export default function ProfileScreen() {
     }
   }, [isAuthenticated, isMounted]);
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     Alert.alert(
       'Sair',
       'Tem certeza que deseja sair?',
@@ -38,9 +38,15 @@ export default function ProfileScreen() {
         { 
           text: 'Sair', 
           style: 'destructive', 
-          onPress: async () => {
-            await logout();
-            // Navigation will happen via useEffect when isAuthenticated changes
+          onPress: () => {
+            // Execute logout and navigate
+            logout().then(() => {
+              router.replace('/');
+            }).catch((err) => {
+              console.error('Logout failed:', err);
+              // Force navigation even if logout fails
+              router.replace('/');
+            });
           }
         },
       ]
