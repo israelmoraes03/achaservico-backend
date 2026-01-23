@@ -16,18 +16,6 @@ import { useAuth } from '../src/context/AuthContext';
 export default function ProfileScreen() {
   const { user, provider, logout, isAuthenticated } = useAuth();
   const router = useRouter();
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-    return () => setIsMounted(false);
-  }, []);
-
-  useEffect(() => {
-    if (isMounted && !isAuthenticated) {
-      router.replace('/');
-    }
-  }, [isAuthenticated, isMounted]);
 
   const handleLogout = () => {
     Alert.alert(
@@ -39,12 +27,13 @@ export default function ProfileScreen() {
           text: 'Sair', 
           style: 'destructive', 
           onPress: () => {
-            // Execute logout and navigate
             logout().then(() => {
-              router.replace('/');
+              // Force navigation after logout
+              setTimeout(() => {
+                router.replace('/');
+              }, 100);
             }).catch((err) => {
               console.error('Logout failed:', err);
-              // Force navigation even if logout fails
               router.replace('/');
             });
           }
@@ -53,7 +42,7 @@ export default function ProfileScreen() {
     );
   };
 
-  if (!user) {
+  if (!user || !isAuthenticated) {
     return null;
   }
 
