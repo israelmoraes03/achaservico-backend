@@ -37,13 +37,23 @@ export default function ProviderRegisterScreen() {
   // Form state
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [category, setCategory] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [neighborhood, setNeighborhood] = useState('');
   const [description, setDescription] = useState('');
   const [profileImage, setProfileImage] = useState<string | null>(null);
   
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showNeighborhoodPicker, setShowNeighborhoodPicker] = useState(false);
+
+  const toggleCategory = (categoryId: string) => {
+    setSelectedCategories(prev => {
+      if (prev.includes(categoryId)) {
+        return prev.filter(c => c !== categoryId);
+      } else {
+        return [...prev, categoryId];
+      }
+    });
+  };
 
   useEffect(() => {
     if (!isAuthenticated) {
