@@ -859,12 +859,17 @@ async def get_expired_subscriptions():
         {"_id": 0}
     ).to_list(100)
     
+    # Batch fetch subscriptions to avoid N+1 query
+    provider_ids = [p["provider_id"] for p in expired]
+    subscriptions = await db.subscriptions.find(
+        {"provider_id": {"$in": provider_ids}},
+        {"_id": 0}
+    ).to_list(100)
+    subscription_map = {s["provider_id"]: s for s in subscriptions}
+    
     result = []
     for provider in expired:
-        subscription = await db.subscriptions.find_one(
-            {"provider_id": provider["provider_id"]},
-            {"_id": 0}
-        )
+        subscription = subscription_map.get(provider["provider_id"])
         result.append({
             "provider": provider,
             "subscription": subscription
