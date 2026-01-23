@@ -113,10 +113,10 @@ export default function PaymentPixScreen() {
         <View style={styles.pixCard}>
           <View style={styles.pixHeader}>
             <Ionicons name="qr-code" size={24} color="#10B981" />
-            <Text style={styles.pixTitle}>Chave PIX (Celular)</Text>
+            <Text style={styles.pixTitle}>Chave PIX (CPF)</Text>
           </View>
           
-          <Text style={styles.pixKey}>{pixData?.pix_key_formatted || '(66) 99684-1531'}</Text>
+          <Text style={styles.pixKey}>{pixData?.pix_key_formatted || '499.586.888-75'}</Text>
           
           <View style={styles.pixActions}>
             <TouchableOpacity style={styles.copyButton} onPress={copyPixKey}>
