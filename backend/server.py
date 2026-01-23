@@ -317,8 +317,9 @@ async def get_providers(
     if category:
         # Search in categories array
         query["categories"] = category
-    if neighborhood:
-        query["neighborhood"] = neighborhood
+    if neighborhood and neighborhood != "Todos os bairros":
+        # Include providers that serve this specific neighborhood OR all neighborhoods
+        query["neighborhood"] = {"$in": [neighborhood, "Todos os bairros"]}
     if search:
         query["$or"] = [
             {"name": {"$regex": search, "$options": "i"}},
