@@ -507,26 +507,52 @@ export default function ProviderDashboardScreen() {
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Categoria</Text>
+            <Text style={styles.fieldLabel}>Categorias</Text>
             {isEditing ? (
               <>
                 <TouchableOpacity
                   style={styles.selectButton}
                   onPress={() => setShowCategoryPicker(!showCategoryPicker)}
                 >
-                  <Text style={styles.selectButtonText}>{getCategoryName(editCategory)}</Text>
+                  <Text style={styles.selectButtonText}>
+                    {editCategories.length === 0 
+                      ? 'Selecionar categorias' 
+                      : `${editCategories.length} categoria(s) selecionada(s)`}
+                  </Text>
                   <Ionicons name="chevron-down" size={20} color="#6B7280" />
                 </TouchableOpacity>
+                
+                {/* Selected categories badges */}
+                {editCategories.length > 0 && (
+                  <View style={styles.selectedCategoriesContainer}>
+                    {editCategories.map((catId) => (
+                      <TouchableOpacity
+                        key={catId}
+                        style={styles.categoryBadge}
+                        onPress={() => toggleCategory(catId)}
+                      >
+                        <Text style={styles.categoryBadgeText}>{getCategoryName(catId)}</Text>
+                        <Ionicons name="close-circle" size={16} color="#10B981" />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+                
                 {showCategoryPicker && (
                   <View style={styles.pickerContainer}>
                     <ScrollView style={styles.pickerScroll} nestedScrollEnabled>
                       {categories.map((cat) => (
                         <TouchableOpacity
                           key={cat.id}
-                          style={[styles.pickerItem, editCategory === cat.id && styles.pickerItemActive]}
-                          onPress={() => { setEditCategory(cat.id); setShowCategoryPicker(false); }}
+                          style={[styles.pickerItem, editCategories.includes(cat.id) && styles.pickerItemActive]}
+                          onPress={() => toggleCategory(cat.id)}
                         >
-                          <Text style={[styles.pickerItemText, editCategory === cat.id && styles.pickerItemTextActive]}>
+                          <Ionicons 
+                            name={editCategories.includes(cat.id) ? "checkbox" : "square-outline"} 
+                            size={20} 
+                            color={editCategories.includes(cat.id) ? '#10B981' : '#9CA3AF'} 
+                          />
+                          <Text style={[styles.pickerItemText, editCategories.includes(cat.id) && styles.pickerItemTextActive]}>
                             {cat.name}
                           </Text>
                         </TouchableOpacity>
@@ -536,7 +562,17 @@ export default function ProviderDashboardScreen() {
                 )}
               </>
             ) : (
-              <Text style={styles.fieldValue}>{getCategoryName(provider.category)}</Text>
+              <View style={styles.categoriesDisplay}>
+                {provider.categories && provider.categories.length > 0 ? (
+                  provider.categories.map((catId) => (
+                    <View key={catId} style={styles.categoryTagDisplay}>
+                      <Text style={styles.categoryTagText}>{getCategoryName(catId)}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.fieldValue}>Nenhuma categoria definida</Text>
+                )}
+              </View>
             )}
           </View>
 
