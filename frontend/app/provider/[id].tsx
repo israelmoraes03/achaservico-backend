@@ -34,10 +34,11 @@ interface Provider {
 
 interface Review {
   review_id: string;
-  user_name: string;
   rating: number;
   comment?: string;
+  is_verified?: boolean;
   created_at: string;
+  // user_name removed - anonymous reviews
 }
 
 interface Category {
