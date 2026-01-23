@@ -319,13 +319,13 @@ export default function ProviderRegisterScreen() {
 
             {/* Neighborhood */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Bairro de Atuação *</Text>
+              <Text style={styles.label}>Área de Atuação *</Text>
               <TouchableOpacity
                 style={styles.selectButton}
                 onPress={() => setShowNeighborhoodPicker(!showNeighborhoodPicker)}
               >
                 <Text style={[styles.selectButtonText, neighborhood && styles.selectButtonTextActive]}>
-                  {neighborhood || 'Selecionar bairro'}
+                  {neighborhood || 'Selecionar área de atuação'}
                 </Text>
                 <Ionicons name="chevron-down" size={20} color="#6B7280" />
               </TouchableOpacity>
@@ -333,25 +333,36 @@ export default function ProviderRegisterScreen() {
               {showNeighborhoodPicker && (
                 <View style={styles.pickerContainer}>
                   <ScrollView style={styles.pickerScroll} nestedScrollEnabled>
-                    {neighborhoods.map((n) => (
+                    {neighborhoods.map((n, index) => (
                       <TouchableOpacity
                         key={n}
                         style={[
                           styles.pickerItem,
-                          neighborhood === n && styles.pickerItemActive
+                          neighborhood === n && styles.pickerItemActive,
+                          index === 0 && styles.allNeighborhoodsItem
                         ]}
                         onPress={() => {
                           setNeighborhood(n);
                           setShowNeighborhoodPicker(false);
                         }}
                       >
-                        <Ionicons name="location" size={20} color={neighborhood === n ? '#10B981' : '#9CA3AF'} />
+                        <Ionicons 
+                          name={index === 0 ? "globe" : "location"} 
+                          size={20} 
+                          color={neighborhood === n ? '#10B981' : (index === 0 ? '#F59E0B' : '#9CA3AF')} 
+                        />
                         <Text style={[
                           styles.pickerItemText,
-                          neighborhood === n && styles.pickerItemTextActive
+                          neighborhood === n && styles.pickerItemTextActive,
+                          index === 0 && styles.allNeighborhoodsText
                         ]}>
                           {n}
                         </Text>
+                        {index === 0 && (
+                          <View style={styles.recommendedBadge}>
+                            <Text style={styles.recommendedBadgeText}>Recomendado</Text>
+                          </View>
+                        )}
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
