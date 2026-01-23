@@ -65,7 +65,7 @@ class Provider(BaseModel):
     user_id: str
     name: str
     phone: str
-    category: str
+    categories: List[str] = []  # Multiple categories
     neighborhood: str
     description: str
     profile_image: Optional[str] = None  # base64
@@ -81,7 +81,7 @@ class Provider(BaseModel):
 class ProviderCreate(BaseModel):
     name: str
     phone: str
-    category: str
+    categories: List[str]  # Multiple categories
     neighborhood: str
     description: str
     profile_image: Optional[str] = None
