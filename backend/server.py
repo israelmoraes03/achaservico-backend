@@ -314,7 +314,8 @@ async def get_providers(
     query = {"is_active": True, "subscription_status": "active"}
     
     if category:
-        query["category"] = category
+        # Search in categories array
+        query["categories"] = category
     if neighborhood:
         query["neighborhood"] = neighborhood
     if search:
