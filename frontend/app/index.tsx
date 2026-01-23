@@ -523,12 +523,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
-    marginBottom: 4,
   },
   categoryBadgeText: {
     color: '#10B981',
     fontSize: 12,
     fontWeight: '500',
+  },
+  moreCategoriesText: {
+    color: '#6B7280',
+    fontSize: 12,
+    alignSelf: 'center',
   },
   locationRow: {
     flexDirection: 'row',
