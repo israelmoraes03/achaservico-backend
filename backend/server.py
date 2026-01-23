@@ -100,15 +100,24 @@ class Review(BaseModel):
     review_id: str = Field(default_factory=lambda: f"rev_{uuid.uuid4().hex[:12]}")
     provider_id: str
     user_id: str
+    # user_name is stored but NOT returned to providers (anonymous)
     user_name: str
     rating: int  # 1-5
     comment: Optional[str] = None
+    is_verified: bool = True  # Verified contact via WhatsApp
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ReviewCreate(BaseModel):
     provider_id: str
     rating: int
     comment: Optional[str] = None
+
+# Model to track WhatsApp contacts (for verified reviews)
+class WhatsAppContact(BaseModel):
+    contact_id: str = Field(default_factory=lambda: f"contact_{uuid.uuid4().hex[:12]}")
+    user_id: str
+    provider_id: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class Subscription(BaseModel):
     subscription_id: str = Field(default_factory=lambda: f"sub_{uuid.uuid4().hex[:12]}")
