@@ -31,10 +31,11 @@ interface Provider {
   provider_id: string;
   name: string;
   phone: string;
-  category: string;
+  categories: string[];  // Changed from category to categories (array)
   neighborhood: string;
   description: string;
   profile_image?: string;
+  service_photos?: string[];
   average_rating: number;
   total_reviews: number;
   is_active: boolean;
