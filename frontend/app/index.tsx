@@ -27,7 +27,8 @@ interface Provider {
   provider_id: string;
   name: string;
   phone: string;
-  category: string;
+  categories?: string[];  // Multiple categories
+  category?: string;  // Legacy single category
   neighborhood: string;
   description: string;
   profile_image?: string;
