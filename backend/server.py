@@ -150,6 +150,7 @@ CATEGORIES = [
 ]
 
 NEIGHBORHOODS = [
+    "Todos os bairros",  # Option for providers who serve entire city
     "Alto da Boa Vista", "Bela Vista", "Carandá", "Centro", "Cinturão Verde",
     "Colinos", "Interlagos", "Jardim Alvorada", "Jardim Atenas", "Jardim Bela Vista",
     "Jardim Glória", "Jardim Guaporé", "Jardim Imperial", "Jardim Maristela",
