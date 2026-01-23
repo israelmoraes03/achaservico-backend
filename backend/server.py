@@ -722,9 +722,14 @@ async def get_all_subscriptions():
     """Get all subscriptions with provider details"""
     subscriptions = await db.subscriptions.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
     
+    # Batch fetch all providers to avoid N+1 query
+    provider_ids = [sub.get("provider_id") for sub in subscriptions if sub.get("provider_id")]
+    providers = await db.providers.find({"provider_id": {"$in": provider_ids}}, {"_id": 0}).to_list(500)
+    provider_map = {p["provider_id"]: p for p in providers}
+    
     result = []
     for sub in subscriptions:
-        provider = await db.providers.find_one({"provider_id": sub.get("provider_id")}, {"_id": 0})
+        provider = provider_map.get(sub.get("provider_id"))
         result.append({
             "subscription": sub,
             "provider": provider
@@ -743,9 +748,14 @@ async def get_pending_subscriptions():
     """Get all pending subscriptions (for admin to activate)"""
     pending = await db.subscriptions.find({"status": "pending"}, {"_id": 0}).to_list(100)
     
+    # Batch fetch all providers to avoid N+1 query
+    provider_ids = [sub.get("provider_id") for sub in pending if sub.get("provider_id")]
+    providers = await db.providers.find({"provider_id": {"$in": provider_ids}}, {"_id": 0}).to_list(100)
+    provider_map = {p["provider_id"]: p for p in providers}
+    
     result = []
     for sub in pending:
-        provider = await db.providers.find_one({"provider_id": sub["provider_id"]}, {"_id": 0})
+        provider = provider_map.get(sub.get("provider_id"))
         if provider:
             result.append({
                 "subscription": sub,
