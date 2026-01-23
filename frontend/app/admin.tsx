@@ -27,6 +27,7 @@ interface Stats {
   total_providers: number;
   active_subscriptions: number;
   pending_subscriptions: number;
+  expired_subscriptions: number;
   total_reviews: number;
 }
 
