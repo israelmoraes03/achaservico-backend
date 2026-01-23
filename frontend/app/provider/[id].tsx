@@ -100,8 +100,20 @@ export default function ProviderDetailScreen() {
     return cat?.name || categoryId;
   };
 
-  const openWhatsApp = () => {
+  const openWhatsApp = async () => {
     if (!provider) return;
+    
+    // Register contact before opening WhatsApp
+    try {
+      await api.post(`/providers/${provider.provider_id}/contact`);
+      // Update can review status after registering contact
+      setCanReview(true);
+      setReviewStatus('eligible');
+    } catch (error) {
+      // Silently fail - user can still contact
+      console.log('Could not register contact:', error);
+    }
+    
     const cleanPhone = provider.phone.replace(/\D/g, '');
     const message = encodeURIComponent(`Olá ${provider.name}! Encontrei seu perfil no AchaServiço e gostaria de solicitar um orçamento.`);
     const url = `https://wa.me/55${cleanPhone}?text=${message}`;
