@@ -271,8 +271,15 @@ export default function HomeScreen() {
                 )}
                 <View style={styles.providerInfo}>
                   <Text style={styles.providerName}>{provider.name}</Text>
-                  <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryBadgeText}>{getCategoryName(provider.category)}</Text>
+                  <View style={styles.categoriesRow}>
+                    {(provider.categories || [provider.category]).filter(Boolean).slice(0, 2).map((catId, index) => (
+                      <View key={index} style={styles.categoryBadge}>
+                        <Text style={styles.categoryBadgeText}>{getCategoryName(catId || '')}</Text>
+                      </View>
+                    ))}
+                    {(provider.categories?.length || 0) > 2 && (
+                      <Text style={styles.moreCategoriesText}>+{(provider.categories?.length || 0) - 2}</Text>
+                    )}
                   </View>
                   <View style={styles.locationRow}>
                     <Ionicons name="location" size={14} color="#6B7280" />
