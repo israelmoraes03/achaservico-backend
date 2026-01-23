@@ -259,16 +259,32 @@ export default function ProviderRegisterScreen() {
 
             {/* Category */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Categoria de Serviço *</Text>
+              <Text style={styles.label}>Categorias de Serviço * (selecione uma ou mais)</Text>
               <TouchableOpacity
                 style={styles.selectButton}
                 onPress={() => setShowCategoryPicker(!showCategoryPicker)}
               >
-                <Text style={[styles.selectButtonText, category && styles.selectButtonTextActive]}>
-                  {getCategoryName(category)}
+                <Text style={[styles.selectButtonText, selectedCategories.length > 0 && styles.selectButtonTextActive]}>
+                  {getSelectedCategoriesText()}
                 </Text>
-                <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                <Ionicons name={showCategoryPicker ? "chevron-up" : "chevron-down"} size={20} color="#6B7280" />
               </TouchableOpacity>
+              
+              {/* Selected categories badges */}
+              {selectedCategories.length > 0 && (
+                <View style={styles.selectedCategoriesContainer}>
+                  {selectedCategories.map((catId) => (
+                    <TouchableOpacity
+                      key={catId}
+                      style={styles.categoryBadge}
+                      onPress={() => toggleCategory(catId)}
+                    >
+                      <Text style={styles.categoryBadgeText}>{getCategoryName(catId)}</Text>
+                      <Ionicons name="close-circle" size={16} color="#10B981" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
               
               {showCategoryPicker && (
                 <View style={styles.pickerContainer}>
@@ -278,17 +294,19 @@ export default function ProviderRegisterScreen() {
                         key={cat.id}
                         style={[
                           styles.pickerItem,
-                          category === cat.id && styles.pickerItemActive
+                          selectedCategories.includes(cat.id) && styles.pickerItemActive
                         ]}
-                        onPress={() => {
-                          setCategory(cat.id);
-                          setShowCategoryPicker(false);
-                        }}
+                        onPress={() => toggleCategory(cat.id)}
                       >
-                        <Ionicons name={cat.icon as any} size={20} color={category === cat.id ? '#10B981' : '#9CA3AF'} />
+                        <Ionicons 
+                          name={selectedCategories.includes(cat.id) ? "checkbox" : "square-outline"} 
+                          size={20} 
+                          color={selectedCategories.includes(cat.id) ? '#10B981' : '#9CA3AF'} 
+                        />
+                        <Ionicons name={cat.icon as any} size={20} color={selectedCategories.includes(cat.id) ? '#10B981' : '#9CA3AF'} />
                         <Text style={[
                           styles.pickerItemText,
-                          category === cat.id && styles.pickerItemTextActive
+                          selectedCategories.includes(cat.id) && styles.pickerItemTextActive
                         ]}>
                           {cat.name}
                         </Text>
