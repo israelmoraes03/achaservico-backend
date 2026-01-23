@@ -668,6 +668,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  alreadyReviewedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#10B98120',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  alreadyReviewedText: {
+    color: '#10B981',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  reviewsInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 16,
+  },
+  reviewsInfoText: {
+    color: '#6B7280',
+    fontSize: 12,
+  },
+  noReviewsHint: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  verifiedBadge: {
+    marginLeft: 4,
+  },
   bottomSpacer: {
     height: 32,
   },
