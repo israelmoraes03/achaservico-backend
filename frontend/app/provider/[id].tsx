@@ -60,6 +60,8 @@ export default function ProviderDetailScreen() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [canReview, setCanReview] = useState(false);
+  const [reviewStatus, setReviewStatus] = useState<string>('');
 
   const fetchData = useCallback(async () => {
     try {
@@ -72,6 +74,15 @@ export default function ProviderDetailScreen() {
       setProvider(providerRes.data);
       setReviews(reviewsRes.data);
       setCategories(categoriesRes.data);
+      
+      // Check if user can review
+      try {
+        const canReviewRes = await api.get(`/providers/${id}/can-review`);
+        setCanReview(canReviewRes.data.can_review);
+        setReviewStatus(canReviewRes.data.reason || '');
+      } catch {
+        setCanReview(false);
+      }
     } catch (error) {
       console.error('Error fetching provider:', error);
       Alert.alert('Erro', 'Não foi possível carregar os dados do prestador');
