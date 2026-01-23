@@ -991,6 +991,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   pickerItemActive: {
     backgroundColor: '#10B98120',
