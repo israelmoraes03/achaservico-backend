@@ -559,6 +559,57 @@ export default function ProviderDashboardScreen() {
           <Text style={styles.viewProfileButtonText}>Ver Meu Perfil Público</Text>
         </TouchableOpacity>
 
+        {/* Service Photos Gallery */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Fotos dos Serviços</Text>
+            <Text style={styles.photoCount}>{servicePhotos.length}/{MAX_SERVICE_PHOTOS}</Text>
+          </View>
+          <Text style={styles.sectionSubtitle}>
+            Mostre seus trabalhos para atrair mais clientes
+          </Text>
+          
+          <View style={styles.photosGrid}>
+            {servicePhotos.map((photo, index) => (
+              <View key={index} style={styles.photoWrapper}>
+                <Image source={{ uri: photo }} style={styles.servicePhoto} />
+                <TouchableOpacity 
+                  style={styles.removePhotoButton}
+                  onPress={() => removeServicePhoto(index)}
+                >
+                  <Ionicons name="close-circle" size={24} color="#EF4444" />
+                </TouchableOpacity>
+              </View>
+            ))}
+            
+            {servicePhotos.length < MAX_SERVICE_PHOTOS && (
+              <TouchableOpacity 
+                style={styles.addPhotoButton} 
+                onPress={pickServicePhoto}
+                disabled={isUploadingPhoto}
+              >
+                {isUploadingPhoto ? (
+                  <ActivityIndicator size="small" color="#10B981" />
+                ) : (
+                  <>
+                    <Ionicons name="add" size={32} color="#10B981" />
+                    <Text style={styles.addPhotoText}>Adicionar</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+          
+          {servicePhotos.length === 0 && (
+            <View style={styles.noPhotosHint}>
+              <Ionicons name="images-outline" size={24} color="#6B7280" />
+              <Text style={styles.noPhotosHintText}>
+                Adicione fotos dos seus serviços para mostrar a qualidade do seu trabalho
+              </Text>
+            </View>
+          )}
+        </View>
+
         <View style={styles.bottomSpacer} />
       </ScrollView>
     </SafeAreaView>
