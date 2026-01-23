@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,12 +16,18 @@ import { useAuth } from '../src/context/AuthContext';
 export default function ProfileScreen() {
   const { user, provider, logout, isAuthenticated } = useAuth();
   const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
 
-  React.useEffect(() => {
-    if (!isAuthenticated) {
-      router.replace('/login');
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
+
+  useEffect(() => {
+    if (isMounted && !isAuthenticated) {
+      router.replace('/');
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isMounted]);
 
   const handleLogout = async () => {
     Alert.alert(
@@ -34,7 +40,7 @@ export default function ProfileScreen() {
           style: 'destructive', 
           onPress: async () => {
             await logout();
-            router.replace('/');
+            // Navigation will happen via useEffect when isAuthenticated changes
           }
         },
       ]
