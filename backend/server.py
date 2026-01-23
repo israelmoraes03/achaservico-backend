@@ -935,18 +935,27 @@ async def admin_delete_review(review_id: str):
     
     await db.reviews.delete_one({"review_id": review_id})
     
-    # Update provider rating
+    # Update provider rating using aggregation (optimized)
     provider_id = review.get("provider_id")
     if provider_id:
-        all_reviews = await db.reviews.find({"provider_id": provider_id}).to_list(1000)
-        if all_reviews:
-            total_rating = sum(r["rating"] for r in all_reviews)
-            avg_rating = total_rating / len(all_reviews)
+        pipeline = [
+            {"$match": {"provider_id": provider_id}},
+            {"$group": {
+                "_id": None,
+                "avg_rating": {"$avg": "$rating"},
+                "total_reviews": {"$sum": 1}
+            }}
+        ]
+        result = await db.reviews.aggregate(pipeline).to_list(1)
+        
+        if result:
+            avg_rating = result[0]["avg_rating"]
+            total_reviews = result[0]["total_reviews"]
             await db.providers.update_one(
                 {"provider_id": provider_id},
                 {"$set": {
                     "average_rating": round(avg_rating, 1),
-                    "total_reviews": len(all_reviews)
+                    "total_reviews": total_reviews
                 }}
             )
         else:
