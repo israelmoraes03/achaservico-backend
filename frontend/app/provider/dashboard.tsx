@@ -917,6 +917,42 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 22,
   },
+  categoriesDisplay: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryTagDisplay: {
+    backgroundColor: '#10B98130',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  categoryTagText: {
+    color: '#10B981',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  selectedCategoriesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  categoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#10B98120',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  categoryBadgeText: {
+    color: '#10B981',
+    fontSize: 12,
+    fontWeight: '500',
+  },
   fieldInput: {
     backgroundColor: '#2D2D2D',
     borderRadius: 8,
