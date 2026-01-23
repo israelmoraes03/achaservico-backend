@@ -564,6 +564,28 @@ const styles = StyleSheet.create({
     color: '#10B981',
     fontWeight: '500',
   },
+  allNeighborhoodsItem: {
+    backgroundColor: '#F59E0B15',
+    borderBottomWidth: 1,
+    borderBottomColor: '#2D2D2D',
+    marginBottom: 8,
+  },
+  allNeighborhoodsText: {
+    color: '#F59E0B',
+    fontWeight: '500',
+  },
+  recommendedBadge: {
+    backgroundColor: '#F59E0B30',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginLeft: 'auto',
+  },
+  recommendedBadgeText: {
+    color: '#F59E0B',
+    fontSize: 10,
+    fontWeight: '600',
+  },
   selectedCategoriesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
