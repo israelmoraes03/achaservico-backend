@@ -440,15 +440,15 @@ export default function ProviderDashboardScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Informações do Perfil</Text>
           
-          {/* Profile Image */}
+          {/* Profile Image - Always clickable to change photo */}
           <TouchableOpacity
             style={styles.imageContainer}
-            onPress={isEditing ? pickImage : undefined}
-            disabled={!isEditing}
+            onPress={pickImage}
+            disabled={isSaving}
           >
-            {(isEditing ? editProfileImage : provider.profile_image) ? (
+            {editProfileImage || provider.profile_image ? (
               <Image
-                source={{ uri: isEditing ? editProfileImage! : provider.profile_image }}
+                source={{ uri: editProfileImage || provider.profile_image }}
                 style={styles.profileImage}
               />
             ) : (
@@ -456,12 +456,15 @@ export default function ProviderDashboardScreen() {
                 <Ionicons name="person" size={40} color="#6B7280" />
               </View>
             )}
-            {isEditing && (
-              <View style={styles.imageEditBadge}>
+            <View style={styles.imageEditBadge}>
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
                 <Ionicons name="camera" size={14} color="#FFFFFF" />
-              </View>
-            )}
+              )}
+            </View>
           </TouchableOpacity>
+          <Text style={styles.photoHint}>Toque para alterar a foto</Text>
 
           {/* Form Fields */}
           <View style={styles.fieldGroup}>
