@@ -553,6 +553,26 @@ const styles = StyleSheet.create({
     color: '#10B981',
     fontWeight: '500',
   },
+  selectedCategoriesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  categoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#10B98120',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    gap: 6,
+  },
+  categoryBadgeText: {
+    color: '#10B981',
+    fontSize: 13,
+    fontWeight: '500',
+  },
   priceInfo: {
     flexDirection: 'row',
     alignItems: 'flex-start',
