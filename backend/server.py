@@ -707,6 +707,45 @@ async def admin_cancel_subscription(provider_id: str):
     
     return {"success": True, "message": "Assinatura cancelada"}
 
+@api_router.post("/admin/check-expired")
+async def admin_check_expired_subscriptions():
+    """Manually check and expire overdue subscriptions"""
+    expired_count = await check_and_expire_subscriptions()
+    
+    # Get list of expired providers
+    expired_providers = await db.providers.find(
+        {"subscription_status": "expired"},
+        {"_id": 0, "provider_id": 1, "name": 1, "subscription_expires_at": 1}
+    ).to_list(100)
+    
+    return {
+        "success": True,
+        "expired_count": expired_count,
+        "message": f"{expired_count} assinatura(s) expirada(s) foram desativadas",
+        "expired_providers": expired_providers
+    }
+
+@api_router.get("/admin/expired-subscriptions")
+async def get_expired_subscriptions():
+    """Get all expired subscriptions that can be renewed"""
+    expired = await db.providers.find(
+        {"subscription_status": "expired"},
+        {"_id": 0}
+    ).to_list(100)
+    
+    result = []
+    for provider in expired:
+        subscription = await db.subscriptions.find_one(
+            {"provider_id": provider["provider_id"]},
+            {"_id": 0}
+        )
+        result.append({
+            "provider": provider,
+            "subscription": subscription
+        })
+    
+    return result
+
 @api_router.post("/admin/toggle-provider/{provider_id}")
 async def admin_toggle_provider(provider_id: str):
     """Toggle provider active status"""
