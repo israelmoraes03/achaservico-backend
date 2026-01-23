@@ -225,7 +225,7 @@ async def exchange_session(request: Request, response: Response):
     async with httpx.AsyncClient() as client:
         try:
             auth_response = await client.get(
-                "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
+                f"{AUTH_BACKEND_URL}/auth/v1/env/oauth/session-data",
                 headers={"X-Session-ID": session_id}
             )
             if auth_response.status_code != 200:
