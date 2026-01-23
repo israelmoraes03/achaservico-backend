@@ -205,12 +205,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await api.post('/auth/logout');
     } catch (error) {
       console.error('Logout error:', error);
-    } finally {
-      await AsyncStorage.removeItem('session_token');
-      delete api.defaults.headers.common['Authorization'];
-      setUser(null);
-      setProvider(null);
     }
+    
+    // Always clear local state regardless of API response
+    try {
+      await AsyncStorage.removeItem('session_token');
+      await AsyncStorage.removeItem('user_data');
+    } catch (e) {
+      console.error('Error clearing storage:', e);
+    }
+    
+    delete api.defaults.headers.common['Authorization'];
+    setUser(null);
+    setProvider(null);
   };
 
   const refreshUser = async () => {
