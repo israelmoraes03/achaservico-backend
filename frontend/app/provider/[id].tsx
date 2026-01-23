@@ -470,6 +470,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
   },
+  galleryContainer: {
+    paddingVertical: 8,
+    gap: 12,
+  },
+  galleryImageWrapper: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  galleryImage: {
+    width: 160,
+    height: 120,
+    borderRadius: 12,
+  },
   whatsappButton: {
     flexDirection: 'row',
     alignItems: 'center',
