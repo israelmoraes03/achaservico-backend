@@ -27,15 +27,29 @@ export default function PaymentPixScreen() {
     createSubscription();
   }, []);
 
-  const createSubscription = async () => {
+  const createSubscription = async (retryCount = 0) => {
     try {
       setIsLoading(true);
       const response = await api.post('/subscriptions/create');
       setPixData(response.data);
     } catch (error: any) {
-      const message = error.response?.data?.detail || 'Erro ao criar assinatura';
-      Alert.alert('Erro', message);
-      router.back();
+      console.error('Subscription error:', error);
+      
+      // Retry once on network error
+      if (error.message === 'Network Error' && retryCount < 2) {
+        console.log('Retrying subscription creation...');
+        setTimeout(() => createSubscription(retryCount + 1), 1000);
+        return;
+      }
+      
+      const message = error.response?.data?.detail || 
+        error.message === 'Network Error' 
+          ? 'Erro de conexão. Verifique sua internet e tente novamente.' 
+          : 'Erro ao criar assinatura';
+      Alert.alert('Erro', message, [
+        { text: 'Tentar novamente', onPress: () => createSubscription(0) },
+        { text: 'Voltar', onPress: () => router.back(), style: 'cancel' }
+      ]);
     } finally {
       setIsLoading(false);
     }
