@@ -144,7 +144,7 @@ export default function ProviderRegisterScreen() {
       return;
     }
     if (!neighborhood) {
-      Alert.alert('Erro', 'Por favor, selecione um bairro.');
+      Alert.alert('Erro', 'Por favor, selecione uma área de atuação.');
       return;
     }
     if (!description.trim() || description.length < 20) {
