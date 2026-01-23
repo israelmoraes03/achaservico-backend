@@ -89,7 +89,7 @@ class ProviderCreate(BaseModel):
 class ProviderUpdate(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
-    category: Optional[str] = None
+    categories: Optional[List[str]] = None  # Multiple categories
     neighborhood: Optional[str] = None
     description: Optional[str] = None
     profile_image: Optional[str] = None
