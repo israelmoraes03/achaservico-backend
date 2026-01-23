@@ -27,6 +27,7 @@ interface Provider {
   neighborhood: string;
   description: string;
   profile_image?: string;
+  service_photos?: string[];
   average_rating: number;
   total_reviews: number;
 }
