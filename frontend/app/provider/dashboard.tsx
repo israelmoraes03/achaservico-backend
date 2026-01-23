@@ -113,6 +113,7 @@ export default function ProviderDashboardScreen() {
       setEditNeighborhood(provider.neighborhood);
       setEditDescription(provider.description);
       setEditProfileImage(provider.profile_image || null);
+      setServicePhotos(provider.service_photos || []);
     }
   }, [provider]);
 
