@@ -133,6 +133,19 @@ export default function ProviderDetailScreen() {
       return;
     }
 
+    if (!canReview) {
+      if (reviewStatus === 'no_contact') {
+        Alert.alert(
+          'Contato Necessário',
+          'Você precisa entrar em contato com o prestador pelo WhatsApp antes de avaliar.',
+          [{ text: 'OK' }]
+        );
+      } else if (reviewStatus === 'already_reviewed') {
+        Alert.alert('Aviso', 'Você já avaliou este prestador.');
+      }
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       await api.post('/reviews', {
@@ -141,10 +154,12 @@ export default function ProviderDetailScreen() {
         comment: reviewComment || null,
       });
       
-      Alert.alert('Sucesso', 'Avaliação enviada com sucesso!');
+      Alert.alert('Sucesso', 'Avaliação enviada com sucesso! Sua avaliação é anônima.');
       setShowReviewForm(false);
       setReviewRating(5);
       setReviewComment('');
+      setCanReview(false);
+      setReviewStatus('already_reviewed');
       fetchData();
     } catch (error: any) {
       const message = error.response?.data?.detail || 'Erro ao enviar avaliação';
