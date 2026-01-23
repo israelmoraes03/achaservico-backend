@@ -281,7 +281,7 @@ export default function ProviderDashboardScreen() {
       await api.put(`/providers/${provider.provider_id}`, {
         name: editName.trim(),
         phone: editPhone.replace(/\D/g, ''),
-        category: editCategory,
+        categories: editCategories,
         neighborhood: editNeighborhood,
         description: editDescription.trim(),
         profile_image: editProfileImage,
