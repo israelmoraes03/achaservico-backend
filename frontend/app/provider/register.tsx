@@ -184,7 +184,17 @@ export default function ProviderRegisterScreen() {
       );
     } catch (error: any) {
       const message = error.response?.data?.detail || 'Erro ao criar perfil. Tente novamente.';
-      Alert.alert('Erro', message);
+      
+      // Handle specific error cases
+      if (message.includes('já possui')) {
+        Alert.alert(
+          'Perfil Existente',
+          'Você já possui um perfil de prestador.',
+          [{ text: 'Ver Meu Painel', onPress: () => router.replace('/provider/dashboard') }]
+        );
+      } else {
+        Alert.alert('Erro', message);
+      }
     } finally {
       setIsSubmitting(false);
     }
