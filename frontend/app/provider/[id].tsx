@@ -301,19 +301,34 @@ export default function ProviderDetailScreen() {
           <View style={styles.section}>
             <View style={styles.reviewsHeader}>
               <Text style={styles.sectionTitle}>Avaliações</Text>
-              <TouchableOpacity
-                style={styles.addReviewButton}
-                onPress={() => setShowReviewForm(!showReviewForm)}
-              >
-                <Ionicons name="add" size={20} color="#10B981" />
-                <Text style={styles.addReviewText}>Avaliar</Text>
-              </TouchableOpacity>
+              {canReview ? (
+                <TouchableOpacity
+                  style={styles.addReviewButton}
+                  onPress={() => setShowReviewForm(!showReviewForm)}
+                >
+                  <Ionicons name="add" size={20} color="#10B981" />
+                  <Text style={styles.addReviewText}>Avaliar</Text>
+                </TouchableOpacity>
+              ) : reviewStatus === 'already_reviewed' ? (
+                <View style={styles.alreadyReviewedBadge}>
+                  <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                  <Text style={styles.alreadyReviewedText}>Avaliado</Text>
+                </View>
+              ) : null}
+            </View>
+
+            {/* Info about reviews */}
+            <View style={styles.reviewsInfo}>
+              <Ionicons name="shield-checkmark" size={14} color="#6B7280" />
+              <Text style={styles.reviewsInfoText}>
+                Avaliações verificadas e anônimas
+              </Text>
             </View>
 
             {/* Review Form */}
             {showReviewForm && (
               <View style={styles.reviewForm}>
-                <Text style={styles.reviewFormLabel}>Sua avaliação</Text>
+                <Text style={styles.reviewFormLabel}>Sua avaliação (anônima)</Text>
                 <View style={styles.starsInput}>
                   {renderStars(reviewRating, 32, true)}
                 </View>
@@ -345,6 +360,11 @@ export default function ProviderDetailScreen() {
               <View style={styles.noReviews}>
                 <Ionicons name="chatbubble-outline" size={32} color="#374151" />
                 <Text style={styles.noReviewsText}>Ainda não há avaliações</Text>
+                {!canReview && reviewStatus === 'no_contact' && (
+                  <Text style={styles.noReviewsHint}>
+                    Entre em contato pelo WhatsApp para poder avaliar
+                  </Text>
+                )}
               </View>
             ) : (
               reviews.map((review) => (
@@ -354,7 +374,12 @@ export default function ProviderDetailScreen() {
                       <View style={styles.reviewAvatar}>
                         <Ionicons name="person" size={16} color="#6B7280" />
                       </View>
-                      <Text style={styles.reviewUserName}>{review.user_name}</Text>
+                      <Text style={styles.reviewUserName}>Usuário Anônimo</Text>
+                      {review.is_verified && (
+                        <View style={styles.verifiedBadge}>
+                          <Ionicons name="checkmark-circle" size={12} color="#10B981" />
+                        </View>
+                      )}
                     </View>
                     <Text style={styles.reviewDate}>{formatDate(review.created_at)}</Text>
                   </View>
