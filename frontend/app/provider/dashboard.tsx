@@ -167,7 +167,31 @@ export default function ProviderDashboardScreen() {
     });
 
     if (!result.canceled && result.assets[0].base64) {
-      setEditProfileImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      const newImage = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      setEditProfileImage(newImage);
+      
+      // Save profile image immediately
+      await saveProfileImage(newImage);
+    }
+  };
+
+  const saveProfileImage = async (imageBase64: string) => {
+    if (!provider) return;
+    
+    try {
+      setIsSaving(true);
+      await api.put(`/providers/${provider.provider_id}`, {
+        profile_image: imageBase64,
+      });
+      await refreshUser();
+      Alert.alert('Sucesso', 'Foto de perfil atualizada!');
+    } catch (error: any) {
+      console.error('Error saving profile image:', error);
+      Alert.alert('Erro', 'Erro ao salvar foto de perfil. Tente novamente.');
+      // Revert to previous image
+      setEditProfileImage(provider.profile_image || null);
+    } finally {
+      setIsSaving(false);
     }
   };
 
