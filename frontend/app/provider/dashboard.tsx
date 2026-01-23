@@ -66,7 +66,7 @@ export default function ProviderDashboardScreen() {
   // Edit form state
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
-  const [editCategory, setEditCategory] = useState('');
+  const [editCategories, setEditCategories] = useState<string[]>([]);
   const [editNeighborhood, setEditNeighborhood] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editProfileImage, setEditProfileImage] = useState<string | null>(null);
@@ -77,6 +77,16 @@ export default function ProviderDashboardScreen() {
   const [showNeighborhoodPicker, setShowNeighborhoodPicker] = useState(false);
 
   const MAX_SERVICE_PHOTOS = 6;
+
+  const toggleCategory = (categoryId: string) => {
+    setEditCategories(prev => {
+      if (prev.includes(categoryId)) {
+        return prev.filter(c => c !== categoryId);
+      } else {
+        return [...prev, categoryId];
+      }
+    });
+  };
 
   const fetchData = useCallback(async () => {
     try {
