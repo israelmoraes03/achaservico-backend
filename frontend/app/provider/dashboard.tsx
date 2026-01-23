@@ -69,9 +69,13 @@ export default function ProviderDashboardScreen() {
   const [editNeighborhood, setEditNeighborhood] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editProfileImage, setEditProfileImage] = useState<string | null>(null);
+  const [servicePhotos, setServicePhotos] = useState<string[]>([]);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showNeighborhoodPicker, setShowNeighborhoodPicker] = useState(false);
+
+  const MAX_SERVICE_PHOTOS = 6;
 
   const fetchData = useCallback(async () => {
     try {
