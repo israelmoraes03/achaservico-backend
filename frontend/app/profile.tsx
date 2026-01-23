@@ -119,7 +119,7 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={20} color="#6B7280" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/terms')}>
             <View style={styles.menuItemLeft}>
               <Ionicons name="document-text" size={22} color="#10B981" />
               <Text style={styles.menuItemText}>Termos de Uso</Text>
@@ -127,10 +127,10 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={20} color="#6B7280" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/privacy')}>
             <View style={styles.menuItemLeft}>
               <Ionicons name="shield-checkmark" size={22} color="#10B981" />
-              <Text style={styles.menuItemText}>Privacidade</Text>
+              <Text style={styles.menuItemText}>Política de Privacidade</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#6B7280" />
           </TouchableOpacity>
