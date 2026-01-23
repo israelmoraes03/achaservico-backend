@@ -69,6 +69,7 @@ class Provider(BaseModel):
     neighborhood: str
     description: str
     profile_image: Optional[str] = None  # base64
+    service_photos: List[str] = []  # Array of base64 images for service gallery
     average_rating: float = 0.0
     total_reviews: int = 0
     is_active: bool = True
