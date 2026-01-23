@@ -1,7 +1,24 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://servicehub-183.preview.emergentagent.com';
+// Get backend URL from environment or use dynamic fallback
+const getBackendUrl = () => {
+  // First try environment variable
+  if (process.env.EXPO_PUBLIC_BACKEND_URL) {
+    return process.env.EXPO_PUBLIC_BACKEND_URL;
+  }
+  
+  // For web, use current origin
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  
+  // Fallback for development
+  return 'http://localhost:3000';
+};
+
+const BACKEND_URL = getBackendUrl();
 
 const api = axios.create({
   baseURL: `${BACKEND_URL}/api`,
