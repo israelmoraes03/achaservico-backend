@@ -37,7 +37,7 @@ interface Provider {
 }
 
 export default function HomeScreen() {
-  const { user, isLoading: authLoading, login } = useAuth();
+  const { user, isLoading: authLoading, login, isAuthenticated } = useAuth();
   const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
@@ -48,6 +48,13 @@ export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showNeighborhoodPicker, setShowNeighborhoodPicker] = useState(false);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [authLoading, isAuthenticated]);
 
   const fetchData = useCallback(async () => {
     try {
