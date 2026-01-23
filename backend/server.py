@@ -156,6 +156,7 @@ CATEGORIES = [
     {"id": "personal", "name": "Personal Trainer", "icon": "fitness"},
     {"id": "professor", "name": "Professor Particular", "icon": "school"},
     {"id": "costureira", "name": "Costureira", "icon": "shirt"},
+    {"id": "fotografo", "name": "Fotógrafo", "icon": "camera"},
 ]
 
 NEIGHBORHOODS = [
