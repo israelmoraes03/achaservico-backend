@@ -305,6 +305,40 @@ async def get_neighborhoods():
     """Get all neighborhoods in Três Lagoas"""
     return NEIGHBORHOODS
 
+# ======================== SUBSCRIPTION EXPIRATION ========================
+
+async def check_and_expire_subscriptions():
+    """Check for expired subscriptions and deactivate them"""
+    now = datetime.now(timezone.utc)
+    
+    # Find providers with expired subscriptions
+    expired_providers = await db.providers.find({
+        "subscription_status": "active",
+        "subscription_expires_at": {"$lt": now}
+    }).to_list(1000)
+    
+    expired_count = 0
+    for provider in expired_providers:
+        # Update provider status to expired
+        await db.providers.update_one(
+            {"provider_id": provider["provider_id"]},
+            {"$set": {
+                "subscription_status": "expired",
+                "is_active": False
+            }}
+        )
+        
+        # Update subscription record
+        await db.subscriptions.update_one(
+            {"provider_id": provider["provider_id"], "status": "active"},
+            {"$set": {"status": "expired"}}
+        )
+        
+        expired_count += 1
+        logger.info(f"Subscription expired for provider: {provider['provider_id']} - {provider['name']}")
+    
+    return expired_count
+
 # ======================== PROVIDERS ========================
 
 @api_router.get("/providers")
@@ -314,6 +348,9 @@ async def get_providers(
     search: Optional[str] = None
 ):
     """Get all active providers with optional filters"""
+    # First, check and expire any overdue subscriptions
+    await check_and_expire_subscriptions()
+    
     query = {"is_active": True, "subscription_status": "active"}
     
     if category:
