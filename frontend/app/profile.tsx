@@ -134,6 +134,14 @@ export default function ProfileScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color="#6B7280" />
           </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/admin')}>
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="settings" size={22} color="#10B981" />
+              <Text style={styles.menuItemText}>Administração</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+          </TouchableOpacity>
         </View>
 
         {/* Logout */}
