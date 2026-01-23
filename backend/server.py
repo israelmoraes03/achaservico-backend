@@ -544,12 +544,61 @@ async def activate_subscription_manual(request: Request):
 
 # ======================== ADMIN ENDPOINTS ========================
 
+@api_router.get("/admin/stats")
+async def get_admin_stats():
+    """Get dashboard statistics"""
+    total_users = await db.users.count_documents({})
+    total_providers = await db.providers.count_documents({})
+    active_subscriptions = await db.providers.count_documents({"subscription_status": "active"})
+    pending_subscriptions = await db.subscriptions.count_documents({"status": "pending"})
+    total_reviews = await db.reviews.count_documents({})
+    
+    return {
+        "total_users": total_users,
+        "total_providers": total_providers,
+        "active_subscriptions": active_subscriptions,
+        "pending_subscriptions": pending_subscriptions,
+        "total_reviews": total_reviews
+    }
+
+@api_router.get("/admin/all-providers")
+async def get_all_providers():
+    """Get all providers for admin"""
+    providers = await db.providers.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return providers
+
+@api_router.get("/admin/all-users")
+async def get_all_users():
+    """Get all users for admin"""
+    users = await db.users.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return users
+
+@api_router.get("/admin/all-subscriptions")
+async def get_all_subscriptions():
+    """Get all subscriptions with provider details"""
+    subscriptions = await db.subscriptions.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    
+    result = []
+    for sub in subscriptions:
+        provider = await db.providers.find_one({"provider_id": sub.get("provider_id")}, {"_id": 0})
+        result.append({
+            "subscription": sub,
+            "provider": provider
+        })
+    
+    return result
+
+@api_router.get("/admin/all-reviews")
+async def get_all_reviews():
+    """Get all reviews for admin"""
+    reviews = await db.reviews.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return reviews
+
 @api_router.get("/admin/pending-subscriptions")
 async def get_pending_subscriptions():
     """Get all pending subscriptions (for admin to activate)"""
     pending = await db.subscriptions.find({"status": "pending"}, {"_id": 0}).to_list(100)
     
-    # Get provider details for each subscription
     result = []
     for sub in pending:
         provider = await db.providers.find_one({"provider_id": sub["provider_id"]}, {"_id": 0})
@@ -570,7 +619,6 @@ async def admin_activate_subscription(provider_id: str):
     
     expires_at = datetime.now(timezone.utc) + timedelta(days=30)
     
-    # Update or create subscription
     await db.subscriptions.update_one(
         {"provider_id": provider_id},
         {"$set": {
@@ -581,7 +629,6 @@ async def admin_activate_subscription(provider_id: str):
         upsert=True
     )
     
-    # Activate provider
     await db.providers.update_one(
         {"provider_id": provider_id},
         {"$set": {
@@ -596,6 +643,113 @@ async def admin_activate_subscription(provider_id: str):
         "message": f"Assinatura de {provider['name']} ativada com sucesso!",
         "expires_at": expires_at.isoformat()
     }
+
+@api_router.post("/admin/cancel-subscription/{provider_id}")
+async def admin_cancel_subscription(provider_id: str):
+    """Cancel a subscription"""
+    provider = await db.providers.find_one({"provider_id": provider_id})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Prestador não encontrado")
+    
+    await db.subscriptions.update_one(
+        {"provider_id": provider_id},
+        {"$set": {"status": "cancelled"}}
+    )
+    
+    await db.providers.update_one(
+        {"provider_id": provider_id},
+        {"$set": {
+            "subscription_status": "inactive",
+            "is_active": False
+        }}
+    )
+    
+    return {"success": True, "message": "Assinatura cancelada"}
+
+@api_router.post("/admin/toggle-provider/{provider_id}")
+async def admin_toggle_provider(provider_id: str):
+    """Toggle provider active status"""
+    provider = await db.providers.find_one({"provider_id": provider_id})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Prestador não encontrado")
+    
+    new_status = not provider.get("is_active", True)
+    
+    await db.providers.update_one(
+        {"provider_id": provider_id},
+        {"$set": {"is_active": new_status}}
+    )
+    
+    return {"success": True, "is_active": new_status}
+
+@api_router.delete("/admin/provider/{provider_id}")
+async def admin_delete_provider(provider_id: str):
+    """Delete a provider"""
+    provider = await db.providers.find_one({"provider_id": provider_id})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Prestador não encontrado")
+    
+    await db.providers.delete_one({"provider_id": provider_id})
+    await db.subscriptions.delete_many({"provider_id": provider_id})
+    await db.reviews.delete_many({"provider_id": provider_id})
+    
+    if provider.get("user_id"):
+        await db.users.update_one(
+            {"user_id": provider["user_id"]},
+            {"$set": {"is_provider": False}}
+        )
+    
+    return {"success": True, "message": "Prestador excluído"}
+
+@api_router.delete("/admin/user/{user_id}")
+async def admin_delete_user(user_id: str):
+    """Delete a user and their provider profile if exists"""
+    user = await db.users.find_one({"user_id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    provider = await db.providers.find_one({"user_id": user_id})
+    if provider:
+        await db.providers.delete_one({"user_id": user_id})
+        await db.subscriptions.delete_many({"provider_id": provider["provider_id"]})
+        await db.reviews.delete_many({"provider_id": provider["provider_id"]})
+    
+    await db.reviews.delete_many({"user_id": user_id})
+    await db.users.delete_one({"user_id": user_id})
+    await db.user_sessions.delete_many({"user_id": user_id})
+    
+    return {"success": True, "message": "Usuário excluído"}
+
+@api_router.delete("/admin/review/{review_id}")
+async def admin_delete_review(review_id: str):
+    """Delete a review"""
+    review = await db.reviews.find_one({"review_id": review_id})
+    if not review:
+        raise HTTPException(status_code=404, detail="Avaliação não encontrada")
+    
+    await db.reviews.delete_one({"review_id": review_id})
+    
+    # Update provider rating
+    provider_id = review.get("provider_id")
+    if provider_id:
+        all_reviews = await db.reviews.find({"provider_id": provider_id}).to_list(1000)
+        if all_reviews:
+            total_rating = sum(r["rating"] for r in all_reviews)
+            avg_rating = total_rating / len(all_reviews)
+            await db.providers.update_one(
+                {"provider_id": provider_id},
+                {"$set": {
+                    "average_rating": round(avg_rating, 1),
+                    "total_reviews": len(all_reviews)
+                }}
+            )
+        else:
+            await db.providers.update_one(
+                {"provider_id": provider_id},
+                {"$set": {"average_rating": 0, "total_reviews": 0}}
+            )
+    
+    return {"success": True, "message": "Avaliação excluída"}
 
 # ======================== WEBHOOKS ========================
 
