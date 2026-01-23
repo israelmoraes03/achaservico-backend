@@ -588,10 +588,14 @@ async def activate_subscription_manual(request: Request):
 @api_router.get("/admin/stats")
 async def get_admin_stats():
     """Get dashboard statistics"""
+    # Check for expired subscriptions first
+    await check_and_expire_subscriptions()
+    
     total_users = await db.users.count_documents({})
     total_providers = await db.providers.count_documents({})
     active_subscriptions = await db.providers.count_documents({"subscription_status": "active"})
     pending_subscriptions = await db.subscriptions.count_documents({"status": "pending"})
+    expired_subscriptions = await db.providers.count_documents({"subscription_status": "expired"})
     total_reviews = await db.reviews.count_documents({})
     
     return {
@@ -599,6 +603,7 @@ async def get_admin_stats():
         "total_providers": total_providers,
         "active_subscriptions": active_subscriptions,
         "pending_subscriptions": pending_subscriptions,
+        "expired_subscriptions": expired_subscriptions,
         "total_reviews": total_reviews
     }
 
