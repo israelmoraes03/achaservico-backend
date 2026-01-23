@@ -438,7 +438,7 @@ async def get_pix_info():
     return {
         "pix_key": PIX_KEY,
         "pix_key_type": PIX_KEY_TYPE,
-        "pix_key_formatted": "(66) 99684-1531",
+        "pix_key_formatted": "499.586.888-75",
         "receiver_name": PIX_RECEIVER_NAME,
         "amount": 15.00,
         "description": "Assinatura Mensal AchaServico"
