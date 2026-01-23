@@ -123,7 +123,7 @@ export default function ProviderDashboardScreen() {
     if (provider) {
       setEditName(provider.name);
       setEditPhone(formatPhoneDisplay(provider.phone));
-      setEditCategory(provider.category);
+      setEditCategories(provider.categories || []);
       setEditNeighborhood(provider.neighborhood);
       setEditDescription(provider.description);
       setEditProfileImage(provider.profile_image || null);
