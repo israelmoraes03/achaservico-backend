@@ -152,6 +152,13 @@ export default function AdminScreen() {
   useEffect(() => {
     if (isAuthenticated) {
       fetchAllData();
+      
+      // Auto-refresh every 30 seconds
+      const interval = setInterval(() => {
+        fetchAllData();
+      }, 30000);
+      
+      return () => clearInterval(interval);
     }
   }, [isAuthenticated, fetchAllData]);
 
