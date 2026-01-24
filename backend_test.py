@@ -257,6 +257,7 @@ class APITester:
                     "object": {
                         "id": "cs_test_session",
                         "payment_status": "paid",
+                        "payment_intent": "pi_test_payment_intent",
                         "metadata": {
                             "provider_id": "test_provider",
                             "user_id": "test_user"
