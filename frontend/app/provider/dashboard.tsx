@@ -380,16 +380,19 @@ export default function ProviderDashboardScreen() {
         {/* Subscription Status */}
         <View style={[
           styles.subscriptionCard,
-          provider.subscription_status === 'active' ? styles.subscriptionActive : styles.subscriptionInactive
+          provider.subscription_status === 'active' ? styles.subscriptionActive : 
+          subscription?.status === 'pending' ? styles.subscriptionPending : styles.subscriptionInactive
         ]}>
           <View style={styles.subscriptionHeader}>
             <View style={styles.subscriptionStatus}>
               <View style={[
                 styles.statusDot,
-                { backgroundColor: provider.subscription_status === 'active' ? '#10B981' : '#EF4444' }
+                { backgroundColor: provider.subscription_status === 'active' ? '#10B981' : 
+                  subscription?.status === 'pending' ? '#F59E0B' : '#EF4444' }
               ]} />
               <Text style={styles.subscriptionStatusText}>
-                {provider.subscription_status === 'active' ? 'Assinatura Ativa' : 'Assinatura Inativa'}
+                {provider.subscription_status === 'active' ? 'Assinatura Ativa' : 
+                 subscription?.status === 'pending' ? 'Aguardando Aprovação' : 'Assinatura Inativa'}
               </Text>
             </View>
             <Text style={styles.subscriptionPrice}>R$ 15,00/mês</Text>
@@ -399,6 +402,18 @@ export default function ProviderDashboardScreen() {
             <Text style={styles.subscriptionExpiry}>
               Válida até {formatDate(subscription.expires_at)}
             </Text>
+          ) : subscription?.status === 'pending' ? (
+            <View>
+              <Text style={styles.subscriptionPendingText}>
+                Seu pagamento está sendo verificado pelo administrador
+              </Text>
+              <View style={styles.pendingInfoBox}>
+                <Ionicons name="time" size={20} color="#F59E0B" />
+                <Text style={styles.pendingInfoText}>
+                  A ativação ocorre em até 24 horas após confirmação do PIX
+                </Text>
+              </View>
+            </View>
           ) : (
             <View>
               <Text style={styles.subscriptionInactiveText}>
