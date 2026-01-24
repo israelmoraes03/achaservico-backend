@@ -991,6 +991,162 @@ async def admin_delete_review(review_id: str):
     
     return {"success": True, "message": "Avaliação excluída"}
 
+# ======================== STRIPE PAYMENTS ========================
+
+@api_router.post("/stripe/create-checkout-session")
+async def create_stripe_checkout_session(request: Request):
+    """Create a Stripe Checkout session for subscription payment"""
+    user = await require_auth(request)
+    
+    provider = await db.providers.find_one({"user_id": user.user_id}, {"_id": 0})
+    if not provider:
+        raise HTTPException(status_code=400, detail="Você precisa criar um perfil de prestador primeiro")
+    
+    # Check if already has active subscription
+    if provider.get("subscription_status") == "active":
+        raise HTTPException(status_code=400, detail="Você já possui uma assinatura ativa")
+    
+    try:
+        # Create Stripe Checkout Session
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'brl',
+                    'product_data': {
+                        'name': 'Assinatura Mensal AchaServiço',
+                        'description': 'Acesso completo para prestadores de serviços em Três Lagoas',
+                    },
+                    'unit_amount': 1500,  # R$ 15.00 in centavos
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=f"{APP_DOMAIN}?payment=success&provider_id={provider['provider_id']}",
+            cancel_url=f"{APP_DOMAIN}?payment=cancelled",
+            metadata={
+                'provider_id': provider['provider_id'],
+                'user_id': user.user_id,
+            },
+            customer_email=user.email,
+        )
+        
+        logger.info(f"Stripe checkout session created for provider: {provider['provider_id']}")
+        
+        return {
+            "checkout_url": checkout_session.url,
+            "session_id": checkout_session.id
+        }
+        
+    except stripe.error.StripeError as e:
+        logger.error(f"Stripe error: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao processar pagamento: {str(e)}")
+
+@api_router.post("/stripe/webhook")
+async def stripe_webhook(request: Request):
+    """Handle Stripe webhook events"""
+    payload = await request.body()
+    sig_header = request.headers.get('stripe-signature')
+    
+    # If webhook secret is set, verify signature
+    if STRIPE_WEBHOOK_SECRET:
+        try:
+            event = stripe.Webhook.construct_event(
+                payload, sig_header, STRIPE_WEBHOOK_SECRET
+            )
+        except ValueError as e:
+            logger.error(f"Invalid payload: {e}")
+            raise HTTPException(status_code=400, detail="Invalid payload")
+        except stripe.error.SignatureVerificationError as e:
+            logger.error(f"Invalid signature: {e}")
+            raise HTTPException(status_code=400, detail="Invalid signature")
+    else:
+        # No webhook secret - parse JSON directly (for testing)
+        try:
+            event = stripe.Event.construct_from(
+                await request.json(), stripe.api_key
+            )
+        except Exception as e:
+            logger.error(f"Error parsing event: {e}")
+            raise HTTPException(status_code=400, detail="Invalid event")
+    
+    # Store webhook for audit
+    await db.webhooks.insert_one({
+        "type": "stripe",
+        "event_type": event.type,
+        "event_id": event.id,
+        "data": event.data.object if hasattr(event.data, 'object') else str(event.data),
+        "received_at": datetime.now(timezone.utc),
+        "processed": False
+    })
+    
+    # Handle checkout.session.completed
+    if event.type == 'checkout.session.completed':
+        session = event.data.object
+        provider_id = session.metadata.get('provider_id')
+        user_id = session.metadata.get('user_id')
+        
+        if provider_id:
+            expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+            now = datetime.now(timezone.utc)
+            
+            # Create or update subscription
+            await db.subscriptions.update_one(
+                {"provider_id": provider_id},
+                {"$set": {
+                    "provider_id": provider_id,
+                    "user_id": user_id,
+                    "status": "active",
+                    "amount": 15.0,
+                    "payment_method": "stripe",
+                    "stripe_session_id": session.id,
+                    "stripe_payment_intent": session.payment_intent,
+                    "started_at": now,
+                    "expires_at": expires_at,
+                    "created_at": now,
+                    "updated_at": now
+                }},
+                upsert=True
+            )
+            
+            # Activate provider
+            await db.providers.update_one(
+                {"provider_id": provider_id},
+                {"$set": {
+                    "subscription_status": "active",
+                    "subscription_expires_at": expires_at,
+                    "is_active": True
+                }}
+            )
+            
+            logger.info(f"Stripe payment completed - Provider {provider_id} activated until {expires_at}")
+            
+            # Mark webhook as processed
+            await db.webhooks.update_one(
+                {"event_id": event.id},
+                {"$set": {"processed": True}}
+            )
+    
+    elif event.type == 'payment_intent.payment_failed':
+        logger.warning(f"Payment failed: {event.data.object}")
+    
+    return {"status": "ok"}
+
+@api_router.get("/stripe/payment-status/{session_id}")
+async def get_payment_status(session_id: str, request: Request):
+    """Check the status of a Stripe payment session"""
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+        
+        return {
+            "status": session.payment_status,
+            "provider_id": session.metadata.get('provider_id'),
+            "completed": session.payment_status == 'paid'
+        }
+    except stripe.error.StripeError as e:
+        logger.error(f"Error retrieving session: {e}")
+        raise HTTPException(status_code=404, detail="Sessão não encontrada")
+
 # ======================== WEBHOOKS ========================
 
 @api_router.post("/webhooks/pix")
