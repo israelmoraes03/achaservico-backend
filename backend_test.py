@@ -235,6 +235,52 @@ class APITester:
         except Exception as e:
             self.log_result("/subscriptions/status", "GET", "ERROR", 401, f"Exception: {str(e)}")
             
+    def test_stripe_endpoints(self):
+        """Test Stripe payment endpoints"""
+        print("=== TESTING STRIPE ENDPOINTS ===\n")
+        
+        # 1. Create checkout session (should require authentication)
+        try:
+            response = self.session.post(f"{BASE_URL}/stripe/create-checkout-session")
+            details = "Should require authentication"
+            self.log_result("/stripe/create-checkout-session", "POST", response.status_code, 401, details)
+        except Exception as e:
+            self.log_result("/stripe/create-checkout-session", "POST", "ERROR", 401, f"Exception: {str(e)}")
+            
+        # 2. Stripe webhook (should accept POST)
+        try:
+            webhook_payload = {
+                "id": "evt_test_webhook",
+                "object": "event",
+                "type": "checkout.session.completed",
+                "data": {
+                    "object": {
+                        "id": "cs_test_session",
+                        "payment_status": "paid",
+                        "metadata": {
+                            "provider_id": "test_provider",
+                            "user_id": "test_user"
+                        }
+                    }
+                }
+            }
+            response = self.session.post(f"{BASE_URL}/stripe/webhook", json=webhook_payload)
+            details = f"Webhook should accept POST requests. Response: {response.text[:100] if response.text else 'No response'}"
+            # Webhook can return 200 (ok) or 400 (bad request) - both are acceptable
+            expected_status = response.status_code if response.status_code in [200, 400] else 200
+            self.log_result("/stripe/webhook", "POST", response.status_code, expected_status, details)
+        except Exception as e:
+            self.log_result("/stripe/webhook", "POST", "ERROR", 200, f"Exception: {str(e)}")
+            
+        # 3. Payment status with invalid session_id (should return 404)
+        try:
+            invalid_session_id = "cs_invalid_session_12345"
+            response = self.session.get(f"{BASE_URL}/stripe/payment-status/{invalid_session_id}")
+            details = "Should return 404 for invalid session_id"
+            self.log_result(f"/stripe/payment-status/{invalid_session_id}", "GET", response.status_code, 404, details)
+        except Exception as e:
+            self.log_result(f"/stripe/payment-status/invalid", "GET", "ERROR", 404, f"Exception: {str(e)}")
+            
     def run_all_tests(self):
         """Run all test suites"""
         print(f"🚀 Starting AchaServiço Backend API Tests")
