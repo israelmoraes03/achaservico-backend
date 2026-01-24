@@ -1,13 +1,16 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import api from '../services/api';
 
-// Warm up browser for faster auth on Android
+// Only call this on native platforms
 if (Platform.OS !== 'web') {
-  WebBrowser.maybeCompleteAuthSession();
+  try {
+    WebBrowser.maybeCompleteAuthSession();
+  } catch (e) {
+    // Ignore errors
+  }
 }
 
 interface User {
