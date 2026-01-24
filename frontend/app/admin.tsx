@@ -297,7 +297,7 @@ export default function AdminScreen() {
               placeholder="E-mail"
               placeholderTextColor="#6B7280"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => { setEmail(text); setLoginError(''); }}
               keyboardType="email-address"
               autoCapitalize="none"
             />
@@ -308,9 +308,13 @@ export default function AdminScreen() {
               placeholderTextColor="#6B7280"
               secureTextEntry
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => { setPassword(text); setLoginError(''); }}
               onSubmitEditing={handleLogin}
             />
+
+            {loginError ? (
+              <Text style={styles.errorText}>{loginError}</Text>
+            ) : null}
 
             <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
               <Ionicons name="log-in" size={20} color="#0A0A0A" />
@@ -329,6 +333,13 @@ export default function AdminScreen() {
   // Admin Dashboard
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Action Message Toast */}
+      {actionMessage ? (
+        <View style={styles.actionToast}>
+          <Text style={styles.actionToastText}>{actionMessage}</Text>
+        </View>
+      ) : null}
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Admin</Text>
