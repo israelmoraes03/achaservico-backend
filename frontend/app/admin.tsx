@@ -250,28 +250,17 @@ export default function AdminScreen() {
 
   // User actions
   const handleDeleteUser = async (user: User) => {
-    Alert.alert(
-      'Excluir Usuário',
-      `Excluir usuário ${user.name}?\n\n${user.is_provider ? 'Isso também excluirá o perfil de prestador!' : ''}`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.delete(`/admin/user/${user.user_id}`);
-              fetchUsers();
-              fetchProviders();
-              fetchStats();
-              Alert.alert('Sucesso', 'Usuário excluído!');
-            } catch (error) {
-              Alert.alert('Erro', 'Não foi possível excluir');
-            }
-          },
-        },
-      ]
-    );
+    try {
+      await api.delete(`/admin/user/${user.user_id}`);
+      fetchUsers();
+      fetchProviders();
+      fetchStats();
+      setActionMessage('Usuário excluído!');
+      setTimeout(() => setActionMessage(''), 3000);
+    } catch (error) {
+      setActionMessage('Erro ao excluir usuário');
+      setTimeout(() => setActionMessage(''), 3000);
+    }
   };
 
   const formatDate = (dateString: string) => {
