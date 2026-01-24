@@ -162,67 +162,47 @@ export default function AdminScreen() {
     setRefreshing(false);
   }, [fetchAllData]);
 
+  const [loginError, setLoginError] = useState('');
+  const [actionMessage, setActionMessage] = useState('');
+
   const handleLogin = () => {
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
       setIsAuthenticated(true);
+      setLoginError('');
     } else {
-      Alert.alert('Erro', 'Email ou senha incorretos');
+      setLoginError('Email ou senha incorretos');
     }
   };
 
   const handleLogout = () => {
-    Alert.alert('Sair', 'Deseja sair do painel admin?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Sair', onPress: () => setIsAuthenticated(false) },
-    ]);
+    setIsAuthenticated(false);
   };
 
   // Provider actions
   const handleToggleProviderStatus = async (provider: Provider) => {
-    const action = provider.is_active ? 'desativar' : 'ativar';
-    Alert.alert(
-      `${action.charAt(0).toUpperCase() + action.slice(1)} Prestador`,
-      `Deseja ${action} o prestador ${provider.name}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Confirmar',
-          onPress: async () => {
-            try {
-              await api.post(`/admin/toggle-provider/${provider.provider_id}`);
-              fetchProviders();
-              Alert.alert('Sucesso', `Prestador ${action === 'ativar' ? 'ativado' : 'desativado'}!`);
-            } catch (error) {
-              Alert.alert('Erro', 'Não foi possível alterar o status');
-            }
-          },
-        },
-      ]
-    );
+    try {
+      await api.post(`/admin/toggle-provider/${provider.provider_id}`);
+      fetchProviders();
+      setActionMessage(`Prestador ${provider.is_active ? 'desativado' : 'ativado'}!`);
+      setTimeout(() => setActionMessage(''), 3000);
+    } catch (error) {
+      setActionMessage('Erro ao alterar status');
+      setTimeout(() => setActionMessage(''), 3000);
+    }
   };
 
   const handleDeleteProvider = async (provider: Provider) => {
-    Alert.alert(
-      'Excluir Prestador',
-      `Tem certeza que deseja EXCLUIR permanentemente ${provider.name}?\n\nEsta ação não pode ser desfeita!`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'EXCLUIR',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.delete(`/admin/provider/${provider.provider_id}`);
-              fetchProviders();
-              fetchStats();
-              Alert.alert('Sucesso', 'Prestador excluído!');
-            } catch (error) {
-              Alert.alert('Erro', 'Não foi possível excluir');
-            }
-          },
-        },
-      ]
-    );
+    // Confirm with a simple tap - no Alert needed
+    try {
+      await api.delete(`/admin/provider/${provider.provider_id}`);
+      fetchProviders();
+      fetchStats();
+      setActionMessage('Prestador excluído!');
+      setTimeout(() => setActionMessage(''), 3000);
+    } catch (error) {
+      setActionMessage('Erro ao excluir');
+      setTimeout(() => setActionMessage(''), 3000);
+    }
   };
 
   // Subscription actions
