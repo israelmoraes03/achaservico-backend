@@ -16,31 +16,15 @@ import { useAuth } from '../src/context/AuthContext';
 export default function ProfileScreen() {
   const { user, provider, logout, isAuthenticated } = useAuth();
   const router = useRouter();
-
-  const handleLogout = () => {
-    Alert.alert(
-      'Sair',
-      'Tem certeza que deseja sair?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Sair', 
-          style: 'destructive', 
-          onPress: performLogout
-        },
-      ]
-    );
-  };
+  const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
 
   const performLogout = async () => {
-    console.log('Starting logout...');
+    setShowLogoutConfirm(false);
     try {
       await logout();
-      console.log('Logout successful, navigating...');
     } catch (error) {
       console.error('Logout error:', error);
     }
-    // Always navigate, even if logout fails
     router.replace('/');
   };
 
