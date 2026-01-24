@@ -200,14 +200,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = async () => {
+  const logout = async (): Promise<void> => {
     try {
       await api.post('/auth/logout');
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('Logout API error:', error);
+      // Continue with local cleanup even if API fails
     }
     
-    // Always clear local state regardless of API response
+    // Clear all local state
     try {
       await AsyncStorage.removeItem('session_token');
       await AsyncStorage.removeItem('user_data');
@@ -215,9 +216,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Error clearing storage:', e);
     }
     
+    // Clear API headers
     delete api.defaults.headers.common['Authorization'];
+    
+    // Reset state
     setUser(null);
     setProvider(null);
+    
+    console.log('Logout completed');
+    return Promise.resolve();
   };
 
   const refreshUser = async () => {
