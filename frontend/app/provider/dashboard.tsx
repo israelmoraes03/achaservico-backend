@@ -298,20 +298,9 @@ export default function ProviderDashboardScreen() {
     }
   };
 
-  const handleActivateSubscription = async () => {
-    Alert.alert(
-      'Ativar Assinatura',
-      'Valor: R$ 15,00/mês\n\nVocê será direcionado para a tela de pagamento PIX.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Continuar',
-          onPress: () => {
-            router.push('/payment/pix');
-          }
-        },
-      ]
-    );
+  const handleActivateSubscription = () => {
+    // Navigate directly to PIX payment screen
+    router.push('/payment/pix');
   };
 
   const getCategoryName = (categoryId: string) => {
