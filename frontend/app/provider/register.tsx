@@ -177,8 +177,8 @@ export default function ProviderRegisterScreen() {
 
       await refreshUser();
       
-      // Go directly to PIX payment page
-      router.replace('/payment/pix');
+      // Go to dashboard where user can choose payment method (PIX or Card)
+      router.replace('/provider/dashboard');
     } catch (error: any) {
       const message = error.response?.data?.detail || 'Erro ao criar perfil. Tente novamente.';
       
