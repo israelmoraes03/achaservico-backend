@@ -26,20 +26,22 @@ export default function ProfileScreen() {
         { 
           text: 'Sair', 
           style: 'destructive', 
-          onPress: () => {
-            logout().then(() => {
-              // Force navigation after logout
-              setTimeout(() => {
-                router.replace('/');
-              }, 100);
-            }).catch((err) => {
-              console.error('Logout failed:', err);
-              router.replace('/');
-            });
-          }
+          onPress: performLogout
         },
       ]
     );
+  };
+
+  const performLogout = async () => {
+    console.log('Starting logout...');
+    try {
+      await logout();
+      console.log('Logout successful, navigating...');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    // Always navigate, even if logout fails
+    router.replace('/');
   };
 
   if (!user || !isAuthenticated) {
