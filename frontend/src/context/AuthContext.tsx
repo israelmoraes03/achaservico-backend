@@ -170,9 +170,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsLoading(true);
       
-      const redirectUrl = Platform.OS === 'web'
-        ? window.location.origin + '/'
-        : Linking.createURL('/');
+      let redirectUrl: string;
+      
+      if (Platform.OS === 'web') {
+        redirectUrl = window.location.origin + '/';
+      } else {
+        // For native, use a simple scheme-based URL
+        try {
+          redirectUrl = Linking.createURL('/');
+        } catch (e) {
+          // Fallback if Linking context not available
+          redirectUrl = 'achaservico://';
+        }
+      }
       
       console.log('Redirect URL:', redirectUrl);
       
