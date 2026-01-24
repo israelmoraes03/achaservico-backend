@@ -53,9 +53,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "eas": {
-        "projectId": "achaservico"
-      }
+      "eas": {}
     }
   }
 }
