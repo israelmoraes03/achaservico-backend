@@ -290,6 +290,7 @@ class APITester:
         self.test_public_endpoints()
         self.test_auth_endpoints_structure()
         self.test_protected_endpoints()
+        self.test_stripe_endpoints()
         
         # Summary
         print("=== TEST SUMMARY ===")
