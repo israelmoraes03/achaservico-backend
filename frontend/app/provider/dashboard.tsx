@@ -784,10 +784,34 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#10B98140',
   },
+  subscriptionPending: {
+    backgroundColor: '#F59E0B20',
+    borderWidth: 1,
+    borderColor: '#F59E0B40',
+  },
   subscriptionInactive: {
     backgroundColor: '#EF444420',
     borderWidth: 1,
     borderColor: '#EF444440',
+  },
+  subscriptionPendingText: {
+    color: '#F59E0B',
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  pendingInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F59E0B10',
+    padding: 12,
+    borderRadius: 8,
+    gap: 10,
+  },
+  pendingInfoText: {
+    flex: 1,
+    color: '#F59E0B',
+    fontSize: 13,
+    lineHeight: 18,
   },
   subscriptionHeader: {
     flexDirection: 'row',
