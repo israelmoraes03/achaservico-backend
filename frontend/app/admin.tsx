@@ -207,77 +207,45 @@ export default function AdminScreen() {
 
   // Subscription actions
   const handleActivateSubscription = async (providerId: string, providerName: string) => {
-    Alert.alert(
-      'Ativar Assinatura',
-      `Ativar assinatura de ${providerName}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Ativar',
-          onPress: async () => {
-            try {
-              await api.post(`/admin/activate/${providerId}`);
-              fetchSubscriptions();
-              fetchProviders();
-              fetchStats();
-              Alert.alert('Sucesso', 'Assinatura ativada!');
-            } catch (error) {
-              Alert.alert('Erro', 'Não foi possível ativar');
-            }
-          },
-        },
-      ]
-    );
+    try {
+      await api.post(`/admin/activate/${providerId}`);
+      fetchSubscriptions();
+      fetchProviders();
+      fetchStats();
+      setActionMessage('Assinatura ativada!');
+      setTimeout(() => setActionMessage(''), 3000);
+    } catch (error) {
+      setActionMessage('Erro ao ativar assinatura');
+      setTimeout(() => setActionMessage(''), 3000);
+    }
   };
 
   const handleCancelSubscription = async (providerId: string, providerName: string) => {
-    Alert.alert(
-      'Cancelar Assinatura',
-      `Cancelar assinatura de ${providerName}?\n\nO perfil ficará invisível para clientes.`,
-      [
-        { text: 'Não', style: 'cancel' },
-        {
-          text: 'Cancelar Assinatura',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.post(`/admin/cancel-subscription/${providerId}`);
-              fetchSubscriptions();
-              fetchProviders();
-              fetchStats();
-              Alert.alert('Sucesso', 'Assinatura cancelada!');
-            } catch (error) {
-              Alert.alert('Erro', 'Não foi possível cancelar');
-            }
-          },
-        },
-      ]
-    );
+    try {
+      await api.post(`/admin/cancel-subscription/${providerId}`);
+      fetchSubscriptions();
+      fetchProviders();
+      fetchStats();
+      setActionMessage('Assinatura cancelada!');
+      setTimeout(() => setActionMessage(''), 3000);
+    } catch (error) {
+      setActionMessage('Erro ao cancelar assinatura');
+      setTimeout(() => setActionMessage(''), 3000);
+    }
   };
 
   // Review actions
   const handleDeleteReview = async (review: Review) => {
-    Alert.alert(
-      'Excluir Avaliação',
-      `Excluir avaliação de ${review.user_name}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.delete(`/admin/review/${review.review_id}`);
-              fetchReviews();
-              fetchStats();
-              Alert.alert('Sucesso', 'Avaliação excluída!');
-            } catch (error) {
-              Alert.alert('Erro', 'Não foi possível excluir');
-            }
-          },
-        },
-      ]
-    );
+    try {
+      await api.delete(`/admin/review/${review.review_id}`);
+      fetchReviews();
+      fetchStats();
+      setActionMessage('Avaliação excluída!');
+      setTimeout(() => setActionMessage(''), 3000);
+    } catch (error) {
+      setActionMessage('Erro ao excluir avaliação');
+      setTimeout(() => setActionMessage(''), 3000);
+    }
   };
 
   // User actions
