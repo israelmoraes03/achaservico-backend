@@ -177,28 +177,24 @@ export default function ProviderRegisterScreen() {
 
       await refreshUser();
       
-      Alert.alert(
-        'Cadastro Realizado!',
-        'Seu perfil foi criado. Agora ative sua assinatura para começar a receber contatos.',
-        [{ text: 'Continuar', onPress: () => router.replace('/provider/dashboard') }]
-      );
+      // Go directly to PIX payment page
+      router.replace('/payment/pix');
     } catch (error: any) {
       const message = error.response?.data?.detail || 'Erro ao criar perfil. Tente novamente.';
       
       // Handle specific error cases
       if (message.includes('já possui')) {
-        Alert.alert(
-          'Perfil Existente',
-          'Você já possui um perfil de prestador.',
-          [{ text: 'Ver Meu Painel', onPress: () => router.replace('/provider/dashboard') }]
-        );
+        // Go to dashboard if already has profile
+        router.replace('/provider/dashboard');
       } else {
-        Alert.alert('Erro', message);
+        setErrorMessage(message);
       }
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const [errorMessage, setErrorMessage] = React.useState('');
 
   const getCategoryName = (categoryId: string) => {
     const cat = categories.find(c => c.id === categoryId);
