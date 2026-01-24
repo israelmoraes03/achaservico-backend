@@ -139,21 +139,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
         
-        // Check for cold start deep link (mobile)
-        if (Platform.OS !== 'web') {
-          try {
-            const initialUrl = await Linking.getInitialURL();
-            if (initialUrl) {
-              const sessionId = extractSessionId(initialUrl);
-              if (sessionId) {
-                await processSessionId(sessionId);
-                return;
-              }
-            }
-          } catch (e) {
-            console.log('No initial URL or Linking not available');
-          }
-        }
+        // Check for cold start deep link (mobile) - disabled to avoid context issues
+        // Deep linking will be handled by expo-router's built-in mechanism
         
         // Check existing session
         await checkExistingSession();
