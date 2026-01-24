@@ -35,7 +35,7 @@ STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
 stripe.api_key = STRIPE_SECRET_KEY
 
 # App Domain for Stripe redirects
-APP_DOMAIN = os.environ.get('APP_DOMAIN', 'https://app.emergent.sh/share?app=servicehub-183')
+APP_DOMAIN = os.environ.get('APP_DOMAIN', 'https://servico-app-1.preview.emergentagent.com')
 
 # Create the main app
 app = FastAPI(title="AchaServiço API", description="API para conectar clientes a prestadores de serviços locais")
