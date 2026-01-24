@@ -160,6 +160,15 @@ export default function ProfileScreen() {
           <Text style={styles.logoutText}>Sair da Conta</Text>
         </TouchableOpacity>
 
+        {/* Direct Logout (sem confirmação) - para debug */}
+        <TouchableOpacity 
+          style={[styles.logoutButton, { marginTop: 8, backgroundColor: '#1F1F1F' }]} 
+          onPress={performLogout}
+        >
+          <Ionicons name="exit" size={22} color="#F59E0B" />
+          <Text style={[styles.logoutText, { color: '#F59E0B' }]}>Sair Imediatamente</Text>
+        </TouchableOpacity>
+
         <View style={styles.bottomSpacer} />
       </ScrollView>
     </SafeAreaView>
