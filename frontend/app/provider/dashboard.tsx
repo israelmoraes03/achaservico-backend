@@ -76,6 +76,7 @@ export default function ProviderDashboardScreen() {
   
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showNeighborhoodPicker, setShowNeighborhoodPicker] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const MAX_SERVICE_PHOTOS = 6;
 
