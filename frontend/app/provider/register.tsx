@@ -412,6 +412,14 @@ export default function ProviderRegisterScreen() {
             </Text>
           </View>
 
+          {/* Error Message */}
+          {errorMessage ? (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle" size={20} color="#EF4444" />
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          ) : null}
+
           {/* Submit Button */}
           <TouchableOpacity
             style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
