@@ -138,19 +138,34 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Logout Confirmation Modal */}
+        {showLogoutConfirm && (
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Sair</Text>
+              <Text style={styles.modalMessage}>Tem certeza que deseja sair?</Text>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity 
+                  style={styles.modalButtonCancel}
+                  onPress={() => setShowLogoutConfirm(false)}
+                >
+                  <Text style={styles.modalButtonCancelText}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.modalButtonConfirm}
+                  onPress={performLogout}
+                >
+                  <Text style={styles.modalButtonConfirmText}>Sair</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Logout */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <TouchableOpacity style={styles.logoutButton} onPress={() => setShowLogoutConfirm(true)}>
           <Ionicons name="log-out" size={22} color="#EF4444" />
           <Text style={styles.logoutText}>Sair da Conta</Text>
-        </TouchableOpacity>
-
-        {/* Direct Logout (sem confirmação) - para debug */}
-        <TouchableOpacity 
-          style={[styles.logoutButton, { marginTop: 8, backgroundColor: '#1F1F1F' }]} 
-          onPress={performLogout}
-        >
-          <Ionicons name="exit" size={22} color="#F59E0B" />
-          <Text style={[styles.logoutText, { color: '#F59E0B' }]}>Sair Imediatamente</Text>
         </TouchableOpacity>
 
         <View style={styles.bottomSpacer} />
