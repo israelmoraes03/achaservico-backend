@@ -54,9 +54,6 @@
       "typedRoutes": true
     },
     "extra": {
-      "eas": {
-        "projectId": "create"
-      },
       "router": {}
     }
   }
