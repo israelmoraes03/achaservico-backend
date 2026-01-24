@@ -198,6 +198,42 @@ backend:
         agent: "testing"
         comment: "Auth endpoints structure validated. POST /api/auth/session returns 400 without X-Session-ID (correct). GET /api/auth/me returns 401 without auth (correct). POST /api/auth/logout works (200). Auth flow structure is correct."
 
+  - task: "Stripe Create Checkout Session"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "POST /api/stripe/create-checkout-session correctly requires authentication (401). Endpoint structure validated."
+
+  - task: "Stripe Webhook Handler"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "POST /api/stripe/webhook accepts POST requests and returns 200 OK. Webhook processing functional."
+
+  - task: "Stripe Payment Status Check"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "GET /api/stripe/payment-status/{session_id} correctly returns 404 for invalid session_id. Endpoint structure validated."
+
 frontend:
   - task: "Home Screen with Provider List"
     implemented: true
