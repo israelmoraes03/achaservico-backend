@@ -1,17 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import api from '../services/api';
 
-// Only call this on native platforms
-if (Platform.OS !== 'web') {
-  try {
-    WebBrowser.maybeCompleteAuthSession();
-  } catch (e) {
-    // Ignore errors
-  }
-}
+// Warm up browser for faster auth on Android
+WebBrowser.maybeCompleteAuthSession();
 
 interface User {
   user_id: string;
@@ -139,8 +134,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
         
-        // Check for cold start deep link (mobile) - disabled to avoid context issues
-        // Deep linking will be handled by expo-router's built-in mechanism
+        // Check for cold start deep link (mobile)
+        if (Platform.OS !== 'web') {
+          try {
+            const initialUrl = await Linking.getInitialURL();
+            if (initialUrl) {
+              const sessionId = extractSessionId(initialUrl);
+              if (sessionId) {
+                await processSessionId(sessionId);
+                return;
+              }
+            }
+          } catch (e) {
+            console.log('No initial URL');
+          }
+        }
         
         // Check existing session
         await checkExistingSession();
@@ -162,14 +170,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsLoading(true);
       
-      let redirectUrl: string;
-      
-      if (Platform.OS === 'web') {
-        redirectUrl = window.location.origin + '/';
-      } else {
-        // For native, use the app scheme
-        redirectUrl = 'achaservico://';
-      }
+      const redirectUrl = Platform.OS === 'web'
+        ? window.location.origin + '/'
+        : Linking.createURL('/');
       
       console.log('Redirect URL:', redirectUrl);
       
