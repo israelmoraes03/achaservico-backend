@@ -724,6 +724,62 @@ export default function ProviderDashboardScreen() {
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {/* Payment Method Selection Modal */}
+      <Modal
+        visible={showPaymentModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowPaymentModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Escolha como pagar</Text>
+              <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.modalSubtitle}>Assinatura Mensal - R$ 15,00</Text>
+            
+            <TouchableOpacity
+              style={styles.paymentOption}
+              onPress={handlePayWithCard}
+            >
+              <View style={styles.paymentOptionIcon}>
+                <Ionicons name="card" size={28} color="#10B981" />
+              </View>
+              <View style={styles.paymentOptionInfo}>
+                <Text style={styles.paymentOptionTitle}>Cartão de Crédito</Text>
+                <Text style={styles.paymentOptionDescription}>Ativação instantânea após pagamento</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.paymentOption}
+              onPress={handlePayWithPix}
+            >
+              <View style={styles.paymentOptionIcon}>
+                <Ionicons name="qr-code" size={28} color="#10B981" />
+              </View>
+              <View style={styles.paymentOptionInfo}>
+                <Text style={styles.paymentOptionTitle}>PIX</Text>
+                <Text style={styles.paymentOptionDescription}>Ativação em até 24h após confirmação</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setShowPaymentModal(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
