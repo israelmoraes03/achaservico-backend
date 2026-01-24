@@ -786,17 +786,25 @@ async def admin_activate_subscription(provider_id: str):
         raise HTTPException(status_code=404, detail="Prestador não encontrado")
     
     expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+    now = datetime.now(timezone.utc)
     
+    # Create or update subscription with full document
     await db.subscriptions.update_one(
         {"provider_id": provider_id},
         {"$set": {
+            "provider_id": provider_id,
+            "user_id": provider.get("user_id"),
             "status": "active",
-            "started_at": datetime.now(timezone.utc),
-            "expires_at": expires_at
+            "amount": 15.0,
+            "started_at": now,
+            "expires_at": expires_at,
+            "created_at": now,
+            "updated_at": now
         }},
         upsert=True
     )
     
+    # Update provider status
     await db.providers.update_one(
         {"provider_id": provider_id},
         {"$set": {
@@ -805,6 +813,8 @@ async def admin_activate_subscription(provider_id: str):
             "is_active": True
         }}
     )
+    
+    logger.info(f"Subscription activated for provider: {provider_id} - {provider['name']}")
     
     return {
         "success": True, 
