@@ -6,7 +6,9 @@ import { Platform } from 'react-native';
 import api from '../services/api';
 
 // Warm up browser for faster auth on Android
-WebBrowser.maybeCompleteAuthSession();
+if (Platform.OS !== 'web') {
+  WebBrowser.maybeCompleteAuthSession();
+}
 
 interface User {
   user_id: string;
