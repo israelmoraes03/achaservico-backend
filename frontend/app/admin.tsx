@@ -477,19 +477,24 @@ export default function AdminScreen() {
                         </View>
                       </View>
                       <View style={styles.cardActions}>
-                        <TouchableOpacity
-                          style={[styles.actionButton, styles.actionToggle]}
-                          onPress={() => handleToggleProviderStatus(provider)}
-                        >
-                          <Ionicons
-                            name={provider.is_active ? 'eye-off' : 'eye'}
-                            size={16}
-                            color="#F59E0B"
-                          />
-                          <Text style={[styles.actionText, { color: '#F59E0B' }]}>
-                            {provider.is_active ? 'Desativar' : 'Ativar'}
-                          </Text>
-                        </TouchableOpacity>
+                        {provider.subscription_status !== 'active' && (
+                          <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: '#10B98120' }]}
+                            onPress={() => handleActivateSubscription(provider.provider_id, provider.name)}
+                          >
+                            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                            <Text style={[styles.actionText, { color: '#10B981' }]}>Ativar Assinatura</Text>
+                          </TouchableOpacity>
+                        )}
+                        {provider.subscription_status === 'active' && (
+                          <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: '#EF444420' }]}
+                            onPress={() => handleCancelSubscription(provider.provider_id, provider.name)}
+                          >
+                            <Ionicons name="close-circle" size={16} color="#EF4444" />
+                            <Text style={[styles.actionText, { color: '#EF4444' }]}>Cancelar Assinatura</Text>
+                          </TouchableOpacity>
+                        )}
                         <TouchableOpacity
                           style={[styles.actionButton, styles.actionDelete]}
                           onPress={() => handleDeleteProvider(provider)}
