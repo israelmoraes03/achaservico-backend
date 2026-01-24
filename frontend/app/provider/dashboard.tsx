@@ -301,8 +301,37 @@ export default function ProviderDashboardScreen() {
   };
 
   const handleActivateSubscription = () => {
-    // Navigate directly to PIX payment screen
+    // Show payment method choice modal
+    setShowPaymentModal(true);
+  };
+
+  const handlePayWithPix = () => {
+    setShowPaymentModal(false);
     router.push('/payment/pix');
+  };
+
+  const handlePayWithCard = async () => {
+    setShowPaymentModal(false);
+    setIsActivating(true);
+    
+    try {
+      const response = await api.post('/stripe/create-checkout-session');
+      const { checkout_url } = response.data;
+      
+      if (checkout_url) {
+        // Open Stripe Checkout in browser
+        await WebBrowser.openBrowserAsync(checkout_url);
+        
+        // After returning from browser, refresh data to check payment status
+        await fetchData();
+      }
+    } catch (error: any) {
+      console.error('Error creating checkout session:', error);
+      const message = error.response?.data?.detail || 'Erro ao processar pagamento. Tente novamente.';
+      Alert.alert('Erro', message);
+    } finally {
+      setIsActivating(false);
+    }
   };
 
   const getCategoryName = (categoryId: string) => {
