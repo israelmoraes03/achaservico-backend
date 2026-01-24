@@ -146,7 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }
             }
           } catch (e) {
-            console.log('No initial URL');
+            console.log('No initial URL or Linking not available');
           }
         }
         
