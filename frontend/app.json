@@ -48,7 +48,9 @@
         {
           "photosPermission": "Permitir acesso às fotos para adicionar imagens ao seu perfil"
         }
-      ]
+      ],
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
