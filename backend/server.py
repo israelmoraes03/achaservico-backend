@@ -10,7 +10,7 @@ from typing import List, Optional
 import uuid
 from datetime import datetime, timezone, timedelta
 import httpx
-import mercadopago
+import stripe
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -27,6 +27,15 @@ AUTH_BACKEND_URL = os.environ.get('AUTH_BACKEND_URL', 'https://demobackend.emerg
 PIX_KEY = os.environ.get('PIX_KEY', '49958688875')
 PIX_KEY_TYPE = os.environ.get('PIX_KEY_TYPE', 'cpf')
 PIX_RECEIVER_NAME = os.environ.get('PIX_RECEIVER_NAME', 'AchaServico')
+
+# Stripe Configuration
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '')
+STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '')
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
+stripe.api_key = STRIPE_SECRET_KEY
+
+# App Domain for Stripe redirects
+APP_DOMAIN = os.environ.get('APP_DOMAIN', 'https://app.emergent.sh/share?app=servicehub-183')
 
 # Create the main app
 app = FastAPI(title="AchaServiço API", description="API para conectar clientes a prestadores de serviços locais")
