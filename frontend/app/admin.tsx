@@ -349,9 +349,14 @@ export default function AdminScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Admin</Text>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-          <Ionicons name="log-out" size={24} color="#EF4444" />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity onPress={onRefresh} style={styles.refreshButton}>
+            <Ionicons name="refresh" size={24} color="#10B981" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+            <Ionicons name="log-out" size={24} color="#EF4444" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Tabs */}
