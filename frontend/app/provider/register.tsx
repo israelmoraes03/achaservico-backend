@@ -664,6 +664,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EF444420',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 10,
+  },
+  errorText: {
+    flex: 1,
+    color: '#EF4444',
+    fontSize: 14,
+  },
   bottomSpacer: {
     height: 32,
   },
