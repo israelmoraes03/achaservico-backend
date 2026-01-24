@@ -187,7 +187,7 @@ class APITester:
             provider_data = {
                 "name": "João Silva",
                 "phone": "(67) 99999-9999",
-                "category": "eletricista",
+                "categories": ["eletricista"],
                 "neighborhood": "Centro",
                 "description": "Eletricista experiente"
             }
