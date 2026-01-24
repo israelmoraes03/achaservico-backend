@@ -10,7 +10,7 @@ import sys
 from datetime import datetime
 
 # Backend URL from frontend/.env
-BASE_URL = "https://servicehub-183.preview.emergentagent.com/api"
+BASE_URL = "https://servico-app-1.preview.emergentagent.com/api"
 
 class APITester:
     def __init__(self):
