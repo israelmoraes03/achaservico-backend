@@ -190,9 +190,19 @@ export default function PaymentPixScreen() {
         </View>
 
         {/* Button */}
-        <TouchableOpacity style={styles.doneButton} onPress={handlePaymentDone}>
-          <Ionicons name="checkmark-circle" size={20} color="#0A0A0A" />
-          <Text style={styles.doneButtonText}>Já fiz o PIX</Text>
+        <TouchableOpacity 
+          style={[styles.doneButton, isLoading && styles.doneButtonDisabled]} 
+          onPress={handleConfirmPayment}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#0A0A0A" />
+          ) : (
+            <>
+              <Ionicons name="checkmark-circle" size={20} color="#0A0A0A" />
+              <Text style={styles.doneButtonText}>Confirmo que fiz o PIX</Text>
+            </>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.cancelButton} onPress={() => router.back()}>
