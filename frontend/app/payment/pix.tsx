@@ -58,51 +58,60 @@ export default function PaymentPixScreen() {
   };
 
   const sharePixKey = async () => {
-    if (pixData) {
-      try {
-        const result = await Share.share({
-          message: `PIX para Assinatura AchaServiço\n\nChave PIX (CPF): ${pixData.pix_key_formatted}\nValor: R$ ${pixData.amount.toFixed(2)}\n\nApós o pagamento, sua assinatura será ativada em até 24 horas.`,
-        });
-        
-        if (result.action === Share.sharedAction) {
-          console.log('Shared successfully');
-        }
-      } catch (error: any) {
-        // Ignore user cancellation
-        if (error.message !== 'User did not share') {
-          console.error('Share error:', error);
-          Alert.alert('Erro', 'Não foi possível compartilhar. Tente copiar a chave PIX.');
-        }
+    try {
+      const result = await Share.share({
+        message: `PIX para Assinatura AchaServiço\n\nChave PIX (CPF): ${pixData.pix_key_formatted}\nValor: R$ ${pixData.amount.toFixed(2)}\n\nApós o pagamento, sua assinatura será ativada em até 24 horas.`,
+      });
+      
+      if (result.action === Share.sharedAction) {
+        console.log('Shared successfully');
+      }
+    } catch (error: any) {
+      // Ignore user cancellation
+      if (error.message !== 'User did not share') {
+        console.error('Share error:', error);
+        Alert.alert('Erro', 'Não foi possível compartilhar. Tente copiar a chave PIX.');
       }
     }
   };
 
-  const handlePaymentDone = () => {
+  const handleConfirmPayment = () => {
     Alert.alert(
-      'Pagamento Realizado?',
-      'Confirma que você já fez o PIX de R$ 15,00?\n\nSua assinatura será ativada em até 24 horas após a confirmação do pagamento.',
+      'Confirmar Pagamento PIX',
+      'Você confirma que já realizou o PIX de R$ 15,00 para a chave informada?\n\nSua assinatura ficará pendente até a confirmação do pagamento.',
       [
-        { text: 'Ainda não', style: 'cancel' },
+        { text: 'Ainda não paguei', style: 'cancel' },
         {
           text: 'Sim, já paguei!',
-          onPress: () => {
-            Alert.alert(
-              'Obrigado!',
-              'Recebemos sua solicitação. Sua assinatura será ativada assim que confirmarmos o pagamento.',
-              [{ text: 'OK', onPress: () => router.replace('/provider/dashboard') }]
-            );
-          }
+          onPress: confirmPayment
         },
       ]
     );
   };
 
-  if (isLoading) {
+  // Show success screen after confirmation
+  if (paymentConfirmed) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#10B981" />
-        <Text style={styles.loadingText}>Gerando dados do PIX...</Text>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.successContainer}>
+          <View style={styles.successIcon}>
+            <Ionicons name="checkmark-circle" size={80} color="#10B981" />
+          </View>
+          <Text style={styles.successTitle}>Pagamento Confirmado!</Text>
+          <Text style={styles.successText}>
+            Sua assinatura está pendente e será ativada assim que confirmarmos o recebimento do PIX.
+          </Text>
+          <Text style={styles.successSubtext}>
+            Prazo: até 24 horas úteis
+          </Text>
+          <TouchableOpacity 
+            style={styles.successButton} 
+            onPress={() => router.replace('/provider/dashboard')}
+          >
+            <Text style={styles.successButtonText}>Ir para Meu Painel</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
