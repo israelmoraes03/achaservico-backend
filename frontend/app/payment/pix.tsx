@@ -19,37 +19,31 @@ import api from '../../src/services/api';
 export default function PaymentPixScreen() {
   const router = useRouter();
   const { refreshUser } = useAuth();
-  const [pixData, setPixData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
 
-  useEffect(() => {
-    createSubscription();
-  }, []);
+  // PIX data is static - no need to create subscription on page load
+  const pixData = {
+    pix_key: '49958688875',
+    pix_key_formatted: '499.586.888-75',
+    amount: 15.0,
+  };
 
-  const createSubscription = async (retryCount = 0) => {
+  const confirmPayment = async () => {
     try {
       setIsLoading(true);
-      const response = await api.post('/subscriptions/create');
-      setPixData(response.data);
+      // Only now create the subscription as pending
+      await api.post('/subscriptions/create');
+      setPaymentConfirmed(true);
+      await refreshUser();
     } catch (error: any) {
       console.error('Subscription error:', error);
-      
-      // Retry once on network error
-      if (error.message === 'Network Error' && retryCount < 2) {
-        console.log('Retrying subscription creation...');
-        setTimeout(() => createSubscription(retryCount + 1), 1000);
-        return;
-      }
-      
       const message = error.response?.data?.detail || 
         error.message === 'Network Error' 
           ? 'Erro de conexão. Verifique sua internet e tente novamente.' 
-          : 'Erro ao criar assinatura';
-      Alert.alert('Erro', message, [
-        { text: 'Tentar novamente', onPress: () => createSubscription(0) },
-        { text: 'Voltar', onPress: () => router.back(), style: 'cancel' }
-      ]);
+          : 'Erro ao confirmar pagamento';
+      Alert.alert('Erro', message);
     } finally {
       setIsLoading(false);
     }
