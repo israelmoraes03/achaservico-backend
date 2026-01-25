@@ -402,4 +402,48 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontSize: 14,
   },
+  doneButtonDisabled: {
+    backgroundColor: '#10B98180',
+  },
+  // Success screen styles
+  successContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  successIcon: {
+    marginBottom: 24,
+  },
+  successTitle: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  successText: {
+    color: '#9CA3AF',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 8,
+    lineHeight: 24,
+  },
+  successSubtext: {
+    color: '#F59E0B',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  successButton: {
+    backgroundColor: '#10B981',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+  },
+  successButtonText: {
+    color: '#0A0A0A',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });
