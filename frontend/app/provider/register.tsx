@@ -233,8 +233,6 @@ export default function ProviderRegisterScreen() {
     if (selectedCities.length === cities.length) return 'Todas as cidades';
     return `${selectedCities.length} cidade(s) selecionada(s)`;
   };
-    return cat?.name || categoryId;
-  };
 
   const getSelectedCategoriesText = () => {
     if (selectedCategories.length === 0) return 'Selecionar categorias';
