@@ -353,6 +353,48 @@ export default function ProviderRegisterScreen() {
               )}
             </View>
 
+            {/* City */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Cidade de Atuação *</Text>
+              <TouchableOpacity
+                style={styles.selectButton}
+                onPress={() => setShowCityPicker(!showCityPicker)}
+              >
+                <Text style={[styles.selectButtonText, selectedCity && styles.selectButtonTextActive]}>
+                  {getCityName(selectedCity)}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color="#6B7280" />
+              </TouchableOpacity>
+              
+              {showCityPicker && (
+                <View style={styles.pickerContainer}>
+                  <ScrollView style={styles.pickerScroll} nestedScrollEnabled>
+                    {cities.map((city) => (
+                      <TouchableOpacity
+                        key={city.id}
+                        style={[
+                          styles.pickerItem,
+                          selectedCity === city.id && styles.pickerItemActive
+                        ]}
+                        onPress={() => {
+                          setSelectedCity(city.id);
+                          setShowCityPicker(false);
+                        }}
+                      >
+                        <Ionicons name="location" size={20} color={selectedCity === city.id ? '#10B981' : '#9CA3AF'} />
+                        <Text style={[
+                          styles.pickerItemText,
+                          selectedCity === city.id && styles.pickerItemTextActive
+                        ]}>
+                          {city.name} - {city.state}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
+
             {/* Neighborhood */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Área de Atuação *</Text>
