@@ -331,6 +331,11 @@ async def get_neighborhoods():
     """Get all neighborhoods in Três Lagoas"""
     return NEIGHBORHOODS
 
+@api_router.get("/cities")
+async def get_cities():
+    """Get all available cities"""
+    return CITIES
+
 # ======================== SUBSCRIPTION EXPIRATION ========================
 
 async def check_and_expire_subscriptions():
