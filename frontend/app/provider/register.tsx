@@ -181,7 +181,7 @@ export default function ProviderRegisterScreen() {
         name: name.trim(),
         phone: phone.replace(/\D/g, ''),
         categories: selectedCategories,
-        city: selectedCity,
+        cities: selectedCities,
         neighborhood,
         description: description.trim(),
         profile_image: profileImage,
