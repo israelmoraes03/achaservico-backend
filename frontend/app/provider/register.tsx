@@ -45,7 +45,7 @@ export default function ProviderRegisterScreen() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedCity, setSelectedCity] = useState('tres_lagoas');
+  const [selectedCities, setSelectedCities] = useState<string[]>(['tres_lagoas']);
   const [neighborhood, setNeighborhood] = useState('');
   const [description, setDescription] = useState('');
   const [profileImage, setProfileImage] = useState<string | null>(null);
