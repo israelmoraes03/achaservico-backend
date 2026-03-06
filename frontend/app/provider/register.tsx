@@ -217,6 +217,22 @@ export default function ProviderRegisterScreen() {
     const city = cities.find(c => c.id === cityId);
     return city ? `${city.name} - ${city.state}` : cityId;
   };
+
+  const toggleCity = (cityId: string) => {
+    setSelectedCities(prev => {
+      if (prev.includes(cityId)) {
+        return prev.filter(c => c !== cityId);
+      } else {
+        return [...prev, cityId];
+      }
+    });
+  };
+
+  const getSelectedCitiesText = () => {
+    if (selectedCities.length === 0) return 'Selecione as cidades de atuação';
+    if (selectedCities.length === cities.length) return 'Todas as cidades';
+    return `${selectedCities.length} cidade(s) selecionada(s)`;
+  };
     return cat?.name || categoryId;
   };
 
