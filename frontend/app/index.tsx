@@ -187,6 +187,42 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      {/* City Filter */}
+      <TouchableOpacity
+        style={styles.neighborhoodButton}
+        onPress={() => setShowCityPicker(!showCityPicker)}
+      >
+        <Ionicons name="business" size={18} color="#10B981" />
+        <Text style={styles.neighborhoodButtonText}>
+          {selectedCity ? cities.find(c => c.id === selectedCity)?.name + ' - ' + cities.find(c => c.id === selectedCity)?.state : 'Todas as cidades'}
+        </Text>
+        <Ionicons name="chevron-down" size={18} color="#10B981" />
+      </TouchableOpacity>
+
+      {showCityPicker && (
+        <ScrollView style={styles.neighborhoodPicker} horizontal showsHorizontalScrollIndicator={false}>
+          <TouchableOpacity
+            style={[styles.neighborhoodChip, !selectedCity && styles.neighborhoodChipActive]}
+            onPress={() => { setSelectedCity(null); setShowCityPicker(false); }}
+          >
+            <Text style={[styles.neighborhoodChipText, !selectedCity && styles.neighborhoodChipTextActive]}>
+              Todas
+            </Text>
+          </TouchableOpacity>
+          {cities.map((city) => (
+            <TouchableOpacity
+              key={city.id}
+              style={[styles.neighborhoodChip, selectedCity === city.id && styles.neighborhoodChipActive]}
+              onPress={() => { setSelectedCity(city.id); setShowCityPicker(false); }}
+            >
+              <Text style={[styles.neighborhoodChipText, selectedCity === city.id && styles.neighborhoodChipTextActive]}>
+                {city.name} - {city.state}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
+
       {/* Neighborhood Filter */}
       <TouchableOpacity
         style={styles.neighborhoodButton}
