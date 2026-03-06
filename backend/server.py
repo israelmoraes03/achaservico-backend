@@ -376,6 +376,7 @@ async def check_and_expire_subscriptions():
 async def get_providers(
     category: Optional[str] = None,
     neighborhood: Optional[str] = None,
+    city: Optional[str] = None,
     search: Optional[str] = None
 ):
     """Get all active providers with optional filters"""
@@ -387,6 +388,8 @@ async def get_providers(
     if category:
         # Search in categories array
         query["categories"] = category
+    if city:
+        query["city"] = city
     if neighborhood and neighborhood != "Todos os bairros":
         # Include providers that serve this specific neighborhood OR all neighborhoods
         query["neighborhood"] = {"$in": [neighborhood, "Todos os bairros"]}
