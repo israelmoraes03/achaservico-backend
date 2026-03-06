@@ -73,7 +73,7 @@ class Provider(BaseModel):
     name: str
     phone: str
     categories: List[str] = []  # Multiple categories
-    city: str = "tres_lagoas"  # City of operation
+    cities: List[str] = ["tres_lagoas"]  # Multiple cities of operation
     neighborhood: str
     description: str
     profile_image: Optional[str] = None  # base64
