@@ -210,6 +210,13 @@ export default function ProviderRegisterScreen() {
 
   const getCategoryName = (categoryId: string) => {
     const cat = categories.find(c => c.id === categoryId);
+    return cat ? cat.name : categoryId;
+  };
+
+  const getCityName = (cityId: string) => {
+    const city = cities.find(c => c.id === cityId);
+    return city ? `${city.name} - ${city.state}` : cityId;
+  };
     return cat?.name || categoryId;
   };
 
