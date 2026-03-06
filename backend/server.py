@@ -100,7 +100,7 @@ class ProviderUpdate(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
     categories: Optional[List[str]] = None  # Multiple categories
-    city: Optional[str] = None  # City of operation
+    cities: Optional[List[str]] = None  # Multiple cities of operation
     neighborhood: Optional[str] = None
     description: Optional[str] = None
     profile_image: Optional[str] = None
