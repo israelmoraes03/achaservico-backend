@@ -389,7 +389,8 @@ async def get_providers(
         # Search in categories array
         query["categories"] = category
     if city:
-        query["city"] = city
+        # Search in cities array
+        query["cities"] = city
     if neighborhood and neighborhood != "Todos os bairros":
         # Include providers that serve this specific neighborhood OR all neighborhoods
         query["neighborhood"] = {"$in": [neighborhood, "Todos os bairros"]}
