@@ -91,12 +91,14 @@ export default function ProviderRegisterScreen() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [catRes, neighRes] = await Promise.all([
+        const [catRes, neighRes, citiesRes] = await Promise.all([
           api.get('/categories'),
           api.get('/neighborhoods'),
+          api.get('/cities'),
         ]);
         setCategories(catRes.data);
         setNeighborhoods(neighRes.data);
+        setCities(citiesRes.data);
         
         // Pre-fill name from user
         if (user?.name) {
