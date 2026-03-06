@@ -182,6 +182,12 @@ NEIGHBORHOODS = [
     "Vila Piloto", "Vila Popular", "Vila Santana", "Vila Verde", "Vila Viana"
 ]
 
+CITIES = [
+    {"id": "tres_lagoas", "name": "Três Lagoas", "state": "MS"},
+    {"id": "andradina", "name": "Andradina", "state": "SP"},
+    {"id": "brasilandia", "name": "Brasilândia", "state": "MS"},
+]
+
 # ======================== AUTH HELPERS ========================
 
 async def get_session_token(request: Request) -> Optional[str]:
