@@ -68,12 +68,14 @@ export default function HomeScreen() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [catRes, neighRes] = await Promise.all([
+      const [catRes, neighRes, citiesRes] = await Promise.all([
         api.get('/categories'),
         api.get('/neighborhoods'),
+        api.get('/cities'),
       ]);
       setCategories(catRes.data);
       setNeighborhoods(neighRes.data);
+      setCities(citiesRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
     }
