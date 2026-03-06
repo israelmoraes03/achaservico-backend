@@ -23,12 +23,19 @@ interface Category {
   icon: string;
 }
 
+interface City {
+  id: string;
+  name: string;
+  state: string;
+}
+
 interface Provider {
   provider_id: string;
   name: string;
   phone: string;
   categories?: string[];  // Multiple categories
   category?: string;  // Legacy single category
+  cities?: string[];  // Multiple cities
   neighborhood: string;
   description: string;
   profile_image?: string;
