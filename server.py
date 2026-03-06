@@ -73,7 +73,7 @@ class Provider(BaseModel):
     name: str
     phone: str
     categories: List[str] = []  # Multiple categories
-    city: str = "tres_lagoas"  # City of operation
+    cities: List[str] = ["tres_lagoas"]  # Multiple cities of operation
     neighborhood: str
     description: str
     profile_image: Optional[str] = None  # base64
@@ -91,7 +91,7 @@ class ProviderCreate(BaseModel):
     name: str
     phone: str
     categories: List[str]  # Multiple categories
-    city: str = "tres_lagoas"  # City of operation
+    cities: List[str] = ["tres_lagoas"]  # Multiple cities of operation
     neighborhood: str
     description: str
     profile_image: Optional[str] = None
@@ -100,7 +100,7 @@ class ProviderUpdate(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
     categories: Optional[List[str]] = None  # Multiple categories
-    city: Optional[str] = None  # City of operation
+    cities: Optional[List[str]] = None  # Multiple cities of operation
     neighborhood: Optional[str] = None
     description: Optional[str] = None
     profile_image: Optional[str] = None
@@ -389,7 +389,8 @@ async def get_providers(
         # Search in categories array
         query["categories"] = category
     if city:
-        query["city"] = city
+        # Search in cities array
+        query["cities"] = city
     if neighborhood and neighborhood != "Todos os bairros":
         # Include providers that serve this specific neighborhood OR all neighborhoods
         query["neighborhood"] = {"$in": [neighborhood, "Todos os bairros"]}
