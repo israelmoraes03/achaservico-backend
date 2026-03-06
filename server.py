@@ -73,6 +73,7 @@ class Provider(BaseModel):
     name: str
     phone: str
     categories: List[str] = []  # Multiple categories
+    city: str = "tres_lagoas"  # City of operation
     neighborhood: str
     description: str
     profile_image: Optional[str] = None  # base64
@@ -90,6 +91,7 @@ class ProviderCreate(BaseModel):
     name: str
     phone: str
     categories: List[str]  # Multiple categories
+    city: str = "tres_lagoas"  # City of operation
     neighborhood: str
     description: str
     profile_image: Optional[str] = None
@@ -98,6 +100,7 @@ class ProviderUpdate(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
     categories: Optional[List[str]] = None  # Multiple categories
+    city: Optional[str] = None  # City of operation
     neighborhood: Optional[str] = None
     description: Optional[str] = None
     profile_image: Optional[str] = None
@@ -180,6 +183,12 @@ NEIGHBORHOODS = [
     "SetSul", "São Carlos", "São João", "São Jorge", "Vila Alegre", "Vila Cardoso",
     "Vila Carioca", "Vila Guanabara", "Vila Haro", "Vila Maria", "Vila Nova",
     "Vila Piloto", "Vila Popular", "Vila Santana", "Vila Verde", "Vila Viana"
+]
+
+CITIES = [
+    {"id": "tres_lagoas", "name": "Três Lagoas", "state": "MS"},
+    {"id": "andradina", "name": "Andradina", "state": "SP"},
+    {"id": "brasilandia", "name": "Brasilândia", "state": "MS"},
 ]
 
 # ======================== AUTH HELPERS ========================
@@ -322,6 +331,11 @@ async def get_neighborhoods():
     """Get all neighborhoods in Três Lagoas"""
     return NEIGHBORHOODS
 
+@api_router.get("/cities")
+async def get_cities():
+    """Get all available cities"""
+    return CITIES
+
 # ======================== SUBSCRIPTION EXPIRATION ========================
 
 async def check_and_expire_subscriptions():
@@ -362,6 +376,7 @@ async def check_and_expire_subscriptions():
 async def get_providers(
     category: Optional[str] = None,
     neighborhood: Optional[str] = None,
+    city: Optional[str] = None,
     search: Optional[str] = None
 ):
     """Get all active providers with optional filters"""
@@ -373,6 +388,8 @@ async def get_providers(
     if category:
         # Search in categories array
         query["categories"] = category
+    if city:
+        query["city"] = city
     if neighborhood and neighborhood != "Todos os bairros":
         # Include providers that serve this specific neighborhood OR all neighborhoods
         query["neighborhood"] = {"$in": [neighborhood, "Todos os bairros"]}
