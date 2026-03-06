@@ -86,6 +86,7 @@ export default function HomeScreen() {
       setIsLoading(true);
       const params: any = {};
       if (selectedCategory) params.category = selectedCategory;
+      if (selectedCity) params.city = selectedCity;
       if (selectedNeighborhood) params.neighborhood = selectedNeighborhood;
       if (searchQuery) params.search = searchQuery;
       
@@ -96,7 +97,7 @@ export default function HomeScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedCategory, selectedNeighborhood, searchQuery]);
+  }, [selectedCategory, selectedCity, selectedNeighborhood, searchQuery]);
 
   useEffect(() => {
     fetchData();
