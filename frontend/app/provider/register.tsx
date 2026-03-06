@@ -371,16 +371,32 @@ export default function ProviderRegisterScreen() {
 
             {/* City */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Cidade de Atuação *</Text>
+              <Text style={styles.label}>Cidades de Atuação * (selecione uma ou mais)</Text>
               <TouchableOpacity
                 style={styles.selectButton}
                 onPress={() => setShowCityPicker(!showCityPicker)}
               >
-                <Text style={[styles.selectButtonText, selectedCity && styles.selectButtonTextActive]}>
-                  {getCityName(selectedCity)}
+                <Text style={[styles.selectButtonText, selectedCities.length > 0 && styles.selectButtonTextActive]}>
+                  {getSelectedCitiesText()}
                 </Text>
-                <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                <Ionicons name={showCityPicker ? "chevron-up" : "chevron-down"} size={20} color="#6B7280" />
               </TouchableOpacity>
+              
+              {/* Selected cities badges */}
+              {selectedCities.length > 0 && (
+                <View style={styles.selectedCategoriesContainer}>
+                  {selectedCities.map((cityId) => (
+                    <TouchableOpacity
+                      key={cityId}
+                      style={styles.categoryBadge}
+                      onPress={() => toggleCity(cityId)}
+                    >
+                      <Text style={styles.categoryBadgeText}>{getCityName(cityId)}</Text>
+                      <Ionicons name="close-circle" size={16} color="#10B981" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
               
               {showCityPicker && (
                 <View style={styles.pickerContainer}>
@@ -390,17 +406,19 @@ export default function ProviderRegisterScreen() {
                         key={city.id}
                         style={[
                           styles.pickerItem,
-                          selectedCity === city.id && styles.pickerItemActive
+                          selectedCities.includes(city.id) && styles.pickerItemActive
                         ]}
-                        onPress={() => {
-                          setSelectedCity(city.id);
-                          setShowCityPicker(false);
-                        }}
+                        onPress={() => toggleCity(city.id)}
                       >
-                        <Ionicons name="location" size={20} color={selectedCity === city.id ? '#10B981' : '#9CA3AF'} />
+                        <Ionicons 
+                          name={selectedCities.includes(city.id) ? "checkbox" : "square-outline"} 
+                          size={20} 
+                          color={selectedCities.includes(city.id) ? '#10B981' : '#9CA3AF'} 
+                        />
+                        <Ionicons name="location" size={20} color={selectedCities.includes(city.id) ? '#10B981' : '#9CA3AF'} />
                         <Text style={[
                           styles.pickerItemText,
-                          selectedCity === city.id && styles.pickerItemTextActive
+                          selectedCities.includes(city.id) && styles.pickerItemTextActive
                         ]}>
                           {city.name} - {city.state}
                         </Text>
