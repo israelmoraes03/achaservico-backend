@@ -95,16 +95,35 @@ export default function PaymentPixScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.successContainer}>
-          <View style={styles.successIcon}>
-            <Ionicons name="checkmark-circle" size={80} color="#10B981" />
+          <View style={styles.pendingIcon}>
+            <Ionicons name="time" size={80} color="#F59E0B" />
           </View>
-          <Text style={styles.successTitle}>Pagamento Confirmado!</Text>
-          <Text style={styles.successText}>
-            Sua assinatura está pendente e será ativada assim que confirmarmos o recebimento do PIX.
+          <Text style={styles.pendingTitle}>Aguardando Ativação</Text>
+          <Text style={styles.pendingText}>
+            Seu pagamento PIX foi confirmado e está aguardando aprovação do administrador.
           </Text>
-          <Text style={styles.successSubtext}>
-            Prazo: até 24 horas úteis
+          
+          <View style={styles.pendingStepsBox}>
+            <View style={styles.pendingStep}>
+              <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+              <Text style={styles.pendingStepText}>PIX enviado</Text>
+            </View>
+            <View style={styles.pendingStepLine} />
+            <View style={styles.pendingStep}>
+              <Ionicons name="time" size={24} color="#F59E0B" />
+              <Text style={styles.pendingStepTextActive}>Aguardando aprovação</Text>
+            </View>
+            <View style={styles.pendingStepLine} />
+            <View style={styles.pendingStep}>
+              <Ionicons name="ellipse-outline" size={24} color="#6B7280" />
+              <Text style={styles.pendingStepTextInactive}>Perfil ativo</Text>
+            </View>
+          </View>
+
+          <Text style={styles.pendingSubtext}>
+            ⏱️ Prazo: até 24 horas úteis
           </Text>
+          
           <TouchableOpacity 
             style={styles.successButton} 
             onPress={() => router.replace('/provider/dashboard')}
