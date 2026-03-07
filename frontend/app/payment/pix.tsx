@@ -565,4 +565,72 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#1F1F1F',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+    alignItems: 'center',
+  },
+  modalIcon: {
+    marginBottom: 16,
+  },
+  modalTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  modalText: {
+    color: '#D1D5DB',
+    fontSize: 15,
+    textAlign: 'center',
+    marginBottom: 8,
+    lineHeight: 22,
+  },
+  modalSubtext: {
+    color: '#9CA3AF',
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  modalButtons: {
+    width: '100%',
+    gap: 12,
+  },
+  modalButtonCancel: {
+    backgroundColor: '#374151',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalButtonCancelText: {
+    color: '#D1D5DB',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  modalButtonConfirm: {
+    backgroundColor: '#10B981',
+    paddingVertical: 14,
+    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modalButtonConfirmText: {
+    color: '#0A0A0A',
+    fontSize: 15,
+    fontWeight: '600',
+  },
 });
