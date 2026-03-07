@@ -88,6 +88,9 @@ export default function ProviderDashboardScreen() {
   const [showNeighborhoodPicker, setShowNeighborhoodPicker] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
+  const [showDeletePhotoModal, setShowDeletePhotoModal] = useState(false);
+  const [photoIndexToDelete, setPhotoIndexToDelete] = useState<number | null>(null);
+
   const MAX_SERVICE_PHOTOS = 6;
 
   const toggleCategory = (categoryId: string) => {
