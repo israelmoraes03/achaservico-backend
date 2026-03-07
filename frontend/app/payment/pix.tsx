@@ -127,7 +127,7 @@ export default function PaymentPixScreen() {
         <View style={styles.backButton} />
       </View>
 
-      <View style={styles.content}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Amount */}
         <View style={styles.amountCard}>
           <Text style={styles.amountLabel}>Valor da Assinatura</Text>
@@ -186,7 +186,7 @@ export default function PaymentPixScreen() {
         <View style={styles.infoBox}>
           <Ionicons name="information-circle" size={20} color="#F59E0B" />
           <Text style={styles.infoText}>
-            Após o pagamento, sua assinatura será ativada em até 24 horas.
+            Após confirmar o pagamento abaixo, sua assinatura ficará pendente até aprovação.
           </Text>
         </View>
 
@@ -201,7 +201,7 @@ export default function PaymentPixScreen() {
           ) : (
             <>
               <Ionicons name="checkmark-circle" size={20} color="#0A0A0A" />
-              <Text style={styles.doneButtonText}>Confirmo que fiz o PIX</Text>
+              <Text style={styles.doneButtonText}>Já fiz o PIX - Confirmar</Text>
             </>
           )}
         </TouchableOpacity>
@@ -209,7 +209,9 @@ export default function PaymentPixScreen() {
         <TouchableOpacity style={styles.cancelButton} onPress={() => router.back()}>
           <Text style={styles.cancelButtonText}>Cancelar</Text>
         </TouchableOpacity>
-      </View>
+        
+        <View style={{ height: 30 }} />
+      </ScrollView>
     </SafeAreaView>
   );
 }
