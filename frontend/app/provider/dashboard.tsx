@@ -275,23 +275,19 @@ export default function ProviderDashboardScreen() {
     }
   };
 
-  const removeServicePhoto = async (index: number) => {
-    Alert.alert(
-      'Remover Foto',
-      'Deseja remover esta foto?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Remover',
-          style: 'destructive',
-          onPress: async () => {
-            const updatedPhotos = servicePhotos.filter((_, i) => i !== index);
-            setServicePhotos(updatedPhotos);
-            await saveServicePhotos(updatedPhotos);
-          }
-        }
-      ]
-    );
+  const removeServicePhoto = (index: number) => {
+    setPhotoIndexToDelete(index);
+    setShowDeletePhotoModal(true);
+  };
+
+  const confirmDeletePhoto = async () => {
+    if (photoIndexToDelete === null) return;
+    
+    const updatedPhotos = servicePhotos.filter((_, i) => i !== photoIndexToDelete);
+    setServicePhotos(updatedPhotos);
+    setShowDeletePhotoModal(false);
+    setPhotoIndexToDelete(null);
+    await saveServicePhotos(updatedPhotos);
   };
 
   const saveServicePhotos = async (photos: string[]) => {
