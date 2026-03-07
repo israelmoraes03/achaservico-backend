@@ -24,6 +24,7 @@ export default function PaymentPixScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // PIX data is static - no need to create subscription on page load
   const pixData = {
@@ -34,6 +35,7 @@ export default function PaymentPixScreen() {
 
   const confirmPayment = async () => {
     try {
+      setShowConfirmModal(false);
       setIsLoading(true);
       // Only now create the subscription as pending
       await api.post('/subscriptions/create');
