@@ -318,6 +318,7 @@ export default function ProviderDashboardScreen() {
         name: editName.trim(),
         phone: editPhone.replace(/\D/g, ''),
         categories: editCategories,
+        cities: editCities,
         neighborhood: editNeighborhood,
         description: editDescription.trim(),
         profile_image: editProfileImage,
