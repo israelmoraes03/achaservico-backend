@@ -224,6 +224,46 @@ export default function PaymentPixScreen() {
         
         <View style={{ height: 30 }} />
       </ScrollView>
+
+      {/* Confirmation Modal */}
+      <Modal
+        visible={showConfirmModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowConfirmModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalIcon}>
+              <Ionicons name="help-circle" size={60} color="#F59E0B" />
+            </View>
+            <Text style={styles.modalTitle}>Confirmar Pagamento PIX</Text>
+            <Text style={styles.modalText}>
+              Você confirma que já realizou o PIX de R$ 15,00 para a chave informada?
+            </Text>
+            <Text style={styles.modalSubtext}>
+              Sua assinatura ficará pendente até a confirmação do administrador.
+            </Text>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalButtonCancel}
+                onPress={() => setShowConfirmModal(false)}
+              >
+                <Text style={styles.modalButtonCancelText}>Ainda não paguei</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.modalButtonConfirm}
+                onPress={confirmPayment}
+              >
+                <Ionicons name="checkmark" size={18} color="#0A0A0A" />
+                <Text style={styles.modalButtonConfirmText}>Sim, já paguei!</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
