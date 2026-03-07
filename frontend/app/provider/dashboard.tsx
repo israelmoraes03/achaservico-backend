@@ -896,6 +896,44 @@ export default function ProviderDashboardScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Delete Photo Confirmation Modal */}
+      <Modal
+        visible={showDeletePhotoModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDeletePhotoModal(false)}
+      >
+        <View style={styles.deleteModalOverlay}>
+          <View style={styles.deleteModalContent}>
+            <Ionicons name="trash-outline" size={50} color="#EF4444" />
+            <Text style={styles.deleteModalTitle}>Remover Foto?</Text>
+            <Text style={styles.deleteModalText}>
+              Deseja realmente remover esta foto do seu portfólio de serviços?
+            </Text>
+            
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity
+                style={styles.deleteModalButtonCancel}
+                onPress={() => {
+                  setShowDeletePhotoModal(false);
+                  setPhotoIndexToDelete(null);
+                }}
+              >
+                <Text style={styles.deleteModalButtonCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.deleteModalButtonConfirm}
+                onPress={confirmDeletePhoto}
+              >
+                <Ionicons name="trash" size={18} color="#FFFFFF" />
+                <Text style={styles.deleteModalButtonConfirmText}>Remover</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
