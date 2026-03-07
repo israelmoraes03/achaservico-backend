@@ -63,6 +63,7 @@ export default function ProviderDashboardScreen() {
   const { user, provider, isAuthenticated, refreshUser } = useAuth();
   
   const [categories, setCategories] = useState<Category[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
   const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -75,6 +76,7 @@ export default function ProviderDashboardScreen() {
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editCategories, setEditCategories] = useState<string[]>([]);
+  const [editCities, setEditCities] = useState<string[]>([]);
   const [editNeighborhood, setEditNeighborhood] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editProfileImage, setEditProfileImage] = useState<string | null>(null);
@@ -82,6 +84,7 @@ export default function ProviderDashboardScreen() {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [showCityPicker, setShowCityPicker] = useState(false);
   const [showNeighborhoodPicker, setShowNeighborhoodPicker] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
