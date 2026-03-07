@@ -169,6 +169,8 @@ CATEGORIES = [
     {"id": "professor", "name": "Professor Particular", "icon": "school"},
     {"id": "costureira", "name": "Costureira", "icon": "shirt"},
     {"id": "fotografo", "name": "Fotógrafo", "icon": "camera"},
+    {"id": "montador_moveis", "name": "Montador de Móveis", "icon": "bed"},
+    {"id": "taxista", "name": "Taxista", "icon": "car-sport"},
 ]
 
 NEIGHBORHOODS = [
