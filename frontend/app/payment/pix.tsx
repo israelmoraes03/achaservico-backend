@@ -221,6 +221,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0A0A0A',
   },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
   loadingContainer: {
     flex: 1,
     backgroundColor: '#0A0A0A',
