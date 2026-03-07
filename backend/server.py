@@ -1167,6 +1167,79 @@ async def get_payment_status(session_id: str, request: Request):
         logger.error(f"Error retrieving session: {e}")
         raise HTTPException(status_code=404, detail="Sessão não encontrada")
 
+class ActivateFromSessionRequest(BaseModel):
+    session_id: str
+
+@api_router.post("/stripe/activate-from-session")
+async def activate_from_stripe_session(data: ActivateFromSessionRequest, request: Request):
+    """Manually activate subscription from Stripe session (fallback when webhook doesn't work)"""
+    user = await require_auth(request)
+    
+    try:
+        # Retrieve the session from Stripe
+        session = stripe.checkout.Session.retrieve(data.session_id)
+        
+        # Verify payment was successful
+        if session.payment_status != 'paid':
+            raise HTTPException(status_code=400, detail="Pagamento não foi concluído")
+        
+        # Get provider info from session metadata
+        provider_id = session.metadata.get('provider_id')
+        session_user_id = session.metadata.get('user_id')
+        
+        if not provider_id:
+            raise HTTPException(status_code=400, detail="Sessão inválida - provider_id não encontrado")
+        
+        # Verify the user owns this provider
+        provider = await db.providers.find_one({"provider_id": provider_id, "user_id": user.user_id}, {"_id": 0})
+        if not provider:
+            raise HTTPException(status_code=403, detail="Você não tem permissão para ativar esta assinatura")
+        
+        # Check if already activated
+        if provider.get("subscription_status") == "active":
+            return {"success": True, "message": "Assinatura já está ativa", "already_active": True}
+        
+        # Activate the subscription
+        expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+        now = datetime.now(timezone.utc)
+        
+        # Create or update subscription record
+        await db.subscriptions.update_one(
+            {"provider_id": provider_id},
+            {"$set": {
+                "provider_id": provider_id,
+                "user_id": user.user_id,
+                "status": "active",
+                "amount": 15.0,
+                "payment_method": "stripe",
+                "stripe_session_id": session.id,
+                "stripe_payment_intent": session.payment_intent,
+                "started_at": now,
+                "expires_at": expires_at,
+                "created_at": now,
+                "updated_at": now
+            }},
+            upsert=True
+        )
+        
+        # Activate provider
+        await db.providers.update_one(
+            {"provider_id": provider_id},
+            {"$set": {
+                "subscription_status": "active",
+                "subscription_expires_at": expires_at,
+                "is_active": True
+            }}
+        )
+        
+        logger.info(f"Stripe subscription manually activated for provider: {provider_id} - {provider.get('name')}")
+        
+        return {"success": True, "message": "Assinatura ativada com sucesso!", "expires_at": expires_at.isoformat()}
+        
+    except stripe.error.StripeError as e:
+        logger.error(f"Stripe error checking session: {e}")
+        raise HTTPException(status_code=400, detail=f"Erro ao verificar pagamento: {str(e)}")
+
 # ======================== WEBHOOKS ========================
 
 @api_router.post("/webhooks/pix")

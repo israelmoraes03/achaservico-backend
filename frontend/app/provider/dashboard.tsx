@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -91,6 +91,9 @@ export default function ProviderDashboardScreen() {
   const [showDeletePhotoModal, setShowDeletePhotoModal] = useState(false);
   const [photoIndexToDelete, setPhotoIndexToDelete] = useState<number | null>(null);
 
+  // Ref to track if initial data has been loaded (prevents reset during edit)
+  const initialLoadDone = useRef(false);
+
   const MAX_SERVICE_PHOTOS = 6;
 
   const toggleCategory = (categoryId: string) => {
@@ -160,19 +163,24 @@ export default function ProviderDashboardScreen() {
   }, [isAuthenticated, fetchData]);
 
   useEffect(() => {
-    // Only sync from provider when NOT in editing mode
+    // Only sync from provider on FIRST load or when NOT in editing mode
     // This prevents resetting user's edits when provider object updates
     if (provider && !isEditing) {
-      setEditName(provider.name);
-      setEditPhone(formatPhoneDisplay(provider.phone));
-      setEditCategories(provider.categories || []);
-      setEditCities(provider.cities || ['tres_lagoas']);
-      setEditNeighborhood(provider.neighborhood);
-      setEditDescription(provider.description);
-      setEditProfileImage(provider.profile_image || null);
-      setServicePhotos(provider.service_photos || []);
+      // If we're in edit mode, don't reset the form values
+      if (!initialLoadDone.current) {
+        // First time loading - populate form
+        setEditName(provider.name);
+        setEditPhone(formatPhoneDisplay(provider.phone));
+        setEditCategories(provider.categories || []);
+        setEditCities(provider.cities || ['tres_lagoas']);
+        setEditNeighborhood(provider.neighborhood);
+        setEditDescription(provider.description);
+        setEditProfileImage(provider.profile_image || null);
+        setServicePhotos(provider.service_photos || []);
+        initialLoadDone.current = true;
+      }
     }
-  }, [provider, isEditing]);
+  }, [provider]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -328,6 +336,10 @@ export default function ProviderDashboardScreen() {
       });
 
       console.log('Update response:', response.data);
+      
+      // Reset the initial load flag so next time we can sync from server
+      initialLoadDone.current = false;
+      
       await refreshUser();
       setIsEditing(false);
       // Toast message instead of Alert
@@ -356,13 +368,28 @@ export default function ProviderDashboardScreen() {
     
     try {
       const response = await api.post('/stripe/create-checkout-session');
-      const { checkout_url } = response.data;
+      const { checkout_url, session_id } = response.data;
       
       if (checkout_url) {
         // Open Stripe Checkout in browser
         await WebBrowser.openBrowserAsync(checkout_url);
         
-        // After returning from browser, refresh data to check payment status
+        // After returning from browser, check payment status and activate if paid
+        if (session_id) {
+          try {
+            // Check payment status directly with Stripe
+            const statusResponse = await api.get(`/stripe/payment-status/${session_id}`);
+            
+            if (statusResponse.data.completed) {
+              // Payment was successful - manually activate subscription
+              await api.post('/stripe/activate-from-session', { session_id });
+            }
+          } catch (statusError) {
+            console.log('Could not verify payment status:', statusError);
+          }
+        }
+        
+        // Refresh data to check updated status
         await fetchData();
       }
     } catch (error: any) {

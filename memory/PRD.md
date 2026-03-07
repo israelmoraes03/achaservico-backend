@@ -67,8 +67,14 @@ AchaServiço é uma aplicação mobile-first para conectar clientes a prestadore
 - **BUG FIX**: Corrigido bug de edição de categorias e cidades no dashboard do prestador
   - Problema: Ao marcar/desmarcar categoria ou cidade, a seleção resetava automaticamente
   - Causa: useEffect sincronizava estado mesmo durante edição
-  - Solução: Adicionada verificação `!isEditing` no useEffect para não resetar durante edição
+  - Solução: Implementado `useRef` para controlar se é o primeiro carregamento vs edições subsequentes
   - Arquivo: `/app/frontend/app/provider/dashboard.tsx`
+
+- **FEATURE**: Ativação automática de assinatura Stripe (fallback)
+  - Problema: Webhook do Stripe não chegava na URL de preview
+  - Solução: Criado endpoint `/api/stripe/activate-from-session` que verifica o pagamento diretamente com o Stripe e ativa a assinatura
+  - O frontend agora verifica o pagamento ao retornar do checkout e ativa automaticamente
+  - Arquivos: `/app/backend/server.py`, `/app/frontend/app/provider/dashboard.tsx`
 
 ---
 
