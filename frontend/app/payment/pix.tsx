@@ -80,17 +80,7 @@ export default function PaymentPixScreen() {
   };
 
   const handleConfirmPayment = () => {
-    Alert.alert(
-      'Confirmar Pagamento PIX',
-      'Você confirma que já realizou o PIX de R$ 15,00 para a chave informada?\n\nSua assinatura ficará pendente até a confirmação do pagamento.',
-      [
-        { text: 'Ainda não paguei', style: 'cancel' },
-        {
-          text: 'Sim, já paguei!',
-          onPress: confirmPayment
-        },
-      ]
-    );
+    setShowConfirmModal(true);
   };
 
   // Show success screen after confirmation
