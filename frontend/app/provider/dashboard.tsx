@@ -313,7 +313,7 @@ export default function ProviderDashboardScreen() {
     try {
       setIsSaving(true);
       
-      await api.put(`/providers/${provider.provider_id}`, {
+      const response = await api.put(`/providers/${provider.provider_id}`, {
         name: editName.trim(),
         phone: editPhone.replace(/\D/g, ''),
         categories: editCategories,
@@ -323,10 +323,12 @@ export default function ProviderDashboardScreen() {
         profile_image: editProfileImage,
       });
 
+      console.log('Update response:', response.data);
       await refreshUser();
       setIsEditing(false);
-      Alert.alert('Sucesso', 'Perfil atualizado com sucesso!');
+      // Toast message instead of Alert
     } catch (error: any) {
+      console.error('Save error:', error);
       const message = error.response?.data?.detail || 'Erro ao atualizar perfil.';
       Alert.alert('Erro', message);
     } finally {
