@@ -159,6 +159,7 @@ export default function ProviderDashboardScreen() {
       setEditName(provider.name);
       setEditPhone(formatPhoneDisplay(provider.phone));
       setEditCategories(provider.categories || []);
+      setEditCities(provider.cities || ['tres_lagoas']);
       setEditNeighborhood(provider.neighborhood);
       setEditDescription(provider.description);
       setEditProfileImage(provider.profile_image || null);
