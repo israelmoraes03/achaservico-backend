@@ -104,12 +104,14 @@ export default function ProviderDashboardScreen() {
   };
 
   const toggleCity = (cityId: string) => {
+    console.log('toggleCity called with:', cityId);
+    console.log('Current editCities:', editCities);
     setEditCities(prev => {
-      if (prev.includes(cityId)) {
-        return prev.filter(c => c !== cityId);
-      } else {
-        return [...prev, cityId];
-      }
+      const newCities = prev.includes(cityId) 
+        ? prev.filter(c => c !== cityId)
+        : [...prev, cityId];
+      console.log('New editCities:', newCities);
+      return newCities;
     });
   };
 
