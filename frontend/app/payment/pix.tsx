@@ -444,6 +444,63 @@ const styles = StyleSheet.create({
   successIcon: {
     marginBottom: 24,
   },
+  pendingIcon: {
+    marginBottom: 24,
+  },
+  pendingTitle: {
+    color: '#F59E0B',
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  pendingText: {
+    color: '#9CA3AF',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 24,
+  },
+  pendingStepsBox: {
+    backgroundColor: '#1F1F1F',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    marginBottom: 24,
+  },
+  pendingStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  pendingStepLine: {
+    width: 2,
+    height: 20,
+    backgroundColor: '#374151',
+    marginLeft: 11,
+    marginVertical: 4,
+  },
+  pendingStepText: {
+    color: '#10B981',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  pendingStepTextActive: {
+    color: '#F59E0B',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  pendingStepTextInactive: {
+    color: '#6B7280',
+    fontSize: 14,
+  },
+  pendingSubtext: {
+    color: '#F59E0B',
+    fontSize: 15,
+    textAlign: 'center',
+    marginBottom: 24,
+    fontWeight: '500',
+  },
   successTitle: {
     color: '#FFFFFF',
     fontSize: 24,
