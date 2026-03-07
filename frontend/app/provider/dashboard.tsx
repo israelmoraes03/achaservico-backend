@@ -160,7 +160,9 @@ export default function ProviderDashboardScreen() {
   }, [isAuthenticated, fetchData]);
 
   useEffect(() => {
-    if (provider) {
+    // Only sync from provider when NOT in editing mode
+    // This prevents resetting user's edits when provider object updates
+    if (provider && !isEditing) {
       setEditName(provider.name);
       setEditPhone(formatPhoneDisplay(provider.phone));
       setEditCategories(provider.categories || []);
@@ -170,7 +172,7 @@ export default function ProviderDashboardScreen() {
       setEditProfileImage(provider.profile_image || null);
       setServicePhotos(provider.service_photos || []);
     }
-  }, [provider]);
+  }, [provider, isEditing]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
