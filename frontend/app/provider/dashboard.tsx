@@ -647,6 +647,75 @@ export default function ProviderDashboardScreen() {
           </View>
 
           <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Cidades de Atuação</Text>
+            {isEditing ? (
+              <>
+                <TouchableOpacity
+                  style={styles.selectButton}
+                  onPress={() => setShowCityPicker(!showCityPicker)}
+                >
+                  <Text style={styles.selectButtonText}>
+                    {getSelectedCitiesText()}
+                  </Text>
+                  <Ionicons name={showCityPicker ? "chevron-up" : "chevron-down"} size={20} color="#6B7280" />
+                </TouchableOpacity>
+                
+                {/* Selected cities badges */}
+                {editCities.length > 0 && (
+                  <View style={styles.selectedCategoriesContainer}>
+                    {editCities.map((cityId) => (
+                      <TouchableOpacity
+                        key={cityId}
+                        style={styles.categoryBadge}
+                        onPress={() => toggleCity(cityId)}
+                      >
+                        <Text style={styles.categoryBadgeText}>{getCityName(cityId)}</Text>
+                        <Ionicons name="close-circle" size={16} color="#10B981" />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+                
+                {showCityPicker && (
+                  <View style={styles.pickerContainer}>
+                    <ScrollView style={styles.pickerScroll} nestedScrollEnabled>
+                      {cities.map((city) => (
+                        <TouchableOpacity
+                          key={city.id}
+                          style={[styles.pickerItem, editCities.includes(city.id) && styles.pickerItemActive]}
+                          onPress={() => toggleCity(city.id)}
+                        >
+                          <Ionicons 
+                            name={editCities.includes(city.id) ? "checkbox" : "square-outline"} 
+                            size={20} 
+                            color={editCities.includes(city.id) ? '#10B981' : '#9CA3AF'} 
+                          />
+                          <Ionicons name="location" size={20} color={editCities.includes(city.id) ? '#10B981' : '#9CA3AF'} />
+                          <Text style={[styles.pickerItemText, editCities.includes(city.id) && styles.pickerItemTextActive]}>
+                            {city.name} - {city.state}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+              </>
+            ) : (
+              <View style={styles.categoriesDisplay}>
+                {provider.cities && provider.cities.length > 0 ? (
+                  provider.cities.map((cityId) => (
+                    <View key={cityId} style={styles.categoryTagDisplay}>
+                      <Text style={styles.categoryTagText}>{getCityName(cityId)}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.fieldValue}>Nenhuma cidade definida</Text>
+                )}
+              </View>
+            )}
+          </View>
+
+          <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>Bairro</Text>
             {isEditing ? (
               <>
