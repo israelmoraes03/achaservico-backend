@@ -1065,6 +1065,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  // Pending Banner Styles
+  pendingBanner: {
+    flexDirection: 'row',
+    backgroundColor: '#F59E0B20',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#F59E0B40',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  pendingBannerContent: {
+    flex: 1,
+  },
+  pendingBannerTitle: {
+    color: '#F59E0B',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  pendingBannerText: {
+    color: '#FCD34D',
+    fontSize: 13,
+    lineHeight: 18,
+  },
   statsContainer: {
     flexDirection: 'row',
     gap: 12,
