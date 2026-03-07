@@ -443,22 +443,35 @@ export default function ProviderDashboardScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#10B981" />}
       >
+        {/* Pending Approval Banner - Show at top when pending */}
+        {(subscription?.status === 'pending' || provider.subscription_status === 'pending') && (
+          <View style={styles.pendingBanner}>
+            <Ionicons name="time-outline" size={24} color="#F59E0B" />
+            <View style={styles.pendingBannerContent}>
+              <Text style={styles.pendingBannerTitle}>Aguardando Aprovação</Text>
+              <Text style={styles.pendingBannerText}>
+                Seu pagamento PIX está sendo verificado. A aprovação ocorre em até 24h.
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Subscription Status */}
         <View style={[
           styles.subscriptionCard,
           provider.subscription_status === 'active' ? styles.subscriptionActive : 
-          subscription?.status === 'pending' ? styles.subscriptionPending : styles.subscriptionInactive
+          (subscription?.status === 'pending' || provider.subscription_status === 'pending') ? styles.subscriptionPending : styles.subscriptionInactive
         ]}>
           <View style={styles.subscriptionHeader}>
             <View style={styles.subscriptionStatus}>
               <View style={[
                 styles.statusDot,
                 { backgroundColor: provider.subscription_status === 'active' ? '#10B981' : 
-                  subscription?.status === 'pending' ? '#F59E0B' : '#EF4444' }
+                  (subscription?.status === 'pending' || provider.subscription_status === 'pending') ? '#F59E0B' : '#EF4444' }
               ]} />
               <Text style={styles.subscriptionStatusText}>
                 {provider.subscription_status === 'active' ? 'Assinatura Ativa' : 
-                 subscription?.status === 'pending' ? 'Aguardando Aprovação' : 'Assinatura Inativa'}
+                 (subscription?.status === 'pending' || provider.subscription_status === 'pending') ? 'Aguardando Aprovação' : 'Assinatura Inativa'}
               </Text>
             </View>
             <Text style={styles.subscriptionPrice}>R$ 15,00/mês</Text>
@@ -468,7 +481,7 @@ export default function ProviderDashboardScreen() {
             <Text style={styles.subscriptionExpiry}>
               Válida até {formatDate(subscription.expires_at)}
             </Text>
-          ) : subscription?.status === 'pending' ? (
+          ) : (subscription?.status === 'pending' || provider.subscription_status === 'pending') ? (
             <View>
               <Text style={styles.subscriptionPendingText}>
                 Seu pagamento está sendo verificado pelo administrador
