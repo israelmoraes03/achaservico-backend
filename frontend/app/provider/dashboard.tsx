@@ -100,6 +100,27 @@ export default function ProviderDashboardScreen() {
     });
   };
 
+  const toggleCity = (cityId: string) => {
+    setEditCities(prev => {
+      if (prev.includes(cityId)) {
+        return prev.filter(c => c !== cityId);
+      } else {
+        return [...prev, cityId];
+      }
+    });
+  };
+
+  const getCityName = (cityId: string) => {
+    const city = cities.find(c => c.id === cityId);
+    return city ? `${city.name} - ${city.state}` : cityId;
+  };
+
+  const getSelectedCitiesText = () => {
+    if (editCities.length === 0) return 'Selecione as cidades';
+    if (editCities.length === cities.length) return 'Todas as cidades';
+    return `${editCities.length} cidade(s) selecionada(s)`;
+  };
+
   const fetchData = useCallback(async () => {
     try {
       const [catRes, neighRes, citiesRes, subRes] = await Promise.all([
