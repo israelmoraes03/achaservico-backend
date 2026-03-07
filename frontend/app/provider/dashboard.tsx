@@ -102,13 +102,15 @@ export default function ProviderDashboardScreen() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [catRes, neighRes, subRes] = await Promise.all([
+      const [catRes, neighRes, citiesRes, subRes] = await Promise.all([
         api.get('/categories'),
         api.get('/neighborhoods'),
+        api.get('/cities'),
         api.get('/subscriptions/status'),
       ]);
       setCategories(catRes.data);
       setNeighborhoods(neighRes.data);
+      setCities(citiesRes.data);
       setSubscription(subRes.data.subscription);
       
       await refreshUser();
