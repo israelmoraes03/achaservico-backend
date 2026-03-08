@@ -403,18 +403,47 @@ export default function ProviderDashboardScreen() {
         // Open Stripe Checkout in browser
         await WebBrowser.openBrowserAsync(checkout_url);
         
-        // After returning from browser, check payment status and activate if paid
+        // After returning from browser, try to verify and activate payment
+        // Use polling because payment might take a moment to complete
         if (session_id) {
-          try {
-            // Check payment status directly with Stripe
-            const statusResponse = await api.get(`/stripe/payment-status/${session_id}`);
-            
-            if (statusResponse.data.completed) {
-              // Payment was successful - manually activate subscription
-              await api.post('/stripe/activate-from-session', { session_id });
+          let attempts = 0;
+          const maxAttempts = 5;
+          const delayMs = 2000; // 2 seconds between attempts
+          
+          const checkAndActivate = async (): Promise<boolean> => {
+            try {
+              console.log(`Checking payment status, attempt ${attempts + 1}/${maxAttempts}`);
+              const statusResponse = await api.get(`/stripe/payment-status/${session_id}`);
+              console.log('Payment status:', statusResponse.data);
+              
+              if (statusResponse.data.completed) {
+                // Payment was successful - manually activate subscription
+                console.log('Payment completed, activating subscription...');
+                const activateResponse = await api.post('/stripe/activate-from-session', { session_id });
+                console.log('Activation response:', activateResponse.data);
+                return true;
+              }
+              return false;
+            } catch (error) {
+              console.log('Error checking payment:', error);
+              return false;
             }
-          } catch (statusError) {
-            console.log('Could not verify payment status:', statusError);
+          };
+          
+          // Try immediately first
+          let activated = await checkAndActivate();
+          
+          // If not activated, poll a few more times
+          while (!activated && attempts < maxAttempts) {
+            attempts++;
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+            activated = await checkAndActivate();
+          }
+          
+          if (activated) {
+            console.log('Subscription activated successfully!');
+          } else {
+            console.log('Could not verify payment completion. Please refresh the page.');
           }
         }
         
