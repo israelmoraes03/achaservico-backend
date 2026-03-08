@@ -169,9 +169,9 @@ export default function ProviderDashboardScreen() {
   }, [isAuthenticated, fetchData]);
 
   useEffect(() => {
-    // Only sync from provider on FIRST load
+    // Only sync from provider on FIRST load AND when NOT editing
     // After initial load, we don't sync anymore to preserve edits
-    if (provider && !hasLoadedInitialData) {
+    if (provider && !hasLoadedInitialData && !isEditing) {
       console.log('Loading initial provider data into form');
       setEditName(provider.name);
       setEditPhone(formatPhoneDisplay(provider.phone));
@@ -183,7 +183,7 @@ export default function ProviderDashboardScreen() {
       setServicePhotos(provider.service_photos || []);
       setHasLoadedInitialData(true);
     }
-  }, [provider, hasLoadedInitialData]);
+  }, [provider, hasLoadedInitialData, isEditing]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -345,11 +345,16 @@ export default function ProviderDashboardScreen() {
 
       console.log('Update response:', response.data);
       
-      // Reset the flag so we can reload data from server after save
-      setHasLoadedInitialData(false);
-      
-      await refreshUser();
+      // Exit edit mode first
       setIsEditing(false);
+      
+      // Then refresh user data
+      await refreshUser();
+      
+      // Reset the flag AFTER we're out of edit mode and data is refreshed
+      // This allows the useEffect to pick up fresh server data on next edit
+      setTimeout(() => setHasLoadedInitialData(false), 100);
+      
       // Toast message instead of Alert
     } catch (error: any) {
       console.error('Save error:', error);
