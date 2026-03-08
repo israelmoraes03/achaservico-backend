@@ -766,7 +766,7 @@ async def get_all_users():
 
 @api_router.get("/admin/all-subscriptions")
 async def get_all_subscriptions():
-    """Get all subscriptions with provider details"""
+    """Get all subscriptions with provider details - automatically filters out orphans"""
     subscriptions = await db.subscriptions.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
     
     # Batch fetch all providers to avoid N+1 query
@@ -775,12 +775,25 @@ async def get_all_subscriptions():
     provider_map = {p["provider_id"]: p for p in providers}
     
     result = []
+    orphan_ids = []
+    
     for sub in subscriptions:
         provider = provider_map.get(sub.get("provider_id"))
-        result.append({
-            "subscription": sub,
-            "provider": provider
-        })
+        if provider:
+            # Only include subscriptions with valid providers
+            result.append({
+                "subscription": sub,
+                "provider": provider
+            })
+        else:
+            # Track orphan subscriptions for cleanup
+            orphan_ids.append(sub.get("provider_id"))
+    
+    # Auto-cleanup orphan subscriptions in background
+    if orphan_ids:
+        for orphan_id in orphan_ids:
+            await db.subscriptions.delete_one({"provider_id": orphan_id})
+        logger.info(f"Auto-cleaned {len(orphan_ids)} orphan subscriptions")
     
     return result
 
