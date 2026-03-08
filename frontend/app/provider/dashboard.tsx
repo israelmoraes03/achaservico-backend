@@ -58,6 +58,18 @@ interface Subscription {
   expires_at: string;
 }
 
+// Utility function to format phone for display
+const formatPhoneDisplay = (phone: string): string => {
+  if (!phone) return '';
+  const cleaned = phone.replace(/\D/g, '');
+  if (cleaned.length >= 11) {
+    return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7, 11)}`;
+  } else if (cleaned.length >= 10) {
+    return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6, 10)}`;
+  }
+  return phone;
+};
+
 export default function ProviderDashboardScreen() {
   const router = useRouter();
   const { user, provider, isAuthenticated, refreshUser } = useAuth();
@@ -206,14 +218,6 @@ export default function ProviderDashboardScreen() {
     await fetchData();
     setRefreshing(false);
   }, [fetchData]);
-
-  const formatPhoneDisplay = (phone: string) => {
-    const cleaned = phone.replace(/\D/g, '');
-    if (cleaned.length >= 11) {
-      return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7, 11)}`;
-    }
-    return phone;
-  };
 
   const formatPhone = (text: string) => {
     const cleaned = text.replace(/\D/g, '');
