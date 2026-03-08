@@ -72,7 +72,7 @@ export default function ProviderDashboardScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
   
-  // Edit form state
+  // Edit form state - these are the LOCAL values that the user can edit
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editCategories, setEditCategories] = useState<string[]>([]);
@@ -91,10 +91,34 @@ export default function ProviderDashboardScreen() {
   const [showDeletePhotoModal, setShowDeletePhotoModal] = useState(false);
   const [photoIndexToDelete, setPhotoIndexToDelete] = useState<number | null>(null);
 
-  // Flag to track if we've loaded initial data
-  const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false);
-
   const MAX_SERVICE_PHOTOS = 6;
+
+  // Initialize form with provider data - this ONLY runs when starting to edit
+  const initializeFormFromProvider = useCallback(() => {
+    if (provider) {
+      console.log('Initializing form from provider:', provider.name);
+      setEditName(provider.name || '');
+      setEditPhone(formatPhoneDisplay(provider.phone || ''));
+      setEditCategories(provider.categories || []);
+      setEditCities(provider.cities || ['tres_lagoas']);
+      setEditNeighborhood(provider.neighborhood || '');
+      setEditDescription(provider.description || '');
+      setEditProfileImage(provider.profile_image || null);
+      setServicePhotos(provider.service_photos || []);
+    }
+  }, [provider]);
+
+  // When user clicks "Editar" - initialize form and enter edit mode
+  const startEditing = useCallback(() => {
+    initializeFormFromProvider();
+    setIsEditing(true);
+  }, [initializeFormFromProvider]);
+
+  // Cancel editing - reset form to provider data
+  const cancelEditing = useCallback(() => {
+    initializeFormFromProvider();
+    setIsEditing(false);
+  }, [initializeFormFromProvider]);
 
   const toggleCategory = (categoryId: string) => {
     console.log('toggleCategory called with:', categoryId);
@@ -168,22 +192,14 @@ export default function ProviderDashboardScreen() {
     fetchData();
   }, [isAuthenticated, fetchData]);
 
+  // Initialize form data when provider loads (for display in non-edit mode)
   useEffect(() => {
-    // Only sync from provider on FIRST load AND when NOT editing
-    // After initial load, we don't sync anymore to preserve edits
-    if (provider && !hasLoadedInitialData && !isEditing) {
-      console.log('Loading initial provider data into form');
-      setEditName(provider.name);
-      setEditPhone(formatPhoneDisplay(provider.phone));
-      setEditCategories(provider.categories || []);
-      setEditCities(provider.cities || ['tres_lagoas']);
-      setEditNeighborhood(provider.neighborhood);
-      setEditDescription(provider.description);
-      setEditProfileImage(provider.profile_image || null);
+    if (provider && !isEditing) {
+      // Only update service photos for display (they are managed separately)
       setServicePhotos(provider.service_photos || []);
-      setHasLoadedInitialData(true);
+      setEditProfileImage(provider.profile_image || null);
     }
-  }, [provider, hasLoadedInitialData, isEditing]);
+  }, [provider, isEditing]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -345,15 +361,11 @@ export default function ProviderDashboardScreen() {
 
       console.log('Update response:', response.data);
       
-      // Exit edit mode first
+      // Exit edit mode
       setIsEditing(false);
       
-      // Then refresh user data
+      // Then refresh user data to get updated values
       await refreshUser();
-      
-      // Reset the flag AFTER we're out of edit mode and data is refreshed
-      // This allows the useEffect to pick up fresh server data on next edit
-      setTimeout(() => setHasLoadedInitialData(false), 100);
       
       // Toast message instead of Alert
     } catch (error: any) {
@@ -471,7 +483,7 @@ export default function ProviderDashboardScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Painel do Prestador</Text>
         <TouchableOpacity
-          onPress={() => isEditing ? handleSave() : setIsEditing(true)}
+          onPress={() => isEditing ? handleSave() : startEditing()}
           style={styles.editButton}
           disabled={isSaving}
         >
