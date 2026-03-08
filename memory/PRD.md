@@ -63,18 +63,24 @@ AchaServiço é uma aplicação mobile-first para conectar clientes a prestadore
 
 ## Changelog
 
-### 2025-03-07
+### 2025-03-08
 - **BUG FIX**: Corrigido bug de edição de categorias e cidades no dashboard do prestador
   - Problema: Ao marcar/desmarcar categoria ou cidade, a seleção resetava automaticamente
   - Causa: useEffect sincronizava estado mesmo durante edição
-  - Solução: Implementado `useRef` para controlar se é o primeiro carregamento vs edições subsequentes
+  - Solução: Refatorado para inicializar form apenas ao clicar "Editar" (função `startEditing`)
   - Arquivo: `/app/frontend/app/provider/dashboard.tsx`
 
-- **FEATURE**: Ativação automática de assinatura Stripe (fallback)
-  - Problema: Webhook do Stripe não chegava na URL de preview
-  - Solução: Criado endpoint `/api/stripe/activate-from-session` que verifica o pagamento diretamente com o Stripe e ativa a assinatura
-  - O frontend agora verifica o pagamento ao retornar do checkout e ativa automaticamente
-  - Arquivos: `/app/backend/server.py`, `/app/frontend/app/provider/dashboard.tsx`
+- **FEATURE**: Ativação automática de assinatura via Webhook Stripe ✅
+  - Configurado webhook no Stripe (modo teste) apontando para Render
+  - URL: `https://achaservico-backend.onrender.com/api/stripe/webhook`
+  - Evento: `checkout.session.completed`
+  - Assinatura ativa automaticamente após pagamento!
+
+- **DEPLOY**: Backend atualizado no Render
+  - Variáveis de ambiente configuradas: `APP_DOMAIN`, `STRIPE_WEBHOOK_SECRET`
+  
+- **APK**: Versão funcional disponível
+  - Link: https://expo.dev/accounts/israel_moraes/projects/achaservico/builds/30c93583-b02b-4709-92e2-5e5c0f6c8329
 
 ---
 
