@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -91,24 +91,30 @@ export default function ProviderDashboardScreen() {
   const [showDeletePhotoModal, setShowDeletePhotoModal] = useState(false);
   const [photoIndexToDelete, setPhotoIndexToDelete] = useState<number | null>(null);
 
-  // Ref to track if initial data has been loaded (prevents reset during edit)
-  const initialLoadDone = useRef(false);
+  // Flag to track if we've loaded initial data
+  const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false);
 
   const MAX_SERVICE_PHOTOS = 6;
 
   const toggleCategory = (categoryId: string) => {
+    console.log('toggleCategory called with:', categoryId);
+    console.log('Current editCategories before:', editCategories);
+    console.log('isEditing:', isEditing);
+    
     setEditCategories(prev => {
-      if (prev.includes(categoryId)) {
-        return prev.filter(c => c !== categoryId);
-      } else {
-        return [...prev, categoryId];
-      }
+      const newCategories = prev.includes(categoryId)
+        ? prev.filter(c => c !== categoryId)
+        : [...prev, categoryId];
+      console.log('New editCategories:', newCategories);
+      return newCategories;
     });
   };
 
   const toggleCity = (cityId: string) => {
     console.log('toggleCity called with:', cityId);
-    console.log('Current editCities:', editCities);
+    console.log('Current editCities before:', editCities);
+    console.log('isEditing:', isEditing);
+    
     setEditCities(prev => {
       const newCities = prev.includes(cityId) 
         ? prev.filter(c => c !== cityId)
@@ -163,24 +169,21 @@ export default function ProviderDashboardScreen() {
   }, [isAuthenticated, fetchData]);
 
   useEffect(() => {
-    // Only sync from provider on FIRST load or when NOT in editing mode
-    // This prevents resetting user's edits when provider object updates
-    if (provider && !isEditing) {
-      // If we're in edit mode, don't reset the form values
-      if (!initialLoadDone.current) {
-        // First time loading - populate form
-        setEditName(provider.name);
-        setEditPhone(formatPhoneDisplay(provider.phone));
-        setEditCategories(provider.categories || []);
-        setEditCities(provider.cities || ['tres_lagoas']);
-        setEditNeighborhood(provider.neighborhood);
-        setEditDescription(provider.description);
-        setEditProfileImage(provider.profile_image || null);
-        setServicePhotos(provider.service_photos || []);
-        initialLoadDone.current = true;
-      }
+    // Only sync from provider on FIRST load
+    // After initial load, we don't sync anymore to preserve edits
+    if (provider && !hasLoadedInitialData) {
+      console.log('Loading initial provider data into form');
+      setEditName(provider.name);
+      setEditPhone(formatPhoneDisplay(provider.phone));
+      setEditCategories(provider.categories || []);
+      setEditCities(provider.cities || ['tres_lagoas']);
+      setEditNeighborhood(provider.neighborhood);
+      setEditDescription(provider.description);
+      setEditProfileImage(provider.profile_image || null);
+      setServicePhotos(provider.service_photos || []);
+      setHasLoadedInitialData(true);
     }
-  }, [provider]);
+  }, [provider, hasLoadedInitialData]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -325,6 +328,11 @@ export default function ProviderDashboardScreen() {
     try {
       setIsSaving(true);
       
+      console.log('Saving provider data:', {
+        categories: editCategories,
+        cities: editCities,
+      });
+      
       const response = await api.put(`/providers/${provider.provider_id}`, {
         name: editName.trim(),
         phone: editPhone.replace(/\D/g, ''),
@@ -337,8 +345,8 @@ export default function ProviderDashboardScreen() {
 
       console.log('Update response:', response.data);
       
-      // Reset the initial load flag so next time we can sync from server
-      initialLoadDone.current = false;
+      // Reset the flag so we can reload data from server after save
+      setHasLoadedInitialData(false);
       
       await refreshUser();
       setIsEditing(false);
