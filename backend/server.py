@@ -956,6 +956,25 @@ async def admin_delete_provider(provider_id: str):
     
     return {"success": True, "message": "Prestador excluído"}
 
+@api_router.delete("/admin/cleanup-orphan-subscriptions")
+async def admin_cleanup_orphan_subscriptions():
+    """Delete subscriptions that don't have a corresponding provider"""
+    # Get all subscriptions
+    all_subscriptions = await db.subscriptions.find({}, {"_id": 0, "provider_id": 1}).to_list(1000)
+    
+    # Get all provider IDs
+    all_providers = await db.providers.find({}, {"_id": 0, "provider_id": 1}).to_list(1000)
+    provider_ids = {p["provider_id"] for p in all_providers}
+    
+    # Find orphan subscriptions
+    orphan_count = 0
+    for sub in all_subscriptions:
+        if sub.get("provider_id") not in provider_ids:
+            await db.subscriptions.delete_one({"provider_id": sub["provider_id"]})
+            orphan_count += 1
+    
+    return {"success": True, "deleted_count": orphan_count, "message": f"{orphan_count} assinaturas órfãs removidas"}
+
 @api_router.delete("/admin/user/{user_id}")
 async def admin_delete_user(user_id: str):
     """Delete a user and their provider profile if exists"""
