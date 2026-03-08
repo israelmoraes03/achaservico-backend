@@ -35,7 +35,10 @@ STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
 stripe.api_key = STRIPE_SECRET_KEY
 
 # App Domain for Stripe redirects
-APP_DOMAIN = os.environ.get('APP_DOMAIN', 'https://payment-flow-166.preview.emergentagent.com')
+# App configuration
+APP_DOMAIN = os.environ.get('APP_DOMAIN', 'https://achaservico-backend.onrender.com')
+# For mobile app deep linking after Stripe payment
+APP_SCHEME = os.environ.get('APP_SCHEME', 'achaservico')
 
 # Create the main app
 app = FastAPI(title="AchaServiço API", description="API para conectar clientes a prestadores de serviços locais")
@@ -1042,8 +1045,9 @@ async def create_stripe_checkout_session(request: Request):
                 'quantity': 1,
             }],
             mode='payment',
-            success_url=f"{APP_DOMAIN}?payment=success&provider_id={provider['provider_id']}",
-            cancel_url=f"{APP_DOMAIN}?payment=cancelled",
+            # Use deep link for mobile app return
+            success_url=f"{APP_SCHEME}://payment-success?session_id={{CHECKOUT_SESSION_ID}}&provider_id={provider['provider_id']}",
+            cancel_url=f"{APP_SCHEME}://payment-cancelled",
             metadata={
                 'provider_id': provider['provider_id'],
                 'user_id': user.user_id,
