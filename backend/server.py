@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Response, Request
+from fastapi.responses import HTMLResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -1045,9 +1046,9 @@ async def create_stripe_checkout_session(request: Request):
                 'quantity': 1,
             }],
             mode='payment',
-            # Use deep link for mobile app return
-            success_url=f"{APP_SCHEME}://payment-success?session_id={{CHECKOUT_SESSION_ID}}&provider_id={provider['provider_id']}",
-            cancel_url=f"{APP_SCHEME}://payment-cancelled",
+            # Use backend URL for return, which will redirect to app via JavaScript
+            success_url=f"{APP_DOMAIN}/api/stripe/payment-complete?session_id={{CHECKOUT_SESSION_ID}}&status=success",
+            cancel_url=f"{APP_DOMAIN}/api/stripe/payment-complete?status=cancelled",
             metadata={
                 'provider_id': provider['provider_id'],
                 'user_id': user.user_id,
@@ -1155,6 +1156,173 @@ async def stripe_webhook(request: Request):
         logger.warning(f"Payment failed: {event.data.object}")
     
     return {"status": "ok"}
+
+@api_router.get("/stripe/payment-complete", response_class=HTMLResponse)
+async def stripe_payment_complete(session_id: str = None, status: str = "success"):
+    """HTML page shown after Stripe payment - instructs user to close browser and return to app"""
+    
+    if status == "success" and session_id:
+        # Try to activate subscription automatically
+        try:
+            session = stripe.checkout.Session.retrieve(session_id)
+            if session.payment_status == 'paid':
+                provider_id = session.metadata.get('provider_id')
+                if provider_id:
+                    provider = await db.providers.find_one({"provider_id": provider_id}, {"_id": 0})
+                    if provider and provider.get("subscription_status") != "active":
+                        expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+                        now = datetime.now(timezone.utc)
+                        
+                        await db.subscriptions.update_one(
+                            {"provider_id": provider_id},
+                            {"$set": {
+                                "provider_id": provider_id,
+                                "user_id": provider.get("user_id"),
+                                "status": "active",
+                                "amount": 15.0,
+                                "payment_method": "stripe",
+                                "stripe_session_id": session.id,
+                                "started_at": now,
+                                "expires_at": expires_at,
+                            }},
+                            upsert=True
+                        )
+                        
+                        await db.providers.update_one(
+                            {"provider_id": provider_id},
+                            {"$set": {
+                                "subscription_status": "active",
+                                "subscription_expires_at": expires_at,
+                                "is_active": True
+                            }}
+                        )
+                        logger.info(f"Subscription auto-activated for provider: {provider_id}")
+        except Exception as e:
+            logger.error(f"Error auto-activating subscription: {e}")
+    
+    # Return HTML page
+    if status == "success":
+        html_content = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Pagamento Confirmado - AchaServiço</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    background: linear-gradient(135deg, #0A0A0A 0%, #1a1a2e 100%);
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    padding: 20px;
+                }
+                .container {
+                    text-align: center;
+                    max-width: 400px;
+                }
+                .icon {
+                    width: 80px;
+                    height: 80px;
+                    background: #10B981;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin: 0 auto 24px;
+                    font-size: 40px;
+                }
+                h1 {
+                    font-size: 28px;
+                    margin-bottom: 16px;
+                    color: #10B981;
+                }
+                p {
+                    font-size: 16px;
+                    color: #9CA3AF;
+                    margin-bottom: 32px;
+                    line-height: 1.5;
+                }
+                .btn {
+                    background: #10B981;
+                    color: white;
+                    border: none;
+                    padding: 16px 32px;
+                    font-size: 18px;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    font-weight: 600;
+                    width: 100%;
+                    max-width: 280px;
+                }
+                .btn:active { background: #059669; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="icon">✓</div>
+                <h1>Pagamento Confirmado!</h1>
+                <p>Sua assinatura foi ativada com sucesso. Agora você pode receber contatos de clientes.</p>
+                <button class="btn" onclick="window.close()">Fechar e Voltar ao App</button>
+                <p style="margin-top: 20px; font-size: 14px;">Se o botão não funcionar, feche esta aba manualmente.</p>
+            </div>
+        </body>
+        </html>
+        """
+    else:
+        html_content = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Pagamento Cancelado - AchaServiço</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    background: linear-gradient(135deg, #0A0A0A 0%, #1a1a2e 100%);
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    padding: 20px;
+                }
+                .container { text-align: center; max-width: 400px; }
+                .icon {
+                    width: 80px; height: 80px;
+                    background: #EF4444;
+                    border-radius: 50%;
+                    display: flex; align-items: center; justify-content: center;
+                    margin: 0 auto 24px;
+                    font-size: 40px;
+                }
+                h1 { font-size: 28px; margin-bottom: 16px; color: #EF4444; }
+                p { font-size: 16px; color: #9CA3AF; margin-bottom: 32px; }
+                .btn {
+                    background: #374151; color: white; border: none;
+                    padding: 16px 32px; font-size: 18px; border-radius: 12px;
+                    cursor: pointer; font-weight: 600;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="icon">✕</div>
+                <h1>Pagamento Cancelado</h1>
+                <p>O pagamento foi cancelado. Você pode tentar novamente quando quiser.</p>
+                <button class="btn" onclick="window.close()">Fechar e Voltar ao App</button>
+            </div>
+        </body>
+        </html>
+        """
+    
+    return HTMLResponse(content=html_content)
 
 @api_router.get("/stripe/payment-status/{session_id}")
 async def get_payment_status(session_id: str, request: Request):
