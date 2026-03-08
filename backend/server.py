@@ -1158,6 +1158,8 @@ async def get_payment_status(session_id: str, request: Request):
     try:
         session = stripe.checkout.Session.retrieve(session_id)
         
+        logger.info(f"Payment status check for session {session_id}: status={session.payment_status}")
+        
         return {
             "status": session.payment_status,
             "provider_id": session.metadata.get('provider_id'),
@@ -1173,7 +1175,8 @@ class ActivateFromSessionRequest(BaseModel):
 @api_router.post("/stripe/activate-from-session")
 async def activate_from_stripe_session(data: ActivateFromSessionRequest, request: Request):
     """Manually activate subscription from Stripe session (fallback when webhook doesn't work)"""
-    user = await require_auth(request)
+    # Note: Authentication is done via Stripe session verification, not user token
+    # This allows activation even if session was lost during Stripe redirect
     
     try:
         # Retrieve the session from Stripe
@@ -1190,10 +1193,10 @@ async def activate_from_stripe_session(data: ActivateFromSessionRequest, request
         if not provider_id:
             raise HTTPException(status_code=400, detail="Sessão inválida - provider_id não encontrado")
         
-        # Verify the user owns this provider
-        provider = await db.providers.find_one({"provider_id": provider_id, "user_id": user.user_id}, {"_id": 0})
+        # Get the provider (using provider_id from session metadata for security)
+        provider = await db.providers.find_one({"provider_id": provider_id}, {"_id": 0})
         if not provider:
-            raise HTTPException(status_code=403, detail="Você não tem permissão para ativar esta assinatura")
+            raise HTTPException(status_code=404, detail="Prestador não encontrado")
         
         # Check if already activated
         if provider.get("subscription_status") == "active":
@@ -1208,7 +1211,7 @@ async def activate_from_stripe_session(data: ActivateFromSessionRequest, request
             {"provider_id": provider_id},
             {"$set": {
                 "provider_id": provider_id,
-                "user_id": user.user_id,
+                "user_id": session_user_id or provider.get("user_id"),
                 "status": "active",
                 "amount": 15.0,
                 "payment_method": "stripe",

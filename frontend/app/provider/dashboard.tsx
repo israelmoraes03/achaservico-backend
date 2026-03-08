@@ -419,9 +419,23 @@ export default function ProviderDashboardScreen() {
               if (statusResponse.data.completed) {
                 // Payment was successful - manually activate subscription
                 console.log('Payment completed, activating subscription...');
-                const activateResponse = await api.post('/stripe/activate-from-session', { session_id });
-                console.log('Activation response:', activateResponse.data);
-                return true;
+                try {
+                  const activateResponse = await api.post('/stripe/activate-from-session', { session_id });
+                  console.log('Activation response:', activateResponse.data);
+                  return true;
+                } catch (activateError: any) {
+                  console.error('Activation error:', activateError.response?.status, activateError.response?.data);
+                  // If 401, try to refresh auth and retry
+                  if (activateError.response?.status === 401) {
+                    console.log('Auth expired, refreshing...');
+                    await refreshUser();
+                    // Retry activation
+                    const retryResponse = await api.post('/stripe/activate-from-session', { session_id });
+                    console.log('Retry activation response:', retryResponse.data);
+                    return true;
+                  }
+                  return false;
+                }
               }
               return false;
             } catch (error) {
