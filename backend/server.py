@@ -5,6 +5,7 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
+import asyncio
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -12,6 +13,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 import httpx
 import stripe
+import resend
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -23,6 +25,14 @@ db = client[os.environ.get('DB_NAME', 'achaservico')]
 
 # Auth Backend URL (Emergent Authentication Service)
 AUTH_BACKEND_URL = os.environ.get('AUTH_BACKEND_URL', 'https://demobackend.emergentagent.com')
+
+# Resend Email Configuration
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
+ADMIN_NOTIFICATION_EMAIL = os.environ.get('ADMIN_NOTIFICATION_EMAIL', 'saragomeshh@gmail.com')
+SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev')
+
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
 
 # PIX Manual Configuration (from environment variables)
 PIX_KEY = os.environ.get('PIX_KEY', '49958688875')
@@ -53,6 +63,75 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# ======================== EMAIL NOTIFICATIONS ========================
+
+async def send_admin_notification_email(provider_name: str, provider_email: str, categories: List[str], cities: List[str], phone: str):
+    """Send email notification to admin when a new provider registers"""
+    if not RESEND_API_KEY:
+        logger.warning("RESEND_API_KEY not configured, skipping email notification")
+        return False
+    
+    try:
+        categories_str = ", ".join(categories) if categories else "Não informado"
+        cities_str = ", ".join([c.replace("_", " ").title() for c in cities]) if cities else "Não informado"
+        
+        html_content = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #10B981, #059669); padding: 20px; border-radius: 10px 10px 0 0;">
+                <h1 style="color: white; margin: 0; font-size: 24px;">🎉 Novo Prestador Cadastrado!</h1>
+            </div>
+            <div style="background: #f9f9f9; padding: 20px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 10px 10px;">
+                <h2 style="color: #333; margin-top: 0;">Detalhes do Cadastro:</h2>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0; font-weight: bold; color: #666;">Nome:</td>
+                        <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0; color: #333;">{provider_name}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0; font-weight: bold; color: #666;">Email:</td>
+                        <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0; color: #333;">{provider_email}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0; font-weight: bold; color: #666;">Telefone:</td>
+                        <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0; color: #333;">{phone}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0; font-weight: bold; color: #666;">Categorias:</td>
+                        <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0; color: #333;">{categories_str}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 0; font-weight: bold; color: #666;">Cidades:</td>
+                        <td style="padding: 10px 0; color: #333;">{cities_str}</td>
+                    </tr>
+                </table>
+                <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 5px; border-left: 4px solid #ffc107;">
+                    <p style="margin: 0; color: #856404;">
+                        <strong>⚠️ Ação necessária:</strong> O prestador precisa ativar a assinatura para aparecer nas buscas.
+                    </p>
+                </div>
+                <p style="color: #666; font-size: 12px; margin-top: 20px; text-align: center;">
+                    Este email foi enviado automaticamente pelo sistema AchaServiço.
+                </p>
+            </div>
+        </div>
+        """
+        
+        params = {
+            "from": SENDER_EMAIL,
+            "to": [ADMIN_NOTIFICATION_EMAIL],
+            "subject": f"🆕 Novo Prestador: {provider_name}",
+            "html": html_content
+        }
+        
+        # Run sync SDK in thread to keep FastAPI non-blocking
+        email_result = await asyncio.to_thread(resend.Emails.send, params)
+        logger.info(f"Admin notification email sent for new provider: {provider_name}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to send admin notification email: {str(e)}")
+        return False
 
 # ======================== MODELS ========================
 
@@ -436,6 +515,15 @@ async def create_provider(provider_data: ProviderCreate, request: Request):
     await db.users.update_one(
         {"user_id": user.user_id},
         {"$set": {"is_provider": True}}
+    )
+    
+    # Send email notification to admin about new provider registration
+    await send_admin_notification_email(
+        provider_name=provider.name,
+        provider_email=user.email,
+        categories=provider.categories,
+        cities=provider.cities,
+        phone=provider.phone
     )
     
     return provider
