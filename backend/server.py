@@ -15,6 +15,7 @@ from datetime import datetime, timezone, timedelta
 import httpx
 import stripe
 import resend
+import mercadopago
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
@@ -48,6 +49,11 @@ STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '')
 STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '')
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
 stripe.api_key = STRIPE_SECRET_KEY
+
+# Mercado Pago Configuration
+MP_ACCESS_TOKEN = os.environ.get('MP_ACCESS_TOKEN', '')
+MP_PUBLIC_KEY = os.environ.get('MP_PUBLIC_KEY', '')
+mp_sdk = mercadopago.SDK(MP_ACCESS_TOKEN) if MP_ACCESS_TOKEN else None
 
 # App Domain for Stripe redirects
 # App configuration
@@ -1364,6 +1370,243 @@ async def admin_delete_review(review_id: str):
             )
     
     return {"success": True, "message": "Avaliação excluída"}
+
+# ======================== MERCADO PAGO PIX PAYMENTS ========================
+
+@api_router.post("/mercadopago/create-pix")
+async def create_mercadopago_pix(request: Request):
+    """Create a Mercado Pago PIX payment for subscription"""
+    user = await require_auth(request)
+    
+    if not mp_sdk:
+        raise HTTPException(status_code=500, detail="Mercado Pago não configurado")
+    
+    # Get provider
+    provider = await db.providers.find_one({"user_id": user.user_id}, {"_id": 0})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Perfil de prestador não encontrado")
+    
+    # Check if already has active subscription
+    if provider.get("subscription_status") == "active":
+        raise HTTPException(status_code=400, detail="Você já possui uma assinatura ativa")
+    
+    try:
+        # Create PIX payment
+        payment_data = {
+            "transaction_amount": 15.00,
+            "description": f"Assinatura AchaServiço - {provider.get('name')}",
+            "payment_method_id": "pix",
+            "payer": {
+                "email": user.email,
+                "first_name": provider.get("name", "").split()[0] if provider.get("name") else "Cliente",
+            },
+            "metadata": {
+                "provider_id": provider.get("provider_id"),
+                "user_id": user.user_id,
+            }
+        }
+        
+        payment_response = mp_sdk.payment().create(payment_data)
+        payment = payment_response.get("response", {})
+        
+        if payment_response.get("status") not in [200, 201]:
+            logger.error(f"Mercado Pago error: {payment_response}")
+            raise HTTPException(status_code=400, detail="Erro ao criar pagamento PIX")
+        
+        # Get QR Code data
+        point_of_interaction = payment.get("point_of_interaction", {})
+        transaction_data = point_of_interaction.get("transaction_data", {})
+        
+        qr_code = transaction_data.get("qr_code")
+        qr_code_base64 = transaction_data.get("qr_code_base64")
+        ticket_url = transaction_data.get("ticket_url")
+        
+        # Store payment reference
+        await db.mp_payments.insert_one({
+            "payment_id": str(payment.get("id")),
+            "provider_id": provider.get("provider_id"),
+            "user_id": user.user_id,
+            "status": payment.get("status"),
+            "amount": 15.00,
+            "created_at": datetime.now(timezone.utc)
+        })
+        
+        logger.info(f"Mercado Pago PIX created for provider: {provider.get('provider_id')} - Payment ID: {payment.get('id')}")
+        
+        return {
+            "success": True,
+            "payment_id": payment.get("id"),
+            "qr_code": qr_code,
+            "qr_code_base64": qr_code_base64,
+            "ticket_url": ticket_url,
+            "status": payment.get("status")
+        }
+        
+    except Exception as e:
+        logger.error(f"Error creating Mercado Pago PIX: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao criar pagamento: {str(e)}")
+
+@api_router.get("/mercadopago/payment-status/{payment_id}")
+async def get_mercadopago_payment_status(payment_id: str):
+    """Check the status of a Mercado Pago payment"""
+    if not mp_sdk:
+        raise HTTPException(status_code=500, detail="Mercado Pago não configurado")
+    
+    try:
+        payment_response = mp_sdk.payment().get(payment_id)
+        payment = payment_response.get("response", {})
+        
+        return {
+            "payment_id": payment.get("id"),
+            "status": payment.get("status"),
+            "status_detail": payment.get("status_detail"),
+            "approved": payment.get("status") == "approved"
+        }
+    except Exception as e:
+        logger.error(f"Error checking Mercado Pago payment: {str(e)}")
+        raise HTTPException(status_code=404, detail="Pagamento não encontrado")
+
+@api_router.post("/mercadopago/webhook")
+async def mercadopago_webhook(request: Request):
+    """Handle Mercado Pago webhooks for payment notifications"""
+    try:
+        body = await request.json()
+        logger.info(f"Mercado Pago webhook received: {body}")
+        
+        action = body.get("action")
+        data = body.get("data", {})
+        payment_id = data.get("id")
+        
+        if action == "payment.updated" or action == "payment.created":
+            if payment_id and mp_sdk:
+                # Get payment details
+                payment_response = mp_sdk.payment().get(payment_id)
+                payment = payment_response.get("response", {})
+                
+                if payment.get("status") == "approved":
+                    # Get provider_id from metadata or stored payment
+                    metadata = payment.get("metadata", {})
+                    provider_id = metadata.get("provider_id")
+                    
+                    if not provider_id:
+                        # Try to find from stored payment
+                        stored_payment = await db.mp_payments.find_one({"payment_id": str(payment_id)})
+                        if stored_payment:
+                            provider_id = stored_payment.get("provider_id")
+                    
+                    if provider_id:
+                        # Activate subscription
+                        expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+                        now = datetime.now(timezone.utc)
+                        
+                        # Create/update subscription
+                        await db.subscriptions.update_one(
+                            {"provider_id": provider_id},
+                            {"$set": {
+                                "provider_id": provider_id,
+                                "status": "active",
+                                "amount": 15.0,
+                                "payment_method": "mercadopago_pix",
+                                "mp_payment_id": str(payment_id),
+                                "started_at": now,
+                                "expires_at": expires_at,
+                                "created_at": now,
+                                "updated_at": now
+                            }},
+                            upsert=True
+                        )
+                        
+                        # Update provider status
+                        await db.providers.update_one(
+                            {"provider_id": provider_id},
+                            {"$set": {
+                                "subscription_status": "active",
+                                "subscription_expires_at": expires_at,
+                                "is_active": True
+                            }}
+                        )
+                        
+                        # Update stored payment
+                        await db.mp_payments.update_one(
+                            {"payment_id": str(payment_id)},
+                            {"$set": {"status": "approved", "approved_at": now}}
+                        )
+                        
+                        logger.info(f"Mercado Pago subscription activated for provider: {provider_id}")
+        
+        return {"status": "ok"}
+        
+    except Exception as e:
+        logger.error(f"Error processing Mercado Pago webhook: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+@api_router.post("/mercadopago/activate-from-payment")
+async def activate_from_mercadopago_payment(request: Request):
+    """Manually activate subscription from Mercado Pago payment (fallback)"""
+    user = await require_auth(request)
+    
+    body = await request.json()
+    payment_id = body.get("payment_id")
+    
+    if not payment_id or not mp_sdk:
+        raise HTTPException(status_code=400, detail="Payment ID é obrigatório")
+    
+    try:
+        # Get payment from Mercado Pago
+        payment_response = mp_sdk.payment().get(payment_id)
+        payment = payment_response.get("response", {})
+        
+        if payment.get("status") != "approved":
+            raise HTTPException(status_code=400, detail="Pagamento não foi aprovado")
+        
+        # Get provider
+        provider = await db.providers.find_one({"user_id": user.user_id}, {"_id": 0})
+        if not provider:
+            raise HTTPException(status_code=404, detail="Prestador não encontrado")
+        
+        provider_id = provider.get("provider_id")
+        
+        # Check if already active
+        if provider.get("subscription_status") == "active":
+            return {"success": True, "message": "Assinatura já está ativa", "already_active": True}
+        
+        # Activate subscription
+        expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+        now = datetime.now(timezone.utc)
+        
+        await db.subscriptions.update_one(
+            {"provider_id": provider_id},
+            {"$set": {
+                "provider_id": provider_id,
+                "status": "active",
+                "amount": 15.0,
+                "payment_method": "mercadopago_pix",
+                "mp_payment_id": str(payment_id),
+                "started_at": now,
+                "expires_at": expires_at,
+                "updated_at": now
+            }},
+            upsert=True
+        )
+        
+        await db.providers.update_one(
+            {"provider_id": provider_id},
+            {"$set": {
+                "subscription_status": "active",
+                "subscription_expires_at": expires_at,
+                "is_active": True
+            }}
+        )
+        
+        logger.info(f"Mercado Pago subscription manually activated for provider: {provider_id}")
+        
+        return {"success": True, "message": "Assinatura ativada com sucesso!", "expires_at": expires_at.isoformat()}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error activating from Mercado Pago: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao ativar assinatura: {str(e)}")
 
 # ======================== STRIPE PAYMENTS ========================
 

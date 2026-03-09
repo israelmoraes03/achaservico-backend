@@ -99,6 +99,13 @@ export default function ProviderDashboardScreen() {
   const [showCityPicker, setShowCityPicker] = useState(false);
   const [showNeighborhoodPicker, setShowNeighborhoodPicker] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  
+  // PIX Modal states
+  const [showPixModal, setShowPixModal] = useState(false);
+  const [pixQrCode, setPixQrCode] = useState<string | null>(null);
+  const [pixQrCodeBase64, setPixQrCodeBase64] = useState<string | null>(null);
+  const [pixPaymentId, setPixPaymentId] = useState<string | null>(null);
+  const [isCheckingPixPayment, setIsCheckingPixPayment] = useState(false);
 
   const [showDeletePhotoModal, setShowDeletePhotoModal] = useState(false);
   const [photoIndexToDelete, setPhotoIndexToDelete] = useState<number | null>(null);
@@ -386,9 +393,104 @@ export default function ProviderDashboardScreen() {
     setShowPaymentModal(true);
   };
 
-  const handlePayWithPix = () => {
+  const handlePayWithPix = async () => {
     setShowPaymentModal(false);
-    router.push('/payment/pix');
+    setIsActivating(true);
+    
+    try {
+      // Create Mercado Pago PIX payment
+      const response = await api.post('/mercadopago/create-pix');
+      const { qr_code, qr_code_base64, payment_id, ticket_url } = response.data;
+      
+      if (qr_code_base64) {
+        // Show PIX modal with QR Code
+        setPixQrCode(qr_code);
+        setPixQrCodeBase64(qr_code_base64);
+        setPixPaymentId(payment_id);
+        setShowPixModal(true);
+        
+        // Start checking for payment
+        checkPixPaymentStatus(payment_id);
+      } else if (ticket_url) {
+        // Fallback to opening ticket URL
+        await Linking.openURL(ticket_url);
+      }
+    } catch (error: any) {
+      console.error('Error creating PIX:', error);
+      const message = error.response?.data?.detail || 'Erro ao gerar PIX. Tente novamente.';
+      Alert.alert('Erro', message);
+    } finally {
+      setIsActivating(false);
+    }
+  };
+
+  const checkPixPaymentStatus = async (paymentId: string) => {
+    setIsCheckingPixPayment(true);
+    let attempts = 0;
+    const maxAttempts = 60; // 5 minutes (60 * 5 seconds)
+    const delayMs = 5000;
+    
+    const checkPayment = async (): Promise<boolean> => {
+      try {
+        const response = await api.get(`/mercadopago/payment-status/${paymentId}`);
+        console.log('PIX payment status:', response.data);
+        
+        if (response.data.approved) {
+          // Payment approved! Activate subscription
+          try {
+            await api.post('/mercadopago/activate-from-payment', { payment_id: paymentId });
+            return true;
+          } catch (activateError) {
+            console.error('Error activating from PIX:', activateError);
+            return false;
+          }
+        }
+        return false;
+      } catch (error) {
+        console.log('Error checking PIX status:', error);
+        return false;
+      }
+    };
+    
+    while (attempts < maxAttempts) {
+      const approved = await checkPayment();
+      
+      if (approved) {
+        setIsCheckingPixPayment(false);
+        setShowPixModal(false);
+        Alert.alert('Sucesso!', 'Pagamento PIX confirmado! Sua assinatura foi ativada.');
+        await fetchData();
+        return;
+      }
+      
+      attempts++;
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+      
+      // Check if modal was closed
+      if (!showPixModal) {
+        setIsCheckingPixPayment(false);
+        return;
+      }
+    }
+    
+    setIsCheckingPixPayment(false);
+  };
+
+  const copyPixCode = async () => {
+    if (pixQrCode) {
+      try {
+        // Use Clipboard API
+        if (Platform.OS === 'web') {
+          await navigator.clipboard.writeText(pixQrCode);
+        } else {
+          const Clipboard = require('expo-clipboard');
+          await Clipboard.setStringAsync(pixQrCode);
+        }
+        Alert.alert('Copiado!', 'Código PIX copiado para a área de transferência');
+      } catch (error) {
+        console.error('Error copying:', error);
+      }
+    }
   };
 
   const handlePayWithCard = async () => {
@@ -1037,6 +1139,71 @@ export default function ProviderDashboardScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* PIX QR Code Modal */}
+      <Modal
+        visible={showPixModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => {
+          setShowPixModal(false);
+          setIsCheckingPixPayment(false);
+        }}
+      >
+        <View style={styles.pixModalOverlay}>
+          <View style={styles.pixModalContent}>
+            <TouchableOpacity
+              style={styles.pixModalCloseButton}
+              onPress={() => {
+                setShowPixModal(false);
+                setIsCheckingPixPayment(false);
+              }}
+            >
+              <Ionicons name="close" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <View style={styles.pixModalHeader}>
+              <Ionicons name="qr-code" size={40} color="#10B981" />
+              <Text style={styles.pixModalTitle}>Pague com PIX</Text>
+              <Text style={styles.pixModalSubtitle}>Escaneie o QR Code ou copie o código</Text>
+            </View>
+
+            {pixQrCodeBase64 && (
+              <View style={styles.pixQrCodeContainer}>
+                <Image
+                  source={{ uri: `data:image/png;base64,${pixQrCodeBase64}` }}
+                  style={styles.pixQrCodeImage}
+                  resizeMode="contain"
+                />
+              </View>
+            )}
+
+            <View style={styles.pixAmountContainer}>
+              <Text style={styles.pixAmountLabel}>Valor:</Text>
+              <Text style={styles.pixAmountValue}>R$ 15,00</Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.pixCopyButton}
+              onPress={copyPixCode}
+            >
+              <Ionicons name="copy-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.pixCopyButtonText}>Copiar Código PIX</Text>
+            </TouchableOpacity>
+
+            {isCheckingPixPayment && (
+              <View style={styles.pixCheckingContainer}>
+                <ActivityIndicator size="small" color="#10B981" />
+                <Text style={styles.pixCheckingText}>Aguardando pagamento...</Text>
+              </View>
+            )}
+
+            <Text style={styles.pixInstructions}>
+              Após o pagamento, a assinatura será ativada automaticamente.
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1618,5 +1785,111 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '600',
+  },
+  // PIX Modal Styles
+  pixModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  pixModalContent: {
+    backgroundColor: '#1F1F1F',
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 360,
+    alignItems: 'center',
+  },
+  pixModalCloseButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#374151',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  pixModalHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+    marginTop: 16,
+  },
+  pixModalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginTop: 12,
+  },
+  pixModalSubtitle: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  pixQrCodeContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+  },
+  pixQrCodeImage: {
+    width: 200,
+    height: 200,
+  },
+  pixAmountContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 20,
+  },
+  pixAmountLabel: {
+    fontSize: 16,
+    color: '#9CA3AF',
+  },
+  pixAmountValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#10B981',
+  },
+  pixCopyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#10B981',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    gap: 8,
+    width: '100%',
+  },
+  pixCopyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  pixCheckingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#10B98120',
+    borderRadius: 8,
+  },
+  pixCheckingText: {
+    color: '#10B981',
+    fontSize: 14,
+  },
+  pixInstructions: {
+    color: '#6B7280',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 16,
+    lineHeight: 18,
   },
 });
