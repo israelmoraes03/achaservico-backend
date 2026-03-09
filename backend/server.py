@@ -1632,9 +1632,12 @@ async def mercadopago_webhook(request: Request):
                 payment = payment_response.get("response", {})
                 
                 if payment.get("status") == "approved":
-                    # Get provider_id from metadata or stored payment
-                    metadata = payment.get("metadata", {})
-                    provider_id = metadata.get("provider_id")
+                    # Get provider_id from external_reference (Checkout Pro) or metadata
+                    provider_id = payment.get("external_reference")
+                    
+                    if not provider_id:
+                        metadata = payment.get("metadata", {})
+                        provider_id = metadata.get("provider_id")
                     
                     if not provider_id:
                         # Try to find from stored payment
