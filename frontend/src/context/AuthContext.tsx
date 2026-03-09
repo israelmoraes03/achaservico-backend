@@ -65,13 +65,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return null;
   };
 
-  const processSessionId = useCallback(async (sessionId: string) => {
+  const processSessionId = useCallback(async (sessionId: string, retryCount = 0) => {
+    const maxRetries = 3;
+    const retryDelay = 2000;
+    
     try {
       setIsLoading(true);
-      console.log('Processing session ID...');
+      console.log(`Processing session ID... (attempt ${retryCount + 1})`);
       
       const response = await api.post('/auth/session', {}, {
-        headers: { 'X-Session-ID': sessionId }
+        headers: { 'X-Session-ID': sessionId },
+        timeout: 15000
       });
       
       const { user: userData, session_token } = response.data;
@@ -82,36 +86,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Check if user has provider profile
       try {
-        const meResponse = await api.get('/auth/me');
+        const meResponse = await api.get('/auth/me', { timeout: 10000 });
         setProvider(meResponse.data.provider);
       } catch (e) {
         console.log('No provider profile');
       }
-    } catch (error) {
-      console.error('Error processing session:', error);
+    } catch (error: any) {
+      console.error('Error processing session:', error.message);
+      
+      // Retry if server is waking up
+      if (retryCount < maxRetries && (error.code === 'ECONNABORTED' || error.message?.includes('timeout') || error.message?.includes('Network'))) {
+        console.log(`Server may be waking up, retrying in ${retryDelay/1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return processSessionId(sessionId, retryCount + 1);
+      }
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  const checkExistingSession = useCallback(async () => {
+  const checkExistingSession = useCallback(async (retryCount = 0) => {
+    const maxRetries = 3;
+    const retryDelay = 2000; // 2 seconds
+    
     try {
-      console.log('Checking existing session...');
+      console.log(`Checking existing session... (attempt ${retryCount + 1})`);
       const token = await AsyncStorage.getItem('session_token');
       
       if (token) {
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        const response = await api.get('/auth/me');
+        const response = await api.get('/auth/me', { timeout: 15000 }); // 15 second timeout
         setUser(response.data.user);
         setProvider(response.data.provider);
         console.log('Session restored');
       } else {
         console.log('No existing session');
       }
-    } catch (error) {
-      console.log('Session check failed, clearing token');
-      await AsyncStorage.removeItem('session_token');
-      delete api.defaults.headers.common['Authorization'];
+    } catch (error: any) {
+      console.log('Session check failed:', error.message);
+      
+      // If server is waking up (timeout or network error), retry
+      if (retryCount < maxRetries && (error.code === 'ECONNABORTED' || error.message?.includes('timeout') || error.message?.includes('Network'))) {
+        console.log(`Server may be waking up, retrying in ${retryDelay/1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return checkExistingSession(retryCount + 1);
+      }
+      
+      // Clear token only if it's an auth error (401), not a network error
+      if (error.response?.status === 401) {
+        await AsyncStorage.removeItem('session_token');
+        delete api.defaults.headers.common['Authorization'];
+      }
     } finally {
       setIsLoading(false);
     }
