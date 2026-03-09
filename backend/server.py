@@ -1371,11 +1371,11 @@ async def admin_delete_review(review_id: str):
     
     return {"success": True, "message": "Avaliação excluída"}
 
-# ======================== MERCADO PAGO PIX PAYMENTS ========================
+# ======================== MERCADO PAGO CHECKOUT PRO ========================
 
 @api_router.post("/mercadopago/create-pix")
-async def create_mercadopago_pix(request: Request):
-    """Create a Mercado Pago PIX payment for subscription"""
+async def create_mercadopago_checkout(request: Request):
+    """Create a Mercado Pago Checkout Pro preference for PIX/Card payment"""
     user = await require_auth(request)
     
     if not mp_sdk:
@@ -1390,61 +1390,209 @@ async def create_mercadopago_pix(request: Request):
     if provider.get("subscription_status") == "active":
         raise HTTPException(status_code=400, detail="Você já possui uma assinatura ativa")
     
+    provider_id = provider.get("provider_id")
+    
     try:
-        # Create PIX payment
-        payment_data = {
-            "transaction_amount": 15.00,
-            "description": f"Assinatura AchaServiço - {provider.get('name')}",
-            "payment_method_id": "pix",
+        # Create Checkout Pro preference (supports PIX, Card, etc.)
+        preference_data = {
+            "items": [
+                {
+                    "title": "Assinatura Mensal AchaServiço",
+                    "description": f"Assinatura para {provider.get('name')}",
+                    "quantity": 1,
+                    "unit_price": 15.00,
+                    "currency_id": "BRL"
+                }
+            ],
             "payer": {
                 "email": user.email,
-                "first_name": provider.get("name", "").split()[0] if provider.get("name") else "Cliente",
+                "name": provider.get("name", "Cliente")
             },
-            "metadata": {
-                "provider_id": provider.get("provider_id"),
-                "user_id": user.user_id,
-            }
+            "payment_methods": {
+                "excluded_payment_types": [],
+                "installments": 1
+            },
+            "back_urls": {
+                "success": f"{APP_DOMAIN}/api/mercadopago/callback?status=success&provider_id={provider_id}",
+                "failure": f"{APP_DOMAIN}/api/mercadopago/callback?status=failure&provider_id={provider_id}",
+                "pending": f"{APP_DOMAIN}/api/mercadopago/callback?status=pending&provider_id={provider_id}"
+            },
+            "auto_return": "approved",
+            "external_reference": provider_id,
+            "notification_url": f"{APP_DOMAIN}/api/mercadopago/webhook",
+            "statement_descriptor": "ACHASERVICO"
         }
         
-        payment_response = mp_sdk.payment().create(payment_data)
-        payment = payment_response.get("response", {})
+        preference_response = mp_sdk.preference().create(preference_data)
+        preference = preference_response.get("response", {})
         
-        if payment_response.get("status") not in [200, 201]:
-            logger.error(f"Mercado Pago error: {payment_response}")
-            raise HTTPException(status_code=400, detail="Erro ao criar pagamento PIX")
+        if preference_response.get("status") not in [200, 201]:
+            logger.error(f"Mercado Pago preference error: {preference_response}")
+            raise HTTPException(status_code=400, detail="Erro ao criar preferência de pagamento")
         
-        # Get QR Code data
-        point_of_interaction = payment.get("point_of_interaction", {})
-        transaction_data = point_of_interaction.get("transaction_data", {})
+        preference_id = preference.get("id")
+        init_point = preference.get("init_point")  # Production URL
+        sandbox_init_point = preference.get("sandbox_init_point")  # Sandbox URL
         
-        qr_code = transaction_data.get("qr_code")
-        qr_code_base64 = transaction_data.get("qr_code_base64")
-        ticket_url = transaction_data.get("ticket_url")
-        
-        # Store payment reference
+        # Store preference reference
         await db.mp_payments.insert_one({
-            "payment_id": str(payment.get("id")),
-            "provider_id": provider.get("provider_id"),
+            "preference_id": preference_id,
+            "provider_id": provider_id,
             "user_id": user.user_id,
-            "status": payment.get("status"),
+            "status": "pending",
             "amount": 15.00,
             "created_at": datetime.now(timezone.utc)
         })
         
-        logger.info(f"Mercado Pago PIX created for provider: {provider.get('provider_id')} - Payment ID: {payment.get('id')}")
+        logger.info(f"Mercado Pago Checkout created for provider: {provider_id} - Preference ID: {preference_id}")
         
         return {
             "success": True,
-            "payment_id": payment.get("id"),
-            "qr_code": qr_code,
-            "qr_code_base64": qr_code_base64,
-            "ticket_url": ticket_url,
-            "status": payment.get("status")
+            "preference_id": preference_id,
+            "checkout_url": init_point,  # Use production URL
+            "sandbox_url": sandbox_init_point
         }
         
     except Exception as e:
-        logger.error(f"Error creating Mercado Pago PIX: {str(e)}")
+        logger.error(f"Error creating Mercado Pago Checkout: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erro ao criar pagamento: {str(e)}")
+
+@api_router.get("/mercadopago/callback")
+async def mercadopago_callback(
+    status: str = "unknown",
+    provider_id: str = None,
+    collection_id: str = None,
+    collection_status: str = None,
+    payment_id: str = None,
+    external_reference: str = None
+):
+    """Handle Mercado Pago redirect callback after payment"""
+    logger.info(f"Mercado Pago callback: status={status}, provider_id={provider_id}, payment_id={payment_id}, collection_status={collection_status}")
+    
+    # Use external_reference as provider_id if not provided
+    if not provider_id and external_reference:
+        provider_id = external_reference
+    
+    if status == "success" or collection_status == "approved":
+        # Payment was successful - activate subscription
+        if provider_id:
+            expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+            now = datetime.now(timezone.utc)
+            
+            # Update subscription
+            await db.subscriptions.update_one(
+                {"provider_id": provider_id},
+                {"$set": {
+                    "provider_id": provider_id,
+                    "status": "active",
+                    "amount": 15.0,
+                    "payment_method": "mercadopago",
+                    "mp_payment_id": str(payment_id or collection_id),
+                    "started_at": now,
+                    "expires_at": expires_at,
+                    "updated_at": now
+                }},
+                upsert=True
+            )
+            
+            # Update provider status
+            await db.providers.update_one(
+                {"provider_id": provider_id},
+                {"$set": {
+                    "subscription_status": "active",
+                    "subscription_expires_at": expires_at,
+                    "is_active": True
+                }}
+            )
+            
+            # Update stored payment
+            await db.mp_payments.update_one(
+                {"provider_id": provider_id, "status": "pending"},
+                {"$set": {"status": "approved", "payment_id": str(payment_id or collection_id), "approved_at": now}}
+            )
+            
+            logger.info(f"Mercado Pago subscription activated via callback for provider: {provider_id}")
+        
+        # Redirect to success page or deep link
+        return HTMLResponse(content=f"""
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Pagamento Confirmado</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; background: #0A0A0A; color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }}
+                .container {{ text-align: center; padding: 40px; }}
+                .icon {{ font-size: 80px; margin-bottom: 20px; }}
+                h1 {{ color: #10B981; margin-bottom: 10px; }}
+                p {{ color: #9CA3AF; margin-bottom: 30px; }}
+                .btn {{ background: #10B981; color: white; padding: 15px 30px; border-radius: 10px; text-decoration: none; font-weight: bold; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="icon">✅</div>
+                <h1>Pagamento Confirmado!</h1>
+                <p>Sua assinatura foi ativada com sucesso.<br>Você já pode voltar para o aplicativo.</p>
+                <a href="achaservico://dashboard" class="btn">Voltar para o App</a>
+            </div>
+        </body>
+        </html>
+        """, status_code=200)
+    
+    elif status == "pending" or collection_status == "pending":
+        return HTMLResponse(content=f"""
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Pagamento Pendente</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; background: #0A0A0A; color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }}
+                .container {{ text-align: center; padding: 40px; }}
+                .icon {{ font-size: 80px; margin-bottom: 20px; }}
+                h1 {{ color: #F59E0B; margin-bottom: 10px; }}
+                p {{ color: #9CA3AF; margin-bottom: 30px; }}
+                .btn {{ background: #F59E0B; color: white; padding: 15px 30px; border-radius: 10px; text-decoration: none; font-weight: bold; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="icon">⏳</div>
+                <h1>Pagamento Pendente</h1>
+                <p>Seu pagamento está sendo processado.<br>Você receberá uma notificação quando for confirmado.</p>
+                <a href="achaservico://dashboard" class="btn">Voltar para o App</a>
+            </div>
+        </body>
+        </html>
+        """, status_code=200)
+    
+    else:
+        return HTMLResponse(content=f"""
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Pagamento Não Concluído</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; background: #0A0A0A; color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }}
+                .container {{ text-align: center; padding: 40px; }}
+                .icon {{ font-size: 80px; margin-bottom: 20px; }}
+                h1 {{ color: #EF4444; margin-bottom: 10px; }}
+                p {{ color: #9CA3AF; margin-bottom: 30px; }}
+                .btn {{ background: #374151; color: white; padding: 15px 30px; border-radius: 10px; text-decoration: none; font-weight: bold; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="icon">❌</div>
+                <h1>Pagamento Não Concluído</h1>
+                <p>O pagamento não foi finalizado.<br>Tente novamente pelo aplicativo.</p>
+                <a href="achaservico://dashboard" class="btn">Voltar para o App</a>
+            </div>
+        </body>
+        </html>
+        """, status_code=200)
 
 @api_router.get("/mercadopago/payment-status/{payment_id}")
 async def get_mercadopago_payment_status(payment_id: str):

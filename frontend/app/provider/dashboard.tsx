@@ -398,26 +398,23 @@ export default function ProviderDashboardScreen() {
     setIsActivating(true);
     
     try {
-      // Create Mercado Pago PIX payment
+      // Create Mercado Pago Checkout Pro preference
       const response = await api.post('/mercadopago/create-pix');
-      const { qr_code, qr_code_base64, payment_id, ticket_url } = response.data;
+      const { checkout_url, preference_id } = response.data;
       
-      if (qr_code_base64) {
-        // Show PIX modal with QR Code
-        setPixQrCode(qr_code);
-        setPixQrCodeBase64(qr_code_base64);
-        setPixPaymentId(payment_id);
-        setShowPixModal(true);
+      if (checkout_url) {
+        // Open Mercado Pago Checkout in browser (supports PIX, Card, etc.)
+        await WebBrowser.openBrowserAsync(checkout_url);
         
-        // Start checking for payment
-        checkPixPaymentStatus(payment_id);
-      } else if (ticket_url) {
-        // Fallback to opening ticket URL
-        await Linking.openURL(ticket_url);
+        // After returning from browser, refresh data to check if payment was completed
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await fetchData();
+      } else {
+        Alert.alert('Erro', 'Não foi possível gerar o link de pagamento');
       }
     } catch (error: any) {
-      console.error('Error creating PIX:', error);
-      const message = error.response?.data?.detail || 'Erro ao gerar PIX. Tente novamente.';
+      console.error('Error creating checkout:', error);
+      const message = error.response?.data?.detail || 'Erro ao gerar pagamento. Tente novamente.';
       Alert.alert('Erro', message);
     } finally {
       setIsActivating(false);
@@ -1086,8 +1083,8 @@ export default function ProviderDashboardScreen() {
                 <Ionicons name="qr-code" size={28} color="#10B981" />
               </View>
               <View style={styles.paymentOptionInfo}>
-                <Text style={styles.paymentOptionTitle}>PIX</Text>
-                <Text style={styles.paymentOptionDescription}>Ativação em até 24h após confirmação</Text>
+                <Text style={styles.paymentOptionTitle}>PIX / Mercado Pago</Text>
+                <Text style={styles.paymentOptionDescription}>PIX, cartão, boleto - ativação automática</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#6B7280" />
             </TouchableOpacity>
