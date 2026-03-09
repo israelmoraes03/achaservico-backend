@@ -1,11 +1,12 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Response, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 import asyncio
+import io
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -14,6 +15,9 @@ from datetime import datetime, timezone, timedelta
 import httpx
 import stripe
 import resend
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.utils import get_column_letter
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -839,6 +843,232 @@ async def get_admin_stats():
         "expired_subscriptions": expired_subscriptions,
         "total_reviews": total_reviews
     }
+
+@api_router.get("/admin/export-excel")
+async def export_excel_report():
+    """Generate and download Excel report with all providers data"""
+    
+    # Fetch all data
+    providers = await db.providers.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    users = await db.users.find({}, {"_id": 0}).to_list(500)
+    subscriptions = await db.subscriptions.find({}, {"_id": 0}).to_list(500)
+    
+    # Create user email map
+    user_email_map = {u.get("user_id"): u.get("email") for u in users}
+    
+    # Create subscription map
+    sub_map = {s.get("provider_id"): s for s in subscriptions}
+    
+    # Create workbook
+    wb = Workbook()
+    
+    # Styles
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    header_fill = PatternFill(start_color="10B981", end_color="10B981", fill_type="solid")
+    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    
+    active_fill = PatternFill(start_color="D1FAE5", end_color="D1FAE5", fill_type="solid")
+    pending_fill = PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid")
+    inactive_fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")
+    
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # ==================== SHEET 1: TODOS OS PRESTADORES ====================
+    ws1 = wb.active
+    ws1.title = "Todos os Prestadores"
+    
+    headers1 = ["Nome", "Email", "Telefone", "Categorias", "Cidades", "Bairro", "Status", "Data Validade", "Data Cadastro"]
+    for col, header in enumerate(headers1, 1):
+        cell = ws1.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = thin_border
+    
+    for row, provider in enumerate(providers, 2):
+        email = user_email_map.get(provider.get("user_id"), "N/A")
+        categories = ", ".join(provider.get("categories", []))
+        cities = ", ".join([c.replace("_", " ").title() for c in provider.get("cities", [])])
+        status = provider.get("subscription_status", "inactive")
+        
+        expires_at = provider.get("subscription_expires_at")
+        if expires_at:
+            if isinstance(expires_at, str):
+                expires_str = expires_at[:10]
+            else:
+                expires_str = expires_at.strftime("%d/%m/%Y")
+        else:
+            expires_str = "N/A"
+        
+        created_at = provider.get("created_at")
+        if created_at:
+            if isinstance(created_at, str):
+                created_str = created_at[:10]
+            else:
+                created_str = created_at.strftime("%d/%m/%Y")
+        else:
+            created_str = "N/A"
+        
+        row_data = [
+            provider.get("name", ""),
+            email,
+            provider.get("phone", ""),
+            categories,
+            cities,
+            provider.get("neighborhood", ""),
+            status.upper(),
+            expires_str,
+            created_str
+        ]
+        
+        for col, value in enumerate(row_data, 1):
+            cell = ws1.cell(row=row, column=col, value=value)
+            cell.border = thin_border
+            cell.alignment = Alignment(vertical="center")
+            
+            # Color by status
+            if status == "active":
+                cell.fill = active_fill
+            elif status == "pending":
+                cell.fill = pending_fill
+            elif status in ["inactive", "expired"]:
+                cell.fill = inactive_fill
+    
+    # Adjust column widths
+    for col in range(1, len(headers1) + 1):
+        ws1.column_dimensions[get_column_letter(col)].width = 18
+    
+    # ==================== SHEET 2: ATIVOS ====================
+    ws2 = wb.create_sheet("Ativos")
+    active_providers = [p for p in providers if p.get("subscription_status") == "active"]
+    
+    headers2 = ["Nome", "Email", "Telefone", "WhatsApp", "Categorias", "Cidades", "Data Validade"]
+    for col, header in enumerate(headers2, 1):
+        cell = ws2.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = thin_border
+    
+    for row, provider in enumerate(active_providers, 2):
+        email = user_email_map.get(provider.get("user_id"), "N/A")
+        phone = provider.get("phone", "")
+        whatsapp = f"https://wa.me/55{phone}" if phone else ""
+        categories = ", ".join(provider.get("categories", []))
+        cities = ", ".join([c.replace("_", " ").title() for c in provider.get("cities", [])])
+        
+        expires_at = provider.get("subscription_expires_at")
+        if expires_at:
+            if isinstance(expires_at, str):
+                expires_str = expires_at[:10]
+            else:
+                expires_str = expires_at.strftime("%d/%m/%Y")
+        else:
+            expires_str = "N/A"
+        
+        row_data = [provider.get("name", ""), email, phone, whatsapp, categories, cities, expires_str]
+        
+        for col, value in enumerate(row_data, 1):
+            cell = ws2.cell(row=row, column=col, value=value)
+            cell.border = thin_border
+            cell.fill = active_fill
+    
+    for col in range(1, len(headers2) + 1):
+        ws2.column_dimensions[get_column_letter(col)].width = 20
+    
+    # ==================== SHEET 3: PENDENTES/INATIVOS ====================
+    ws3 = wb.create_sheet("Pendentes e Inativos")
+    pending_providers = [p for p in providers if p.get("subscription_status") in ["pending", "inactive", None, "expired"]]
+    
+    headers3 = ["Nome", "Email", "Telefone", "Status", "Categorias", "Cidades", "Data Cadastro"]
+    for col, header in enumerate(headers3, 1):
+        cell = ws3.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = PatternFill(start_color="F59E0B", end_color="F59E0B", fill_type="solid")
+        cell.alignment = header_alignment
+        cell.border = thin_border
+    
+    for row, provider in enumerate(pending_providers, 2):
+        email = user_email_map.get(provider.get("user_id"), "N/A")
+        status = provider.get("subscription_status", "inactive")
+        categories = ", ".join(provider.get("categories", []))
+        cities = ", ".join([c.replace("_", " ").title() for c in provider.get("cities", [])])
+        
+        created_at = provider.get("created_at")
+        if created_at:
+            if isinstance(created_at, str):
+                created_str = created_at[:10]
+            else:
+                created_str = created_at.strftime("%d/%m/%Y")
+        else:
+            created_str = "N/A"
+        
+        row_data = [provider.get("name", ""), email, provider.get("phone", ""), status.upper(), categories, cities, created_str]
+        
+        for col, value in enumerate(row_data, 1):
+            cell = ws3.cell(row=row, column=col, value=value)
+            cell.border = thin_border
+            if status == "pending":
+                cell.fill = pending_fill
+            else:
+                cell.fill = inactive_fill
+    
+    for col in range(1, len(headers3) + 1):
+        ws3.column_dimensions[get_column_letter(col)].width = 18
+    
+    # ==================== SHEET 4: RESUMO ====================
+    ws4 = wb.create_sheet("Resumo")
+    
+    total_providers = len(providers)
+    total_active = len([p for p in providers if p.get("subscription_status") == "active"])
+    total_pending = len([p for p in providers if p.get("subscription_status") == "pending"])
+    total_inactive = len([p for p in providers if p.get("subscription_status") in ["inactive", None]])
+    total_expired = len([p for p in providers if p.get("subscription_status") == "expired"])
+    
+    summary_data = [
+        ["RESUMO GERAL", ""],
+        ["", ""],
+        ["Total de Prestadores", total_providers],
+        ["Assinaturas Ativas", total_active],
+        ["Assinaturas Pendentes", total_pending],
+        ["Inativos (sem assinatura)", total_inactive],
+        ["Expirados", total_expired],
+        ["", ""],
+        ["Receita Mensal Potencial", f"R$ {total_active * 15:.2f}"],
+        ["", ""],
+        ["Data do Relatório", datetime.now().strftime("%d/%m/%Y %H:%M")]
+    ]
+    
+    for row, (label, value) in enumerate(summary_data, 1):
+        cell1 = ws4.cell(row=row, column=1, value=label)
+        cell2 = ws4.cell(row=row, column=2, value=value)
+        
+        if row == 1:
+            cell1.font = Font(bold=True, size=14)
+        elif label and value != "":
+            cell1.font = Font(bold=True)
+    
+    ws4.column_dimensions['A'].width = 30
+    ws4.column_dimensions['B'].width = 20
+    
+    # Save to bytes
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    # Generate filename with date
+    filename = f"relatorio_achaservico_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
 
 @api_router.get("/admin/all-providers")
 async def get_all_providers():

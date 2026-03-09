@@ -9,6 +9,8 @@ import {
   RefreshControl,
   TextInput,
   Modal,
+  Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +20,9 @@ import api from '../src/services/api';
 // Admin credentials
 const ADMIN_EMAIL = 'israel.moraes03@gmail.com';
 const ADMIN_PASSWORD = 'Rael9661#';
+
+// Backend URL for direct downloads
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://achaservico-backend.onrender.com';
 
 type TabType = 'dashboard' | 'providers' | 'users' | 'subscriptions' | 'reviews';
 
@@ -87,10 +92,24 @@ export default function AdminScreen() {
   const [users, setUsers] = useState<User[]>([]);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Modal states
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
+
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+    try {
+      const exportUrl = `${BACKEND_URL}/api/admin/export-excel`;
+      await Linking.openURL(exportUrl);
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      Alert.alert('Erro', 'Não foi possível baixar o relatório');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const fetchStats = async () => {
     try {
@@ -440,6 +459,22 @@ export default function AdminScreen() {
                   <Text style={styles.pixInfoKey}>499.586.888-75</Text>
                   <Text style={styles.pixInfoAmount}>Assinatura: R$ 15,00/mês</Text>
                 </View>
+
+                {/* Export Excel Button */}
+                <TouchableOpacity 
+                  style={styles.exportButton}
+                  onPress={handleExportExcel}
+                  disabled={isExporting}
+                >
+                  {isExporting ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="download-outline" size={24} color="#FFFFFF" />
+                      <Text style={styles.exportButtonText}>Baixar Relatório Excel</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
               </View>
             )}
 
@@ -898,6 +933,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9CA3AF',
     marginTop: 4,
+  },
+  exportButton: {
+    backgroundColor: '#10B981',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 20,
+    gap: 10,
+  },
+  exportButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   emptyText: {
     color: '#6B7280',
