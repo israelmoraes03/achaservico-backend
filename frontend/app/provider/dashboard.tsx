@@ -406,8 +406,49 @@ export default function ProviderDashboardScreen() {
         // Open Mercado Pago Checkout in browser (supports PIX, Card, etc.)
         await WebBrowser.openBrowserAsync(checkout_url);
         
-        // After returning from browser, refresh data to check if payment was completed
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // After returning from browser, check if payment was completed
+        console.log('Returned from Mercado Pago, checking payment status...');
+        
+        // Wait a moment for payment to process
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        // Try to manually verify and activate the payment
+        let attempts = 0;
+        const maxAttempts = 10;
+        const delayMs = 3000;
+        
+        const checkAndActivate = async (): Promise<boolean> => {
+          try {
+            console.log(`Checking MP payment status, attempt ${attempts + 1}/${maxAttempts}`);
+            
+            // Try to activate from the preference
+            const activateResponse = await api.post('/mercadopago/check-and-activate', {
+              preference_id: preference_id
+            });
+            
+            if (activateResponse.data.activated) {
+              return true;
+            }
+            return false;
+          } catch (error: any) {
+            console.log('Error checking payment:', error.message);
+            return false;
+          }
+        };
+        
+        let activated = await checkAndActivate();
+        
+        while (!activated && attempts < maxAttempts) {
+          attempts++;
+          console.log(`Retrying in ${delayMs/1000} seconds...`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          activated = await checkAndActivate();
+        }
+        
+        if (activated) {
+          Alert.alert('Sucesso!', 'Pagamento confirmado! Sua assinatura foi ativada.');
+        }
+        
         await fetchData();
       } else {
         Alert.alert('Erro', 'Não foi possível gerar o link de pagamento');
