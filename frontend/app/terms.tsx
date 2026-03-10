@@ -46,7 +46,7 @@ export default function TermsScreen() {
         </Text>
         <Text style={styles.subTitle}>3.2 Prestadores de Serviço</Text>
         <Text style={styles.paragraph}>
-          Prestadores pagam uma assinatura mensal de R$ 15,00 para manter seus perfis ativos e visíveis para clientes. A assinatura pode ser cancelada a qualquer momento.
+          Prestadores pagam uma assinatura mensal de R$ 9,99 para manter seus perfis ativos e visíveis para clientes. A assinatura pode ser cancelada a qualquer momento.
         </Text>
 
         <Text style={styles.sectionTitle}>4. Cadastro e Conta</Text>
@@ -60,7 +60,7 @@ export default function TermsScreen() {
 
         <Text style={styles.sectionTitle}>5. Pagamentos e Assinaturas</Text>
         <Text style={styles.paragraph}>
-          A assinatura para prestadores custa R$ 15,00 por mês. O pagamento é realizado via PIX. A assinatura é válida por 30 dias a partir da data de ativação.
+          A assinatura para prestadores custa R$ 9,99 por mês. O pagamento é realizado via PIX. A assinatura é válida por 30 dias a partir da data de ativação.
         </Text>
         <Text style={styles.paragraph}>
           Em caso de não renovação, o perfil do prestador ficará inativo e não será exibido para clientes.

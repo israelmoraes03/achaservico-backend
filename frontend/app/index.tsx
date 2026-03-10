@@ -154,7 +154,7 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>AchaServiço</Text>
-          <Text style={styles.headerSubtitle}>Três Lagoas - MS</Text>
+          <Text style={styles.headerSubtitle}>Encontre profissionais de confiança</Text>
         </View>
         <TouchableOpacity
           style={styles.profileButton}

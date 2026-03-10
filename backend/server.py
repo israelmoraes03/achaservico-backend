@@ -398,7 +398,7 @@ class Subscription(BaseModel):
     subscription_id: str = Field(default_factory=lambda: f"sub_{uuid.uuid4().hex[:12]}")
     provider_id: str
     user_id: str
-    amount: float = 15.00
+    amount: float = 9.99
     status: str = "pending"  # pending, active, expired, cancelled
     payment_method: str = "mercadopago"
     mp_preference_id: Optional[str] = None
@@ -904,7 +904,7 @@ async def get_pix_info():
         "pix_key_type": PIX_KEY_TYPE,
         "pix_key_formatted": "499.586.888-75",
         "receiver_name": PIX_RECEIVER_NAME,
-        "amount": 15.00,
+        "amount": 9.99,
         "description": "Assinatura Mensal AchaServico"
     }
 
@@ -947,7 +947,7 @@ async def create_subscription(request: Request):
         "subscription_id": subscription.subscription_id,
         "pix_key": PIX_KEY,
         "pix_key_formatted": "(66) 99684-1531",
-        "amount": 15.00,
+        "amount": 9.99,
         "message": "Faça o PIX e aguarde a confirmação"
     }
 
@@ -1343,7 +1343,7 @@ async def admin_activate_subscription(provider_id: str):
             "provider_id": provider_id,
             "user_id": provider.get("user_id"),
             "status": "active",
-            "amount": 15.0,
+            "amount": 9.99,
             "started_at": now,
             "expires_at": expires_at,
             "created_at": now,
@@ -1649,7 +1649,7 @@ async def create_mercadopago_checkout(request: Request):
                     "title": "Assinatura Mensal AchaServiço",
                     "description": f"Assinatura para {provider.get('name')}",
                     "quantity": 1,
-                    "unit_price": 15.00,
+                    "unit_price": 9.99,
                     "currency_id": "BRL"
                 }
             ],
@@ -1689,7 +1689,7 @@ async def create_mercadopago_checkout(request: Request):
             "provider_id": provider_id,
             "user_id": user.user_id,
             "status": "pending",
-            "amount": 15.00,
+            "amount": 9.99,
             "created_at": datetime.now(timezone.utc)
         })
         
@@ -1734,7 +1734,7 @@ async def mercadopago_callback(
                 {"$set": {
                     "provider_id": provider_id,
                     "status": "active",
-                    "amount": 15.0,
+                    "amount": 9.99,
                     "payment_method": "mercadopago",
                     "mp_payment_id": str(payment_id or collection_id),
                     "started_at": now,
@@ -1905,7 +1905,7 @@ async def mercadopago_webhook(request: Request):
                             {"$set": {
                                 "provider_id": provider_id,
                                 "status": "active",
-                                "amount": 15.0,
+                                "amount": 9.99,
                                 "payment_method": "mercadopago_pix",
                                 "mp_payment_id": str(payment_id),
                                 "started_at": now,
@@ -1979,7 +1979,7 @@ async def activate_from_mercadopago_payment(request: Request):
             {"$set": {
                 "provider_id": provider_id,
                 "status": "active",
-                "amount": 15.0,
+                "amount": 9.99,
                 "payment_method": "mercadopago_pix",
                 "mp_payment_id": str(payment_id),
                 "started_at": now,
@@ -2053,7 +2053,7 @@ async def check_and_activate_mercadopago(request: Request):
                 {"$set": {
                     "provider_id": provider_id,
                     "status": "active",
-                    "amount": 15.0,
+                    "amount": 9.99,
                     "payment_method": "mercadopago",
                     "mp_payment_id": str(payment_id),
                     "started_at": now,
@@ -2109,7 +2109,7 @@ async def create_stripe_checkout_session(request: Request):
                         'name': 'Assinatura Mensal AchaServiço',
                         'description': 'Acesso completo para prestadores de serviços em Três Lagoas',
                     },
-                    'unit_amount': 1500,  # R$ 15.00 in centavos
+                    'unit_amount': 9.99,  # R$ 9.99 in centavos
                 },
                 'quantity': 1,
             }],
@@ -2190,7 +2190,7 @@ async def stripe_webhook(request: Request):
                     "provider_id": provider_id,
                     "user_id": user_id,
                     "status": "active",
-                    "amount": 15.0,
+                    "amount": 9.99,
                     "payment_method": "stripe",
                     "stripe_session_id": session.id,
                     "stripe_payment_intent": session.payment_intent,
@@ -2247,7 +2247,7 @@ async def stripe_payment_complete(session_id: str = None, status: str = "success
                                 "provider_id": provider_id,
                                 "user_id": provider.get("user_id"),
                                 "status": "active",
-                                "amount": 15.0,
+                                "amount": 9.99,
                                 "payment_method": "stripe",
                                 "stripe_session_id": session.id,
                                 "started_at": now,
@@ -2453,7 +2453,7 @@ async def activate_from_stripe_session(data: ActivateFromSessionRequest, request
                 "provider_id": provider_id,
                 "user_id": session_user_id or provider.get("user_id"),
                 "status": "active",
-                "amount": 15.0,
+                "amount": 9.99,
                 "payment_method": "stripe",
                 "stripe_session_id": session.id,
                 "stripe_payment_intent": session.payment_intent,

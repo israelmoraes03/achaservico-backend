@@ -96,7 +96,7 @@ export default function ProfileScreen() {
               <Ionicons name="briefcase" size={20} color="#0A0A0A" />
               <Text style={styles.becomeProviderText}>Cadastrar como Prestador</Text>
             </TouchableOpacity>
-            <Text style={styles.priceText}>Apenas R$ 15,00/mês</Text>
+            <Text style={styles.priceText}>Apenas R$ 9,99/mês</Text>
           </View>
         )}
 

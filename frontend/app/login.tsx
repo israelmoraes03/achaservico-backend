@@ -31,7 +31,6 @@ export default function LoginScreen() {
           </View>
           <Text style={styles.logoText}>AchaServiço</Text>
           <Text style={styles.tagline}>Encontre profissionais de confiança</Text>
-          <Text style={styles.city}>Três Lagoas - MS</Text>
         </View>
 
         {/* Features */}
@@ -83,17 +82,13 @@ export default function LoginScreen() {
               </>
             )}
           </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => router.push('/')}>
-            <Text style={styles.skipText}>Continuar sem login</Text>
-          </TouchableOpacity>
         </View>
 
         {/* Provider CTA */}
         <View style={styles.providerCTA}>
           <Text style={styles.providerText}>É prestador de serviço?</Text>
           <TouchableOpacity onPress={login}>
-            <Text style={styles.providerLink}>Cadastre-se por R$ 15/mês</Text>
+            <Text style={styles.providerLink}>Faça o seu cadastro conosco</Text>
           </TouchableOpacity>
         </View>
       </View>

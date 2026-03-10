@@ -143,7 +143,7 @@ export default function PaymentPixScreen() {
         {/* Amount */}
         <View style={styles.amountCard}>
           <Text style={styles.amountLabel}>Valor da Assinatura</Text>
-          <Text style={styles.amountValue}>R$ 15,00</Text>
+          <Text style={styles.amountValue}>R$ 9,99</Text>
           <Text style={styles.amountPeriod}>por mês</Text>
         </View>
 
@@ -190,7 +190,7 @@ export default function PaymentPixScreen() {
           
           <View style={styles.step}>
             <View style={styles.stepNumber}><Text style={styles.stepNumberText}>4</Text></View>
-            <Text style={styles.stepText}>Confirme o valor de R$ 15,00</Text>
+            <Text style={styles.stepText}>Confirme o valor de R$ 9,99</Text>
           </View>
         </View>
 
@@ -239,7 +239,7 @@ export default function PaymentPixScreen() {
             </View>
             <Text style={styles.modalTitle}>Confirmar Pagamento PIX</Text>
             <Text style={styles.modalText}>
-              Você confirma que já realizou o PIX de R$ 15,00 para a chave informada?
+              Você confirma que já realizou o PIX de R$ 9,99 para a chave informada?
             </Text>
             <Text style={styles.modalSubtext}>
               Sua assinatura ficará pendente até a confirmação do administrador.

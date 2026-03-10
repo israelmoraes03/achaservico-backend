@@ -501,7 +501,7 @@ export default function ProviderRegisterScreen() {
           <View style={styles.priceInfo}>
             <Ionicons name="information-circle" size={20} color="#10B981" />
             <Text style={styles.priceInfoText}>
-              Após o cadastro, você precisará ativar sua assinatura de R$ 15,00/mês para que seu perfil fique visível.
+              Após o cadastro, você precisará ativar sua assinatura de R$ 9,99/mês para que seu perfil fique visível.
             </Text>
           </View>
 

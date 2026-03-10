@@ -782,7 +782,7 @@ export default function ProviderDashboardScreen() {
                  (subscription?.status === 'pending' || provider.subscription_status === 'pending') ? 'Aguardando Aprovação' : 'Assinatura Inativa'}
               </Text>
             </View>
-            <Text style={styles.subscriptionPrice}>R$ 15,00/mês</Text>
+            <Text style={styles.subscriptionPrice}>R$ 9,99/mês</Text>
           </View>
           
           {provider.subscription_status === 'active' && subscription ? (
@@ -1167,7 +1167,7 @@ export default function ProviderDashboardScreen() {
               </TouchableOpacity>
             </View>
             
-            <Text style={styles.modalSubtitle}>Assinatura Mensal - R$ 15,00</Text>
+            <Text style={styles.modalSubtitle}>Assinatura Mensal - R$ 9,99</Text>
             
             <TouchableOpacity
               style={styles.paymentOption}
@@ -1285,7 +1285,7 @@ export default function ProviderDashboardScreen() {
 
             <View style={styles.pixAmountContainer}>
               <Text style={styles.pixAmountLabel}>Valor:</Text>
-              <Text style={styles.pixAmountValue}>R$ 15,00</Text>
+              <Text style={styles.pixAmountValue}>R$ 9,99</Text>
             </View>
 
             <TouchableOpacity

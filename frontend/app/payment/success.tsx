@@ -39,7 +39,7 @@ export default function PaymentSuccessScreen() {
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="cash" size={20} color="#10B981" />
-            <Text style={styles.infoText}>R$ 15,00/mês</Text>
+            <Text style={styles.infoText}>R$ 9,99/mês</Text>
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="calendar" size={20} color="#10B981" />
