@@ -6,16 +6,33 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
+  Linking,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/context/AuthContext';
 
+const SUPPORT_PHONE = '5566996841531';
+const SUPPORT_EMAIL = 'israel.moraes03@gmail.com';
+
 export default function ProfileScreen() {
   const { user, provider, logout, isAuthenticated } = useAuth();
   const router = useRouter();
   const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
+  const [showHelpModal, setShowHelpModal] = React.useState(false);
+
+  const openWhatsApp = () => {
+    const message = encodeURIComponent('Olá, preciso de ajuda com dúvidas no app AchaServiço.');
+    Linking.openURL(`https://wa.me/${SUPPORT_PHONE}?text=${message}`);
+    setShowHelpModal(false);
+  };
+
+  const openEmail = () => {
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=Ajuda - AchaServiço&body=Olá, preciso de ajuda com dúvidas no app AchaServiço.`);
+    setShowHelpModal(false);
+  };
 
   const performLogout = async () => {
     setShowLogoutConfirm(false);
@@ -104,10 +121,10 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Configurações</Text>
           
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => setShowHelpModal(true)}>
             <View style={styles.menuItemLeft}>
               <Ionicons name="help-circle" size={22} color="#10B981" />
-              <Text style={styles.menuItemText}>Ajuda</Text>
+              <Text style={styles.menuItemText}>Ajuda / Suporte</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#6B7280" />
           </TouchableOpacity>
@@ -157,6 +174,45 @@ export default function ProfileScreen() {
                   <Text style={styles.modalButtonConfirmText}>Sair</Text>
                 </TouchableOpacity>
               </View>
+            </View>
+          </View>
+        )}
+
+        {/* Help Modal */}
+        {showHelpModal && (
+          <View style={styles.modalOverlay}>
+            <View style={styles.helpModalContent}>
+              <Text style={styles.helpModalTitle}>Ajuda / Suporte</Text>
+              <Text style={styles.helpModalSubtitle}>Como podemos te ajudar?</Text>
+              
+              <TouchableOpacity style={styles.helpOption} onPress={openWhatsApp}>
+                <View style={styles.helpOptionIcon}>
+                  <Ionicons name="logo-whatsapp" size={28} color="#25D366" />
+                </View>
+                <View style={styles.helpOptionText}>
+                  <Text style={styles.helpOptionTitle}>WhatsApp</Text>
+                  <Text style={styles.helpOptionDescription}>Fale conosco pelo WhatsApp</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.helpOption} onPress={openEmail}>
+                <View style={styles.helpOptionIcon}>
+                  <Ionicons name="mail" size={28} color="#10B981" />
+                </View>
+                <View style={styles.helpOptionText}>
+                  <Text style={styles.helpOptionTitle}>E-mail</Text>
+                  <Text style={styles.helpOptionDescription}>{SUPPORT_EMAIL}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.helpCloseButton}
+                onPress={() => setShowHelpModal(false)}
+              >
+                <Text style={styles.helpCloseButtonText}>Fechar</Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -374,5 +430,67 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 32,
+  },
+  helpModalContent: {
+    backgroundColor: '#1F1F1F',
+    borderRadius: 20,
+    padding: 24,
+    width: '90%',
+    maxWidth: 340,
+  },
+  helpModalTitle: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  helpModalSubtitle: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  helpOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2A2A2A',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  helpOptionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#374151',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  helpOptionText: {
+    flex: 1,
+  },
+  helpOptionTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  helpOptionDescription: {
+    color: '#9CA3AF',
+    fontSize: 13,
+    marginTop: 2,
+  },
+  helpCloseButton: {
+    backgroundColor: '#374151',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  helpCloseButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

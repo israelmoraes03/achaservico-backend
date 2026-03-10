@@ -30,7 +30,7 @@ export default function PaymentPixScreen() {
   const pixData = {
     pix_key: '49958688875',
     pix_key_formatted: '499.586.888-75',
-    amount: 15.0,
+    amount: 9.99,
   };
 
   const confirmPayment = async () => {
