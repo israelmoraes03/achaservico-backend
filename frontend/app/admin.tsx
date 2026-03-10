@@ -46,6 +46,7 @@ interface Provider {
   average_rating: number;
   total_reviews: number;
   is_active: boolean;
+  is_premium: boolean;
   subscription_status: string;
   created_at: string;
 }
@@ -212,6 +213,18 @@ export default function AdminScreen() {
       setTimeout(() => setActionMessage(''), 3000);
     } catch (error) {
       setActionMessage('Erro ao alterar status');
+      setTimeout(() => setActionMessage(''), 3000);
+    }
+  };
+
+  const handleTogglePremium = async (provider: Provider) => {
+    try {
+      await api.post(`/admin/toggle-premium/${provider.provider_id}`);
+      fetchProviders();
+      setActionMessage(`Prestador ${provider.is_premium ? 'removido do Premium' : 'marcado como Premium'}!`);
+      setTimeout(() => setActionMessage(''), 3000);
+    } catch (error) {
+      setActionMessage('Erro ao alterar status Premium');
       setTimeout(() => setActionMessage(''), 3000);
     }
   };
@@ -521,9 +534,23 @@ export default function AdminScreen() {
                               {provider.subscription_status === 'active' ? 'Pago' : 'Pendente'}
                             </Text>
                           </View>
+                          {provider.is_premium && (
+                            <View style={[styles.statusBadge, { backgroundColor: '#FFD70030' }]}>
+                              <Text style={[styles.statusText, { color: '#FFD700' }]}>👑 Premium</Text>
+                            </View>
+                          )}
                         </View>
                       </View>
                       <View style={styles.cardActions}>
+                        <TouchableOpacity
+                          style={[styles.actionButton, { backgroundColor: provider.is_premium ? '#FFD70020' : '#9333EA20' }]}
+                          onPress={() => handleTogglePremium(provider)}
+                        >
+                          <Ionicons name="star" size={16} color={provider.is_premium ? '#FFD700' : '#9333EA'} />
+                          <Text style={[styles.actionText, { color: provider.is_premium ? '#FFD700' : '#9333EA' }]}>
+                            {provider.is_premium ? 'Remover Premium' : 'Tornar Premium'}
+                          </Text>
+                        </TouchableOpacity>
                         {provider.subscription_status !== 'active' && (
                           <TouchableOpacity
                             style={[styles.actionButton, { backgroundColor: '#10B98120' }]}

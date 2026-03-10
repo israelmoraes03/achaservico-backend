@@ -76,6 +76,176 @@ logger = logging.getLogger(__name__)
 
 # ======================== EMAIL NOTIFICATIONS ========================
 
+async def send_expiration_notification_email(provider_name: str, provider_email: str, days_until_expiration: int):
+    """Send email notification to provider when subscription is about to expire"""
+    if not RESEND_API_KEY:
+        logger.warning("RESEND_API_KEY not configured, skipping expiration email")
+        return False
+    
+    try:
+        if days_until_expiration <= 0:
+            subject = f"⚠️ {provider_name}, sua assinatura venceu!"
+            message = "Sua assinatura no AchaServiço venceu. Renove agora para continuar recebendo clientes!"
+            urgency_color = "#dc3545"
+        else:
+            subject = f"⏰ {provider_name}, sua assinatura vence em {days_until_expiration} dia(s)!"
+            message = f"Sua assinatura no AchaServiço vence em {days_until_expiration} dia(s). Renove agora e continue recebendo clientes!"
+            urgency_color = "#ffc107"
+        
+        html_content = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, {urgency_color}, #856404); padding: 20px; border-radius: 10px 10px 0 0;">
+                <h1 style="color: white; margin: 0; font-size: 24px;">⏰ Aviso de Assinatura</h1>
+            </div>
+            <div style="background: #f9f9f9; padding: 20px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 10px 10px;">
+                <h2 style="color: #333; margin-top: 0;">Olá, {provider_name}!</h2>
+                <p style="font-size: 16px; color: #333; line-height: 1.6;">
+                    {message}
+                </p>
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="achaservico://dashboard" style="background: #10B981; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                        🚀 Renovar Agora
+                    </a>
+                </div>
+                <p style="color: #666; font-size: 14px; text-align: center;">
+                    Continue aparecendo para milhares de clientes em busca de serviços!
+                </p>
+                <p style="color: #999; font-size: 12px; margin-top: 20px; text-align: center;">
+                    Este email foi enviado automaticamente pelo sistema AchaServiço.
+                </p>
+            </div>
+        </div>
+        """
+        
+        params = {
+            "from": SENDER_EMAIL,
+            "to": [provider_email],
+            "subject": subject,
+            "html": html_content
+        }
+        
+        await asyncio.to_thread(resend.Emails.send, params)
+        logger.info(f"Expiration notification email sent to: {provider_email}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to send expiration notification email: {str(e)}")
+        return False
+
+async def send_push_notification(push_token: str, title: str, body: str):
+    """Send push notification via Expo"""
+    if not push_token or not push_token.startswith("ExponentPushToken"):
+        return False
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://exp.host/--/api/v2/push/send",
+                json={
+                    "to": push_token,
+                    "title": title,
+                    "body": body,
+                    "sound": "default",
+                    "priority": "high",
+                    "data": {"type": "subscription_expiring"}
+                },
+                headers={"Content-Type": "application/json"}
+            )
+            if response.status_code == 200:
+                logger.info(f"Push notification sent to: {push_token[:30]}...")
+                return True
+            else:
+                logger.error(f"Push notification failed: {response.text}")
+                return False
+    except Exception as e:
+        logger.error(f"Error sending push notification: {str(e)}")
+        return False
+
+async def check_expiring_subscriptions():
+    """Check for subscriptions expiring in 1 day and send notifications"""
+    try:
+        tomorrow = datetime.now(timezone.utc) + timedelta(days=1)
+        today = datetime.now(timezone.utc)
+        
+        # Find providers whose subscription expires in 1 day (and are not premium)
+        expiring_providers = await db.providers.find({
+            "subscription_status": "active",
+            "is_premium": {"$ne": True},
+            "subscription_expires_at": {
+                "$gte": today,
+                "$lte": tomorrow
+            }
+        }, {"_id": 0}).to_list(100)
+        
+        # Find providers whose subscription already expired
+        expired_providers = await db.providers.find({
+            "subscription_status": "active",
+            "is_premium": {"$ne": True},
+            "subscription_expires_at": {"$lt": today}
+        }, {"_id": 0}).to_list(100)
+        
+        notifications_sent = 0
+        
+        # Send notifications for expiring subscriptions
+        for provider in expiring_providers:
+            user = await db.users.find_one({"user_id": provider.get("user_id")}, {"_id": 0})
+            if user:
+                # Calculate days until expiration
+                expires_at = provider.get("subscription_expires_at")
+                if expires_at:
+                    days_left = (expires_at - today).days
+                    
+                    # Send email
+                    await send_expiration_notification_email(
+                        provider.get("name"),
+                        user.get("email"),
+                        days_left
+                    )
+                    
+                    # Send push notification
+                    push_token = provider.get("push_token")
+                    if push_token:
+                        await send_push_notification(
+                            push_token,
+                            "⏰ Assinatura expirando!",
+                            f"Sua assinatura vence em {days_left} dia(s). Renove agora! 🚀"
+                        )
+                    
+                    notifications_sent += 1
+        
+        # Update and notify expired subscriptions
+        for provider in expired_providers:
+            # Update status to expired
+            await db.providers.update_one(
+                {"provider_id": provider.get("provider_id")},
+                {"$set": {"subscription_status": "expired", "is_active": False}}
+            )
+            
+            user = await db.users.find_one({"user_id": provider.get("user_id")}, {"_id": 0})
+            if user:
+                await send_expiration_notification_email(
+                    provider.get("name"),
+                    user.get("email"),
+                    0  # Already expired
+                )
+                
+                push_token = provider.get("push_token")
+                if push_token:
+                    await send_push_notification(
+                        push_token,
+                        "⚠️ Assinatura vencida!",
+                        "Sua assinatura venceu. Renove agora para continuar recebendo clientes!"
+                    )
+                
+                notifications_sent += 1
+        
+        logger.info(f"Expiration check completed: {notifications_sent} notifications sent")
+        return notifications_sent
+        
+    except Exception as e:
+        logger.error(f"Error checking expiring subscriptions: {str(e)}")
+        return 0
+
 async def send_admin_notification_email(provider_name: str, provider_email: str, categories: List[str], cities: List[str], phone: str):
     """Send email notification to admin when a new provider registers"""
     if not RESEND_API_KEY:
@@ -174,9 +344,11 @@ class Provider(BaseModel):
     average_rating: float = 0.0
     total_reviews: int = 0
     is_active: bool = True
+    is_premium: bool = False  # Premium providers have lifetime subscription
     subscription_status: str = "inactive"  # active, inactive, expired
     subscription_expires_at: Optional[datetime] = None
     mp_preference_id: Optional[str] = None
+    push_token: Optional[str] = None  # Expo push notification token
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -264,6 +436,12 @@ CATEGORIES = [
     {"id": "fotografo", "name": "Fotógrafo", "icon": "camera"},
     {"id": "montador_moveis", "name": "Montador de Móveis", "icon": "bed"},
     {"id": "taxista", "name": "Taxista", "icon": "car-sport"},
+    {"id": "guincho", "name": "Guincho", "icon": "car"},
+    {"id": "lava_passa", "name": "Lava e Passa Roupa", "icon": "shirt"},
+    {"id": "baba", "name": "Babá", "icon": "people"},
+    {"id": "baba_pet", "name": "Babá de Pet", "icon": "paw"},
+    {"id": "veterinario", "name": "Veterinário Domicílio", "icon": "medkit"},
+    {"id": "maquiadora", "name": "Maquiadora", "icon": "color-palette"},
 ]
 
 NEIGHBORHOODS = [
@@ -1370,6 +1548,77 @@ async def admin_delete_review(review_id: str):
             )
     
     return {"success": True, "message": "Avaliação excluída"}
+
+# ======================== ADMIN PREMIUM & NOTIFICATIONS ========================
+
+@api_router.post("/admin/toggle-premium/{provider_id}")
+async def admin_toggle_premium(provider_id: str):
+    """Toggle premium status for a provider (admin only)"""
+    provider = await db.providers.find_one({"provider_id": provider_id})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Prestador não encontrado")
+    
+    current_premium = provider.get("is_premium", False)
+    new_premium = not current_premium
+    
+    update_data = {"is_premium": new_premium}
+    
+    # If making premium, also activate subscription with no expiration
+    if new_premium:
+        update_data["subscription_status"] = "active"
+        update_data["is_active"] = True
+        update_data["subscription_expires_at"] = None  # Premium never expires
+    
+    await db.providers.update_one(
+        {"provider_id": provider_id},
+        {"$set": update_data}
+    )
+    
+    logger.info(f"Provider {provider_id} premium status changed to: {new_premium}")
+    return {
+        "success": True,
+        "is_premium": new_premium,
+        "message": f"Prestador {'marcado como Premium' if new_premium else 'removido do Premium'}"
+    }
+
+@api_router.get("/admin/premium-providers")
+async def admin_get_premium_providers():
+    """Get all premium providers"""
+    providers = await db.providers.find(
+        {"is_premium": True},
+        {"_id": 0, "profile_image": 0, "service_photos": 0}
+    ).to_list(100)
+    return providers
+
+@api_router.post("/admin/send-expiration-notifications")
+async def admin_send_expiration_notifications():
+    """Manually trigger expiration notification check (admin only)"""
+    notifications_sent = await check_expiring_subscriptions()
+    return {
+        "success": True,
+        "notifications_sent": notifications_sent,
+        "message": f"{notifications_sent} notificações enviadas"
+    }
+
+@api_router.post("/providers/register-push-token")
+async def register_push_token(request: Request):
+    """Register push notification token for a provider"""
+    user = await require_auth(request)
+    body = await request.json()
+    push_token = body.get("push_token")
+    
+    if not push_token:
+        raise HTTPException(status_code=400, detail="Push token é obrigatório")
+    
+    result = await db.providers.update_one(
+        {"user_id": user.user_id},
+        {"$set": {"push_token": push_token}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Prestador não encontrado")
+    
+    return {"success": True, "message": "Push token registrado"}
 
 # ======================== MERCADO PAGO CHECKOUT PRO ========================
 

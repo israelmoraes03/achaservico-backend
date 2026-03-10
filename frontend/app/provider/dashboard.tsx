@@ -19,8 +19,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as WebBrowser from 'expo-web-browser';
+import * as Notifications from 'expo-notifications';
 import { useAuth } from '../../src/context/AuthContext';
 import api from '../../src/services/api';
+
+// Configure notification handling
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 interface Category {
   id: string;
@@ -47,6 +59,7 @@ interface Provider {
   average_rating: number;
   total_reviews: number;
   is_active: boolean;
+  is_premium?: boolean;
   subscription_status: string;
   subscription_expires_at?: string;
 }
@@ -225,6 +238,47 @@ export default function ProviderDashboardScreen() {
     await fetchData();
     setRefreshing(false);
   }, [fetchData]);
+
+  // Register push notifications
+  useEffect(() => {
+    const registerForPushNotifications = async () => {
+      try {
+        if (Platform.OS === 'web') return;
+        
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        
+        if (finalStatus !== 'granted') {
+          console.log('Push notification permission not granted');
+          return;
+        }
+        
+        // Get push token
+        const tokenData = await Notifications.getExpoPushTokenAsync({
+          projectId: '333b989a-14ab-48fc-9378-62f4c9ea5145'
+        });
+        const pushToken = tokenData.data;
+        console.log('Push token:', pushToken);
+        
+        // Register token with backend
+        if (pushToken) {
+          await api.post('/providers/register-push-token', { push_token: pushToken });
+          console.log('Push token registered');
+        }
+      } catch (error) {
+        console.log('Error registering push notifications:', error);
+      }
+    };
+    
+    if (provider) {
+      registerForPushNotifications();
+    }
+  }, [provider]);
 
   const formatPhone = (text: string) => {
     const cleaned = text.replace(/\D/g, '');
@@ -698,7 +752,19 @@ export default function ProviderDashboardScreen() {
           </View>
         )}
 
+        {/* Premium Badge */}
+        {provider.is_premium && (
+          <View style={styles.premiumBadge}>
+            <Text style={styles.premiumIcon}>👑</Text>
+            <View style={styles.premiumTextContainer}>
+              <Text style={styles.premiumTitle}>Você é Premium!</Text>
+              <Text style={styles.premiumSubtitle}>Sua assinatura é vitalícia. Você não precisa renovar!</Text>
+            </View>
+          </View>
+        )}
+
         {/* Subscription Status */}
+        {!provider.is_premium && (
         <View style={[
           styles.subscriptionCard,
           provider.subscription_status === 'active' ? styles.subscriptionActive : 
@@ -757,6 +823,7 @@ export default function ProviderDashboardScreen() {
             </View>
           )}
         </View>
+        )}
 
         {/* Stats */}
         <View style={styles.statsContainer}>
@@ -1327,6 +1394,33 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
+  },
+  premiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFD70020',
+    borderWidth: 2,
+    borderColor: '#FFD700',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  premiumIcon: {
+    fontSize: 40,
+  },
+  premiumTextContainer: {
+    flex: 1,
+  },
+  premiumTitle: {
+    color: '#FFD700',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  premiumSubtitle: {
+    color: '#B8860B',
+    fontSize: 14,
+    marginTop: 4,
   },
   subscriptionActive: {
     backgroundColor: '#10B98120',

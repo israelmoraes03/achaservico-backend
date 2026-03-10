@@ -49,6 +49,13 @@
           "photosPermission": "Permitir acesso às fotos para adicionar imagens ao seu perfil"
         }
       ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#10B981"
+        }
+      ],
       "expo-font",
       "expo-web-browser"
     ],
