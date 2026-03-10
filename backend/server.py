@@ -1015,7 +1015,12 @@ async def get_admin_stats():
     total_users = await db.users.count_documents({})
     total_providers = await db.providers.count_documents({})
     active_subscriptions = await db.providers.count_documents({"subscription_status": "active"})
-    pending_subscriptions = await db.subscriptions.count_documents({"status": "pending"})
+    
+    # Count pending as: providers with inactive subscription + subscriptions marked as pending
+    inactive_providers = await db.providers.count_documents({"subscription_status": "inactive"})
+    pending_subs = await db.subscriptions.count_documents({"status": "pending"})
+    pending_subscriptions = inactive_providers + pending_subs
+    
     expired_subscriptions = await db.providers.count_documents({"subscription_status": "expired"})
     total_reviews = await db.reviews.count_documents({})
     

@@ -548,7 +548,7 @@ export default function AdminScreen() {
                         >
                           <Ionicons name="star" size={16} color={provider.is_premium ? '#FFD700' : '#9333EA'} />
                           <Text style={[styles.actionText, { color: provider.is_premium ? '#FFD700' : '#9333EA' }]}>
-                            {provider.is_premium ? 'Remover Premium' : 'Tornar Premium'}
+                            {provider.is_premium ? 'Remover' : 'Premium'}
                           </Text>
                         </TouchableOpacity>
                         {provider.subscription_status !== 'active' && (
