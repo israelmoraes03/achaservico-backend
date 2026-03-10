@@ -585,86 +585,6 @@ export default function ProviderDashboardScreen() {
     }
   };
 
-  const handlePayWithCard = async () => {
-    setShowPaymentModal(false);
-    setIsActivating(true);
-    
-    try {
-      const response = await api.post('/stripe/create-checkout-session');
-      const { checkout_url, session_id } = response.data;
-      
-      if (checkout_url) {
-        // Open Stripe Checkout in browser
-        await WebBrowser.openBrowserAsync(checkout_url);
-        
-        // After returning from browser, try to verify and activate payment
-        // Wait a moment for Stripe to process the payment
-        if (session_id) {
-          // Initial delay to give Stripe time to process
-          console.log('Waiting for Stripe to process payment...');
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          
-          let attempts = 0;
-          const maxAttempts = 10; // Increased attempts
-          const delayMs = 3000; // 3 seconds between attempts
-          
-          const checkAndActivate = async (): Promise<boolean> => {
-            try {
-              console.log(`Checking payment status, attempt ${attempts + 1}/${maxAttempts}`);
-              const statusResponse = await api.get(`/stripe/payment-status/${session_id}`);
-              console.log('Payment status response:', JSON.stringify(statusResponse.data));
-              
-              if (statusResponse.data.completed === true) {
-                // Payment was successful - manually activate subscription
-                console.log('Payment completed! Activating subscription...');
-                try {
-                  const activateResponse = await api.post('/stripe/activate-from-session', { session_id });
-                  console.log('Activation response:', JSON.stringify(activateResponse.data));
-                  return true;
-                } catch (activateError: any) {
-                  console.error('Activation error:', activateError.response?.status, activateError.response?.data);
-                  return false;
-                }
-              } else {
-                console.log('Payment not completed yet, status:', statusResponse.data.status);
-              }
-              return false;
-            } catch (error: any) {
-              console.log('Error checking payment:', error.message);
-              return false;
-            }
-          };
-          
-          // Try to check and activate
-          let activated = await checkAndActivate();
-          
-          // If not activated, poll more times
-          while (!activated && attempts < maxAttempts) {
-            attempts++;
-            console.log(`Retrying in ${delayMs/1000} seconds...`);
-            await new Promise(resolve => setTimeout(resolve, delayMs));
-            activated = await checkAndActivate();
-          }
-          
-          if (activated) {
-            console.log('Subscription activated successfully!');
-          } else {
-            console.log('Could not verify payment completion after all attempts.');
-          }
-        }
-        
-        // Refresh data to check updated status
-        await fetchData();
-      }
-    } catch (error: any) {
-      console.error('Error creating checkout session:', error);
-      const message = error.response?.data?.detail || 'Erro ao processar pagamento. Tente novamente.';
-      Alert.alert('Erro', message);
-    } finally {
-      setIsActivating(false);
-    }
-  };
-
   const getCategoryName = (categoryId: string) => {
     const cat = categories.find(c => c.id === categoryId);
     return cat?.name || categoryId;
@@ -1171,28 +1091,14 @@ export default function ProviderDashboardScreen() {
             
             <TouchableOpacity
               style={styles.paymentOption}
-              onPress={handlePayWithCard}
-            >
-              <View style={styles.paymentOptionIcon}>
-                <Ionicons name="card" size={28} color="#10B981" />
-              </View>
-              <View style={styles.paymentOptionInfo}>
-                <Text style={styles.paymentOptionTitle}>Cartão de Crédito</Text>
-                <Text style={styles.paymentOptionDescription}>Ativação instantânea após pagamento</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#6B7280" />
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.paymentOption}
               onPress={handlePayWithPix}
             >
               <View style={styles.paymentOptionIcon}>
-                <Ionicons name="qr-code" size={28} color="#10B981" />
+                <Ionicons name="wallet" size={28} color="#10B981" />
               </View>
               <View style={styles.paymentOptionInfo}>
-                <Text style={styles.paymentOptionTitle}>PIX / Mercado Pago</Text>
-                <Text style={styles.paymentOptionDescription}>PIX, cartão, boleto - ativação automática</Text>
+                <Text style={styles.paymentOptionTitle}>Pagar Agora</Text>
+                <Text style={styles.paymentOptionDescription}>PIX, Cartão ou Boleto - ativação automática</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#6B7280" />
             </TouchableOpacity>
