@@ -68,18 +68,40 @@ export default function HomeScreen() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [catRes, neighRes, citiesRes] = await Promise.all([
+      const [catRes, citiesRes] = await Promise.all([
         api.get('/categories'),
-        api.get('/neighborhoods'),
         api.get('/cities'),
       ]);
       setCategories(catRes.data);
-      setNeighborhoods(neighRes.data);
       setCities(citiesRes.data);
+      // Carregar bairros iniciais (todas as cidades)
+      const neighRes = await api.get('/neighborhoods');
+      setNeighborhoods(neighRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
     }
   }, []);
+
+  // Buscar bairros quando a cidade muda
+  const fetchNeighborhoods = useCallback(async (cityId: string | null) => {
+    try {
+      const params: any = {};
+      if (cityId) {
+        params.city = cityId;
+      }
+      const response = await api.get('/neighborhoods', { params });
+      setNeighborhoods(response.data);
+      // Resetar bairro selecionado quando cidade muda
+      setSelectedNeighborhood(null);
+    } catch (error) {
+      console.error('Error fetching neighborhoods:', error);
+    }
+  }, []);
+
+  // Quando cidade muda, buscar bairros correspondentes
+  useEffect(() => {
+    fetchNeighborhoods(selectedCity);
+  }, [selectedCity, fetchNeighborhoods]);
 
   const fetchProviders = useCallback(async () => {
     try {

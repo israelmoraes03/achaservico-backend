@@ -444,19 +444,43 @@ CATEGORIES = [
     {"id": "maquiadora", "name": "Maquiadora", "icon": "color-palette"},
 ]
 
-NEIGHBORHOODS = [
-    "Todos os bairros",  # Option for providers who serve entire city
-    "Alto da Boa Vista", "Bela Vista", "Carandá", "Centro", "Cinturão Verde",
-    "Colinos", "Interlagos", "Jardim Alvorada", "Jardim Atenas", "Jardim Bela Vista",
-    "Jardim Glória", "Jardim Guaporé", "Jardim Imperial", "Jardim Maristela",
-    "Jardim Mirassol", "Jardim Morumbi", "Jardim Nova Americana", "Jardim Nova Ipanema",
-    "Jardim Oiti", "Jardim Planalto", "Jardim Primavera", "Jardim Progresso",
-    "Jardim Santa Aurélia", "Jardim Santa Júlia", "Jardim Vendrell", "Jardim Violetas",
-    "JK", "Lapa", "Nossa Senhora Aparecida", "Nossa Senhora das Graças", "Nova Europa",
-    "SetSul", "São Carlos", "São João", "São Jorge", "Vila Alegre", "Vila Cardoso",
-    "Vila Carioca", "Vila Guanabara", "Vila Haro", "Vila Maria", "Vila Nova",
-    "Vila Piloto", "Vila Popular", "Vila Santana", "Vila Verde", "Vila Viana"
-]
+# Bairros organizados por cidade
+NEIGHBORHOODS_BY_CITY = {
+    "tres_lagoas": [
+        "Todos os bairros",
+        "Alto da Boa Vista", "Bela Vista", "Carandá", "Centro", "Cinturão Verde",
+        "Colinos", "Interlagos", "Jardim Alvorada", "Jardim Atenas", "Jardim Bela Vista",
+        "Jardim Glória", "Jardim Guaporé", "Jardim Imperial", "Jardim Maristela",
+        "Jardim Mirassol", "Jardim Morumbi", "Jardim Nova Americana", "Jardim Nova Ipanema",
+        "Jardim Oiti", "Jardim Planalto", "Jardim Primavera", "Jardim Progresso",
+        "Jardim Santa Aurélia", "Jardim Santa Júlia", "Jardim Vendrell", "Jardim Violetas",
+        "JK", "Lapa", "Nossa Senhora Aparecida", "Nossa Senhora das Graças", "Nova Europa",
+        "SetSul", "São Carlos", "São João", "São Jorge", "Vila Alegre", "Vila Cardoso",
+        "Vila Carioca", "Vila Guanabara", "Vila Haro", "Vila Maria", "Vila Nova",
+        "Vila Piloto", "Vila Popular", "Vila Santana", "Vila Verde", "Vila Viana"
+    ],
+    "andradina": [
+        "Todos os bairros",
+        "Centro", "Benfica", "Bom Jardim", "Catanduva", "Cidade Jardim",
+        "Conjunto Habitacional Gasparelli", "Jardim Alvorada", "Jardim Brasil",
+        "Jardim das Flores", "Jardim Europa", "Jardim Ipanema", "Jardim Noemia",
+        "Jardim Olinda", "Jardim Palmeiras", "Jardim Paraíso", "Jardim Planalto",
+        "Jardim Progresso", "Jardim Ribeiro", "Jardim Santa Cecília", "Jardim São Jorge",
+        "Jardim São Paulo", "Jardim Stella Maris", "Parque das Nações", "Pereira Jordão",
+        "Santo Antônio", "São Benedito", "São Joaquim", "Vila Alba", "Vila Mineira",
+        "Vila Rica"
+    ],
+    "brasilandia": [
+        "Todos os bairros",
+        "Centro", "Bairro Alto", "Bela Vista", "Boa Esperança", "Conjunto Habitacional",
+        "Jardim América", "Jardim Brasil", "Jardim das Flores", "Jardim Europa",
+        "Jardim Planalto", "Jardim Primavera", "Nova Brasilândia", "Parque Industrial",
+        "São Francisco", "Vila Nova", "Vila São Pedro"
+    ]
+}
+
+# Lista consolidada de todos os bairros (para compatibilidade)
+NEIGHBORHOODS = NEIGHBORHOODS_BY_CITY["tres_lagoas"]
 
 CITIES = [
     {"id": "tres_lagoas", "name": "Três Lagoas", "state": "MS"},
@@ -600,8 +624,11 @@ async def get_categories():
     return CATEGORIES
 
 @api_router.get("/neighborhoods")
-async def get_neighborhoods():
-    """Get all neighborhoods in Três Lagoas"""
+async def get_neighborhoods(city: Optional[str] = None):
+    """Get neighborhoods by city. If no city specified, returns all neighborhoods."""
+    if city and city in NEIGHBORHOODS_BY_CITY:
+        return NEIGHBORHOODS_BY_CITY[city]
+    # Se não especificou cidade, retorna todos os bairros de todas as cidades
     return NEIGHBORHOODS
 
 @api_router.get("/cities")
