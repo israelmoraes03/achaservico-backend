@@ -118,26 +118,6 @@ export default function LoginScreen() {
             <Text style={styles.providerButtonText}>Cadastrar meu serviço</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Stats Section */}
-        <View style={styles.statsSection}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>+200</Text>
-            <Text style={styles.statLabel}>Profissionais</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>+1.200</Text>
-            <Text style={styles.statLabel}>Clientes</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>4.8</Text>
-            <View style={styles.statStars}>
-              <Ionicons name="star" size={14} color="#FFD700" />
-            </View>
-          </View>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -295,34 +275,5 @@ const styles = StyleSheet.create({
     color: '#10B981',
     fontSize: 16,
     fontWeight: '600',
-  },
-  statsSection: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 16,
-  },
-  statItem: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  statNumber: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#10B981',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  statStars: {
-    flexDirection: 'row',
-    marginTop: 2,
-  },
-  statDivider: {
-    width: 1,
-    height: 36,
-    backgroundColor: '#2A2A2A',
   },
 });
