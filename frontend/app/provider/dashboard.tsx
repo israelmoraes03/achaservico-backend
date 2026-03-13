@@ -708,51 +708,51 @@ export default function ProviderDashboardScreen() {
         </View>
         )}
 
-        {/* Disponibilidade Toggle */}
+        {/* Visibilidade Toggle */}
         <View style={styles.availabilityCard}>
           <View style={styles.availabilityHeader}>
             <View style={styles.availabilityInfo}>
               <Ionicons 
-                name={provider.is_available_now ? "checkmark-circle" : "time-outline"} 
+                name={provider.is_active ? "eye" : "eye-off"} 
                 size={24} 
-                color={provider.is_available_now ? "#22C55E" : "#6B7280"} 
+                color={provider.is_active ? "#22C55E" : "#EF4444"} 
               />
               <View style={styles.availabilityTextContainer}>
                 <Text style={styles.availabilityTitle}>
-                  {provider.is_available_now ? "Disponível Agora" : "Indisponível"}
+                  {provider.is_active ? "Visível na Plataforma" : "Invisível na Plataforma"}
                 </Text>
                 <Text style={styles.availabilitySubtitle}>
-                  {provider.is_available_now 
-                    ? "Clientes veem que você está disponível" 
-                    : "Ative para mostrar que está disponível"}
+                  {provider.is_active 
+                    ? "Clientes podem encontrar seu perfil" 
+                    : "Seu perfil não aparece nas buscas"}
                 </Text>
               </View>
             </View>
             <TouchableOpacity
               style={[
                 styles.availabilityToggle,
-                provider.is_available_now && styles.availabilityToggleActive
+                provider.is_active && styles.availabilityToggleActive
               ]}
               onPress={async () => {
                 try {
                   const response = await api.post(`/providers/${provider.provider_id}/toggle-availability`);
                   if (response.data.success) {
-                    setProvider({...provider, is_available_now: response.data.is_available_now});
+                    setProvider({...provider, is_active: response.data.is_active});
                     Alert.alert(
                       'Sucesso!', 
-                      response.data.is_available_now 
-                        ? 'Você está marcado como disponível!' 
-                        : 'Você está marcado como indisponível.'
+                      response.data.is_active 
+                        ? 'Seu perfil agora está visível para os clientes!' 
+                        : 'Seu perfil está oculto. Clientes não vão encontrá-lo nas buscas.'
                     );
                   }
                 } catch (error) {
-                  Alert.alert('Erro', 'Não foi possível alterar sua disponibilidade.');
+                  Alert.alert('Erro', 'Não foi possível alterar a visibilidade.');
                 }
               }}
             >
               <View style={[
                 styles.toggleCircle,
-                provider.is_available_now && styles.toggleCircleActive
+                provider.is_active && styles.toggleCircleActive
               ]} />
             </TouchableOpacity>
           </View>

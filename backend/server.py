@@ -830,7 +830,7 @@ async def update_provider(provider_id: str, provider_data: ProviderUpdate, reque
 
 @api_router.post("/providers/{provider_id}/toggle-availability")
 async def toggle_provider_availability(provider_id: str, request: Request):
-    """Toggle provider's 'available now' status"""
+    """Toggle provider's visibility on the platform"""
     user = await require_auth(request)
     
     provider = await db.providers.find_one({"provider_id": provider_id}, {"_id": 0})
@@ -840,15 +840,15 @@ async def toggle_provider_availability(provider_id: str, request: Request):
     if provider["user_id"] != user.user_id:
         raise HTTPException(status_code=403, detail="Você não tem permissão para alterar este perfil")
     
-    # Toggle availability
-    new_status = not provider.get("is_available_now", False)
+    # Toggle visibility (is_active controls if provider appears in search)
+    new_status = not provider.get("is_active", True)
     
     await db.providers.update_one(
         {"provider_id": provider_id},
-        {"$set": {"is_available_now": new_status, "updated_at": datetime.now(timezone.utc)}}
+        {"$set": {"is_active": new_status, "updated_at": datetime.now(timezone.utc)}}
     )
     
-    return {"success": True, "is_available_now": new_status}
+    return {"success": True, "is_active": new_status}
 
 # ======================== REVIEWS ========================
 

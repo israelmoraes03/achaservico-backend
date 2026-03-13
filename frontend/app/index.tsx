@@ -350,12 +350,6 @@ export default function HomeScreen() {
                 <View style={styles.providerInfo}>
                   <View style={styles.providerNameRow}>
                     <Text style={styles.providerName}>{provider.name}</Text>
-                    {provider.is_available_now && (
-                      <View style={styles.availableBadge}>
-                        <View style={styles.availableDot} />
-                        <Text style={styles.availableText}>Disponível</Text>
-                      </View>
-                    )}
                     {provider.is_verified && (
                       <View style={styles.verifiedBadge}>
                         <Ionicons name="checkmark-circle" size={16} color="#10B981" />
