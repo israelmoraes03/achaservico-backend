@@ -449,6 +449,7 @@ CATEGORIES = [
     {"id": "freelancer", "name": "Free-lancer", "icon": "briefcase"},
     {"id": "motoboy", "name": "Motoboy", "icon": "bicycle"},
     {"id": "cozinheiro", "name": "Cozinheiro(a)", "icon": "restaurant"},
+    {"id": "marido_de_aluguel", "name": "Marido de Aluguel", "icon": "hammer"},
 ]
 
 # Bairros organizados por cidade
