@@ -20,8 +20,14 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 
+# Import for image moderation
+from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+# Emergent LLM Key for image moderation
+EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
 
 # MongoDB connection
 mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
@@ -73,6 +79,75 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# ======================== IMAGE MODERATION ========================
+
+async def moderate_image(image_base64: str) -> dict:
+    """
+    Analyze image using AI to detect inappropriate content.
+    Returns: {"is_appropriate": bool, "reason": str}
+    """
+    if not EMERGENT_LLM_KEY:
+        logger.warning("EMERGENT_LLM_KEY not configured, skipping image moderation")
+        return {"is_appropriate": True, "reason": "Moderation not configured"}
+    
+    try:
+        # Remove base64 prefix if present
+        if "," in image_base64:
+            image_base64 = image_base64.split(",")[1]
+        
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"moderation-{uuid.uuid4()}",
+            system_message="""Você é um moderador de conteúdo. Analise a imagem e determine se é apropriada para um aplicativo de serviços profissionais.
+
+REJEITE imagens que contenham:
+- Nudez ou conteúdo sexual
+- Violência ou gore
+- Drogas ilícitas
+- Conteúdo ofensivo ou discriminatório
+- Símbolos de ódio
+
+ACEITE imagens que sejam:
+- Fotos de perfil profissionais
+- Fotos de serviços realizados (reformas, pinturas, instalações, etc.)
+- Ferramentas de trabalho
+- Ambientes de trabalho
+
+Responda APENAS com JSON no formato:
+{"is_appropriate": true} ou {"is_appropriate": false, "reason": "motivo da rejeição"}"""
+        ).with_model("openai", "gpt-4o-mini")
+        
+        image_content = ImageContent(image_base64=image_base64)
+        
+        user_message = UserMessage(
+            text="Analise esta imagem e determine se é apropriada.",
+            image_contents=[image_content]
+        )
+        
+        response = await chat.send_message(user_message)
+        
+        # Parse response
+        import json
+        try:
+            # Try to extract JSON from response
+            response_text = response.strip()
+            if response_text.startswith("```"):
+                response_text = response_text.split("```")[1]
+                if response_text.startswith("json"):
+                    response_text = response_text[4:]
+            result = json.loads(response_text)
+            return result
+        except:
+            # If can't parse, assume appropriate
+            if "false" in response.lower() or "inappropriate" in response.lower() or "rejeit" in response.lower():
+                return {"is_appropriate": False, "reason": "Conteúdo possivelmente impróprio detectado"}
+            return {"is_appropriate": True, "reason": "Approved"}
+            
+    except Exception as e:
+        logger.error(f"Error moderating image: {e}")
+        # On error, allow the image (fail open) but log it
+        return {"is_appropriate": True, "reason": f"Moderation error: {str(e)}"}
 
 # ======================== EMAIL NOTIFICATIONS ========================
 
@@ -818,6 +893,28 @@ async def update_provider(provider_id: str, provider_data: ProviderUpdate, reque
         raise HTTPException(status_code=403, detail="Você não tem permissão para editar este perfil")
     
     update_data = {k: v for k, v in provider_data.model_dump().items() if v is not None}
+    
+    # Moderate profile image if being updated
+    if "profile_image" in update_data and update_data["profile_image"]:
+        moderation_result = await moderate_image(update_data["profile_image"])
+        if not moderation_result.get("is_appropriate", True):
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Imagem de perfil rejeitada: {moderation_result.get('reason', 'Conteúdo impróprio detectado')}"
+            )
+    
+    # Moderate service photos if being updated
+    if "service_photos" in update_data and update_data["service_photos"]:
+        for i, photo in enumerate(update_data["service_photos"]):
+            # Only moderate new photos (check if it's a base64 string, not a URL)
+            if photo and ("base64" in photo or len(photo) > 1000):
+                moderation_result = await moderate_image(photo)
+                if not moderation_result.get("is_appropriate", True):
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Foto de serviço {i+1} rejeitada: {moderation_result.get('reason', 'Conteúdo impróprio detectado')}"
+                    )
+    
     update_data["updated_at"] = datetime.now(timezone.utc)
     
     await db.providers.update_one(
