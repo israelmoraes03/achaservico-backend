@@ -99,23 +99,27 @@ async def moderate_image(image_base64: str) -> dict:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=f"moderation-{uuid.uuid4()}",
-            system_message="""Você é um moderador de conteúdo. Analise a imagem e determine se é apropriada para um aplicativo de serviços profissionais.
+            system_message="""Você é um moderador de conteúdo para um aplicativo de serviços profissionais.
 
-REJEITE imagens que contenham:
-- Nudez ou conteúdo sexual
-- Violência ou gore
-- Drogas ilícitas
-- Conteúdo ofensivo ou discriminatório
-- Símbolos de ódio
+REJEITE APENAS imagens que contenham:
+- Nudez EXPLÍCITA (genitais, seios totalmente expostos)
+- Pornografia ou conteúdo sexual explícito
+- Violência gráfica ou gore
+- Drogas ilícitas visíveis
+- Símbolos de ódio ou discriminação
 
 ACEITE imagens que sejam:
-- Fotos de perfil profissionais
-- Fotos de serviços realizados (reformas, pinturas, instalações, etc.)
-- Ferramentas de trabalho
-- Ambientes de trabalho
+- Fotos de perfil (rosto, corpo vestido)
+- Fotos de biquíni, praia, piscina (são permitidas)
+- Roupas de ginástica, academia
+- Fotos de serviços realizados
+- Ferramentas e ambientes de trabalho
+- Qualquer foto normal do dia a dia
 
-Responda APENAS com JSON no formato:
-{"is_appropriate": true} ou {"is_appropriate": false, "reason": "motivo da rejeição"}"""
+IMPORTANTE: Seja permissivo com fotos normais. Só rejeite conteúdo EXPLICITAMENTE impróprio.
+
+Responda APENAS com JSON:
+{"is_appropriate": true} ou {"is_appropriate": false, "reason": "motivo breve"}"""
         ).with_model("openai", "gpt-4o-mini")
         
         image_content = ImageContent(image_base64=image_base64)
