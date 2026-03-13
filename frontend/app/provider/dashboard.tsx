@@ -711,15 +711,17 @@ export default function ProviderDashboardScreen() {
         {/* Stats */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
-            <Ionicons name="star" size={24} color="#FFD700" />
-            <Text style={styles.statValue}>{provider.average_rating.toFixed(1)}</Text>
-            <Text style={styles.statLabel}>Avaliação</Text>
-          </View>
-          <View style={styles.statCard}>
             <Ionicons name="chatbubbles" size={24} color="#10B981" />
             <Text style={styles.statValue}>{provider.total_reviews}</Text>
             <Text style={styles.statLabel}>Avaliações</Text>
           </View>
+          {provider.is_verified && (
+            <View style={styles.statCard}>
+              <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+              <Text style={styles.statValue}>Sim</Text>
+              <Text style={styles.statLabel}>Verificado</Text>
+            </View>
+          )}
         </View>
 
         {/* Profile Info */}

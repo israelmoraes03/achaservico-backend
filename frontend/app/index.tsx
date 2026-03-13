@@ -385,9 +385,9 @@ export default function HomeScreen() {
               
               <View style={styles.providerFooter}>
                 <View style={styles.ratingContainer}>
-                  <View style={styles.starsRow}>{renderStars(provider.average_rating)}</View>
+                  <Ionicons name="chatbubbles" size={16} color="#10B981" />
                   <Text style={styles.ratingText}>
-                    {provider.average_rating.toFixed(1)} ({provider.total_reviews})
+                    {provider.total_reviews} {provider.total_reviews === 1 ? 'avaliação' : 'avaliações'}
                   </Text>
                 </View>
                 
