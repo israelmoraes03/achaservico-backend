@@ -350,6 +350,12 @@ export default function HomeScreen() {
                 <View style={styles.providerInfo}>
                   <View style={styles.providerNameRow}>
                     <Text style={styles.providerName}>{provider.name}</Text>
+                    {provider.is_available_now && (
+                      <View style={styles.availableBadge}>
+                        <View style={styles.availableDot} />
+                        <Text style={styles.availableText}>Disponível</Text>
+                      </View>
+                    )}
                     {provider.is_verified && (
                       <View style={styles.verifiedBadge}>
                         <Ionicons name="checkmark-circle" size={16} color="#10B981" />
@@ -396,7 +402,7 @@ export default function HomeScreen() {
                   onPress={() => openWhatsApp(provider.phone, provider.name)}
                 >
                   <Ionicons name="logo-whatsapp" size={18} color="#FFFFFF" />
-                  <Text style={styles.whatsappButtonText}>WhatsApp</Text>
+                  <Text style={styles.whatsappButtonText}>Pedir Orçamento</Text>
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
@@ -620,6 +626,26 @@ const styles = StyleSheet.create({
   },
   verifiedText: {
     color: '#10B981',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  availableBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#22C55E20',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    gap: 4,
+  },
+  availableDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#22C55E',
+  },
+  availableText: {
+    color: '#22C55E',
     fontSize: 11,
     fontWeight: '600',
   },

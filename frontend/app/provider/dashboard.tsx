@@ -708,6 +708,56 @@ export default function ProviderDashboardScreen() {
         </View>
         )}
 
+        {/* Disponibilidade Toggle */}
+        <View style={styles.availabilityCard}>
+          <View style={styles.availabilityHeader}>
+            <View style={styles.availabilityInfo}>
+              <Ionicons 
+                name={provider.is_available_now ? "checkmark-circle" : "time-outline"} 
+                size={24} 
+                color={provider.is_available_now ? "#22C55E" : "#6B7280"} 
+              />
+              <View style={styles.availabilityTextContainer}>
+                <Text style={styles.availabilityTitle}>
+                  {provider.is_available_now ? "Disponível Agora" : "Indisponível"}
+                </Text>
+                <Text style={styles.availabilitySubtitle}>
+                  {provider.is_available_now 
+                    ? "Clientes veem que você está disponível" 
+                    : "Ative para mostrar que está disponível"}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.availabilityToggle,
+                provider.is_available_now && styles.availabilityToggleActive
+              ]}
+              onPress={async () => {
+                try {
+                  const response = await api.post(`/providers/${provider.provider_id}/toggle-availability`);
+                  if (response.data.success) {
+                    setProvider({...provider, is_available_now: response.data.is_available_now});
+                    Alert.alert(
+                      'Sucesso!', 
+                      response.data.is_available_now 
+                        ? 'Você está marcado como disponível!' 
+                        : 'Você está marcado como indisponível.'
+                    );
+                  }
+                } catch (error) {
+                  Alert.alert('Erro', 'Não foi possível alterar sua disponibilidade.');
+                }
+              }}
+            >
+              <View style={[
+                styles.toggleCircle,
+                provider.is_available_now && styles.toggleCircleActive
+              ]} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Stats */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
@@ -1415,6 +1465,59 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 8,
     lineHeight: 18,
+  },
+  // Availability Card Styles
+  availabilityCard: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+  },
+  availabilityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  availabilityInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  availabilityTextContainer: {
+    flex: 1,
+  },
+  availabilityTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  availabilitySubtitle: {
+    color: '#6B7280',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  availabilityToggle: {
+    width: 52,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#3A3A3A',
+    padding: 2,
+    justifyContent: 'center',
+  },
+  availabilityToggleActive: {
+    backgroundColor: '#22C55E',
+  },
+  toggleCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+  },
+  toggleCircleActive: {
+    alignSelf: 'flex-end',
   },
   activateButton: {
     flexDirection: 'row',

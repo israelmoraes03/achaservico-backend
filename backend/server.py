@@ -346,6 +346,7 @@ class Provider(BaseModel):
     is_active: bool = True
     is_premium: bool = False  # Premium providers have lifetime subscription
     is_verified: bool = False  # Verified badge - 5+ positive reviews (4+ stars)
+    is_available_now: bool = False  # Provider is available for immediate service
     subscription_status: str = "inactive"  # active, inactive, expired
     subscription_expires_at: Optional[datetime] = None
     mp_preference_id: Optional[str] = None
@@ -825,6 +826,28 @@ async def update_provider(provider_id: str, provider_data: ProviderUpdate, reque
     
     updated = await db.providers.find_one({"provider_id": provider_id}, {"_id": 0})
     return updated
+
+@api_router.post("/providers/{provider_id}/toggle-availability")
+async def toggle_provider_availability(provider_id: str, request: Request):
+    """Toggle provider's 'available now' status"""
+    user = await require_auth(request)
+    
+    provider = await db.providers.find_one({"provider_id": provider_id}, {"_id": 0})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Prestador não encontrado")
+    
+    if provider["user_id"] != user.user_id:
+        raise HTTPException(status_code=403, detail="Você não tem permissão para alterar este perfil")
+    
+    # Toggle availability
+    new_status = not provider.get("is_available_now", False)
+    
+    await db.providers.update_one(
+        {"provider_id": provider_id},
+        {"$set": {"is_available_now": new_status, "updated_at": datetime.now(timezone.utc)}}
+    )
+    
+    return {"success": True, "is_available_now": new_status}
 
 # ======================== REVIEWS ========================
 
