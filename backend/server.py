@@ -917,28 +917,6 @@ async def update_provider(provider_id: str, provider_data: ProviderUpdate, reque
         raise HTTPException(status_code=403, detail="Você não tem permissão para editar este perfil")
     
     update_data = {k: v for k, v in provider_data.model_dump().items() if v is not None}
-    
-    # Moderate profile image if being updated
-    if "profile_image" in update_data and update_data["profile_image"]:
-        moderation_result = await moderate_image(update_data["profile_image"])
-        if not moderation_result.get("is_appropriate", True):
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Imagem de perfil rejeitada: {moderation_result.get('reason', 'Conteúdo impróprio detectado')}"
-            )
-    
-    # Moderate service photos if being updated
-    if "service_photos" in update_data and update_data["service_photos"]:
-        for i, photo in enumerate(update_data["service_photos"]):
-            # Only moderate new photos (check if it's a base64 string, not a URL)
-            if photo and ("base64" in photo or len(photo) > 1000):
-                moderation_result = await moderate_image(photo)
-                if not moderation_result.get("is_appropriate", True):
-                    raise HTTPException(
-                        status_code=400, 
-                        detail=f"Foto de serviço {i+1} rejeitada: {moderation_result.get('reason', 'Conteúdo impróprio detectado')}"
-                    )
-    
     update_data["updated_at"] = datetime.now(timezone.utc)
     
     await db.providers.update_one(
