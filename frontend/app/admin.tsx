@@ -95,6 +95,9 @@ export default function AdminScreen() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isExporting, setIsExporting] = useState(false);
 
+  // Search/Filter states
+  const [searchQuery, setSearchQuery] = useState('');
+
   // Modal states
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
@@ -497,10 +500,39 @@ export default function AdminScreen() {
                 <Text style={styles.sectionTitle}>
                   Todos os Prestadores ({providers.length})
                 </Text>
+                
+                {/* Search Filter */}
+                <View style={styles.searchContainer}>
+                  <Ionicons name="search" size={20} color="#6B7280" style={styles.searchIcon} />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Buscar por nome, telefone ou bairro..."
+                    placeholderTextColor="#6B7280"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                  />
+                  {searchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => setSearchQuery('')}>
+                      <Ionicons name="close-circle" size={20} color="#6B7280" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+                
                 {providers.length === 0 ? (
                   <Text style={styles.emptyText}>Nenhum prestador cadastrado</Text>
                 ) : (
-                  providers.map((provider) => (
+                  providers
+                    .filter(provider => {
+                      if (!searchQuery) return true;
+                      const query = searchQuery.toLowerCase();
+                      return (
+                        provider.name?.toLowerCase().includes(query) ||
+                        provider.phone?.includes(query) ||
+                        provider.neighborhood?.toLowerCase().includes(query) ||
+                        provider.categories?.some(c => c.toLowerCase().includes(query))
+                      );
+                    })
+                    .map((provider) => (
                     <View key={provider.provider_id} style={styles.card}>
                       <View style={styles.cardHeader}>
                         <View style={styles.cardInfo}>
@@ -587,10 +619,37 @@ export default function AdminScreen() {
             {activeTab === 'users' && (
               <View>
                 <Text style={styles.sectionTitle}>Todos os Usuários ({users.length})</Text>
+                
+                {/* Search Filter */}
+                <View style={styles.searchContainer}>
+                  <Ionicons name="search" size={20} color="#6B7280" style={styles.searchIcon} />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Buscar por nome ou email..."
+                    placeholderTextColor="#6B7280"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                  />
+                  {searchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => setSearchQuery('')}>
+                      <Ionicons name="close-circle" size={20} color="#6B7280" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+                
                 {users.length === 0 ? (
                   <Text style={styles.emptyText}>Nenhum usuário cadastrado</Text>
                 ) : (
-                  users.map((user) => (
+                  users
+                    .filter(user => {
+                      if (!searchQuery) return true;
+                      const query = searchQuery.toLowerCase();
+                      return (
+                        user.name?.toLowerCase().includes(query) ||
+                        user.email?.toLowerCase().includes(query)
+                      );
+                    })
+                    .map((user) => (
                     <View key={user.user_id} style={styles.card}>
                       <View style={styles.cardHeader}>
                         <View style={styles.cardInfo}>
@@ -981,6 +1040,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginTop: 20,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2D2D2D',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 16,
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 14,
   },
   card: {
     backgroundColor: '#1F1F1F',

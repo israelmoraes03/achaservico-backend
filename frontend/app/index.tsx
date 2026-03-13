@@ -348,7 +348,20 @@ export default function HomeScreen() {
                   </View>
                 )}
                 <View style={styles.providerInfo}>
-                  <Text style={styles.providerName}>{provider.name}</Text>
+                  <View style={styles.providerNameRow}>
+                    <Text style={styles.providerName}>{provider.name}</Text>
+                    {provider.is_verified && (
+                      <View style={styles.verifiedBadge}>
+                        <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                        <Text style={styles.verifiedText}>Verificado</Text>
+                      </View>
+                    )}
+                    {provider.is_premium && (
+                      <View style={styles.premiumBadge}>
+                        <Text style={styles.premiumText}>👑 Premium</Text>
+                      </View>
+                    )}
+                  </View>
                   <View style={styles.categoriesRow}>
                     {(provider.categories || [provider.category]).filter(Boolean).slice(0, 2).map((catId, index) => (
                       <View key={index} style={styles.categoryBadge}>
@@ -584,11 +597,42 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
   },
+  providerNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 4,
+  },
   providerName: {
     fontSize: 18,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 4,
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#10B98120',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    gap: 3,
+  },
+  verifiedText: {
+    color: '#10B981',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  premiumBadge: {
+    backgroundColor: '#FFD70030',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  premiumText: {
+    color: '#FFD700',
+    fontSize: 11,
+    fontWeight: '600',
   },
   categoriesRow: {
     flexDirection: 'row',

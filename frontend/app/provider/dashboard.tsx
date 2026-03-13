@@ -123,6 +123,10 @@ export default function ProviderDashboardScreen() {
   const [showDeletePhotoModal, setShowDeletePhotoModal] = useState(false);
   const [photoIndexToDelete, setPhotoIndexToDelete] = useState<number | null>(null);
 
+  // Image Viewer Modal state
+  const [showImageViewer, setShowImageViewer] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
   const MAX_SERVICE_PHOTOS = 6;
 
   // Initialize form with provider data - this ONLY runs when starting to edit
@@ -683,7 +687,7 @@ export default function ProviderDashboardScreen() {
           </View>
         )}
 
-        {/* Subscription Status */}
+        {/* Subscription Status - Período Gratuito */}
         {!provider.is_premium && (
         <View style={[
           styles.subscriptionCard,
@@ -698,26 +702,35 @@ export default function ProviderDashboardScreen() {
                   (subscription?.status === 'pending' || provider.subscription_status === 'pending') ? '#F59E0B' : '#EF4444' }
               ]} />
               <Text style={styles.subscriptionStatusText}>
-                {provider.subscription_status === 'active' ? 'Assinatura Ativa' : 
-                 (subscription?.status === 'pending' || provider.subscription_status === 'pending') ? 'Aguardando Aprovação' : 'Assinatura Inativa'}
+                {provider.subscription_status === 'active' ? 'Perfil Ativo' : 
+                 (subscription?.status === 'pending' || provider.subscription_status === 'pending') ? 'Aguardando Aprovação' : 'Perfil Inativo'}
               </Text>
             </View>
-            <Text style={styles.subscriptionPrice}>R$ 9,99/mês</Text>
+            {provider.subscription_status === 'active' && (
+              <View style={styles.freeBadge}>
+                <Text style={styles.freeBadgeText}>Período Gratuito</Text>
+              </View>
+            )}
           </View>
           
           {provider.subscription_status === 'active' && subscription ? (
-            <Text style={styles.subscriptionExpiry}>
-              Válida até {formatDate(subscription.expires_at)}
-            </Text>
+            <View>
+              <Text style={styles.subscriptionExpiry}>
+                Válido até {formatDate(subscription.expires_at)}
+              </Text>
+              <Text style={styles.freeInfoText}>
+                Aproveite! Seu perfil está visível para todos os clientes.
+              </Text>
+            </View>
           ) : (subscription?.status === 'pending' || provider.subscription_status === 'pending') ? (
             <View>
               <Text style={styles.subscriptionPendingText}>
-                Seu pagamento está sendo verificado pelo administrador
+                Seu perfil está sendo verificado pelo administrador
               </Text>
               <View style={styles.pendingInfoBox}>
                 <Ionicons name="time" size={20} color="#F59E0B" />
                 <Text style={styles.pendingInfoText}>
-                  A ativação ocorre em até 24 horas após confirmação do PIX
+                  A ativação ocorre em até 24 horas
                 </Text>
               </View>
             </View>
@@ -726,20 +739,9 @@ export default function ProviderDashboardScreen() {
               <Text style={styles.subscriptionInactiveText}>
                 Seu perfil não está visível para clientes
               </Text>
-              <TouchableOpacity
-                style={styles.activateButton}
-                onPress={handleActivateSubscription}
-                disabled={isActivating}
-              >
-                {isActivating ? (
-                  <ActivityIndicator color="#0A0A0A" />
-                ) : (
-                  <>
-                    <Ionicons name="card" size={18} color="#0A0A0A" />
-                    <Text style={styles.activateButtonText}>Ativar Assinatura</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              <Text style={styles.freeInfoText}>
+                Entre em contato com o suporte para ativar seu perfil.
+              </Text>
             </View>
           )}
         </View>
@@ -763,10 +765,16 @@ export default function ProviderDashboardScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Informações do Perfil</Text>
           
-          {/* Profile Image - Always clickable to change photo */}
+          {/* Profile Image - Click to change, long press to view full */}
           <TouchableOpacity
             style={styles.imageContainer}
             onPress={pickImage}
+            onLongPress={() => {
+              if (editProfileImage || provider.profile_image) {
+                setSelectedImage(editProfileImage || provider.profile_image || null);
+                setShowImageViewer(true);
+              }
+            }}
             disabled={isSaving}
           >
             {editProfileImage || provider.profile_image ? (
@@ -787,7 +795,7 @@ export default function ProviderDashboardScreen() {
               )}
             </View>
           </TouchableOpacity>
-          <Text style={styles.photoHint}>Toque para alterar a foto</Text>
+          <Text style={styles.photoHint}>Toque para alterar • Segure para ver em tela cheia</Text>
 
           {/* Form Fields */}
           <View style={styles.fieldGroup}>
@@ -1030,7 +1038,15 @@ export default function ProviderDashboardScreen() {
           <View style={styles.photosGrid}>
             {servicePhotos.map((photo, index) => (
               <View key={index} style={styles.photoWrapper}>
-                <Image source={{ uri: photo }} style={styles.servicePhoto} />
+                <TouchableOpacity
+                  onPress={() => {
+                    setSelectedImage(photo);
+                    setShowImageViewer(true);
+                  }}
+                  activeOpacity={0.9}
+                >
+                  <Image source={{ uri: photo }} style={styles.servicePhoto} />
+                </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.removePhotoButton}
                   onPress={() => removeServicePhoto(index)}
@@ -1215,6 +1231,30 @@ export default function ProviderDashboardScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Image Viewer Modal - Full Screen */}
+      <Modal
+        visible={showImageViewer}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowImageViewer(false)}
+      >
+        <View style={styles.imageViewerContainer}>
+          <TouchableOpacity 
+            style={styles.imageViewerCloseButton}
+            onPress={() => setShowImageViewer(false)}
+          >
+            <Ionicons name="close" size={32} color="#FFFFFF" />
+          </TouchableOpacity>
+          {selectedImage && (
+            <Image
+              source={{ uri: selectedImage }}
+              style={styles.fullScreenImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1395,6 +1435,23 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontSize: 13,
     marginBottom: 12,
+  },
+  freeBadge: {
+    backgroundColor: '#10B98130',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  freeBadgeText: {
+    color: '#10B981',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  freeInfoText: {
+    color: '#6B7280',
+    fontSize: 13,
+    marginTop: 8,
+    lineHeight: 18,
   },
   activateButton: {
     flexDirection: 'row',
@@ -1929,5 +1986,25 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 16,
     lineHeight: 18,
+  },
+  // Image Viewer Modal Styles
+  imageViewerContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageViewerCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    padding: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+  },
+  fullScreenImage: {
+    width: '100%',
+    height: '80%',
   },
 });

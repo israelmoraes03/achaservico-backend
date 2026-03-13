@@ -345,6 +345,7 @@ class Provider(BaseModel):
     total_reviews: int = 0
     is_active: bool = True
     is_premium: bool = False  # Premium providers have lifetime subscription
+    is_verified: bool = False  # Verified badge - 5+ positive reviews (4+ stars)
     subscription_status: str = "inactive"  # active, inactive, expired
     subscription_expires_at: Optional[datetime] = None
     mp_preference_id: Optional[str] = None
@@ -442,6 +443,11 @@ CATEGORIES = [
     {"id": "baba_pet", "name": "Babá de Pet", "icon": "paw"},
     {"id": "veterinario", "name": "Veterinário Domicílio", "icon": "medkit"},
     {"id": "maquiadora", "name": "Maquiadora", "icon": "color-palette"},
+    {"id": "chaveiro", "name": "Chaveiro", "icon": "key"},
+    {"id": "garcom", "name": "Garçom", "icon": "restaurant"},
+    {"id": "freelancer", "name": "Free-lancer", "icon": "briefcase"},
+    {"id": "motoboy", "name": "Motoboy", "icon": "bicycle"},
+    {"id": "cozinheiro", "name": "Cozinheiro(a)", "icon": "restaurant"},
 ]
 
 # Bairros organizados por cidade
@@ -476,6 +482,39 @@ NEIGHBORHOODS_BY_CITY = {
         "Jardim América", "Jardim Brasil", "Jardim das Flores", "Jardim Europa",
         "Jardim Planalto", "Jardim Primavera", "Nova Brasilândia", "Parque Industrial",
         "São Francisco", "Vila Nova", "Vila São Pedro"
+    ],
+    "selviria": [
+        "Todos os bairros",
+        "Centro", "Cohab", "Jardim Primavera", "Jardim São Paulo", "Vila Nova",
+        "Vila Operária", "Vila Planalto"
+    ],
+    "agua_clara": [
+        "Todos os bairros",
+        "Centro", "Cohab", "Jardim América", "Jardim Bela Vista", "Jardim Brasil",
+        "Jardim Planalto", "Jardim Primavera", "Nova Água Clara", "Vila Nova"
+    ],
+    "inocencia": [
+        "Todos os bairros",
+        "Centro", "Jardim América", "Jardim das Flores", "Jardim Europa",
+        "Jardim Planalto", "Jardim Primavera", "Vila Nova", "Vila São Paulo"
+    ],
+    "paranaiba": [
+        "Todos os bairros",
+        "Alto da Colina", "Centro", "Cohab", "Jardim América", "Jardim Brasil",
+        "Jardim das Flores", "Jardim Europa", "Jardim Guanabara", "Jardim Planalto",
+        "Jardim Primavera", "Jardim Santa Mônica", "Jardim São Paulo", "Nova Paranaíba",
+        "Vila Ipiranga", "Vila Nova", "Vila Operária"
+    ],
+    "aparecida_do_taboado": [
+        "Todos os bairros",
+        "Centro", "Cohab", "Jardim América", "Jardim Bela Vista", "Jardim Brasil",
+        "Jardim das Flores", "Jardim Guanabara", "Jardim Planalto", "Jardim Primavera",
+        "Jardim São Paulo", "Nova Aparecida", "Vila Nova", "Vila Operária"
+    ],
+    "ribas_do_rio_pardo": [
+        "Todos os bairros",
+        "Centro", "Cohab", "Jardim América", "Jardim Brasil", "Jardim das Flores",
+        "Jardim Planalto", "Jardim Primavera", "Nova Ribas", "Vila Nova", "Vila Operária"
     ]
 }
 
@@ -486,6 +525,12 @@ CITIES = [
     {"id": "tres_lagoas", "name": "Três Lagoas", "state": "MS"},
     {"id": "andradina", "name": "Andradina", "state": "SP"},
     {"id": "brasilandia", "name": "Brasilândia", "state": "MS"},
+    {"id": "selviria", "name": "Selvíria", "state": "MS"},
+    {"id": "agua_clara", "name": "Água Clara", "state": "MS"},
+    {"id": "inocencia", "name": "Inocência", "state": "MS"},
+    {"id": "paranaiba", "name": "Paranaíba", "state": "MS"},
+    {"id": "aparecida_do_taboado", "name": "Aparecida do Taboado", "state": "MS"},
+    {"id": "ribas_do_rio_pardo", "name": "Ribas do Rio Pardo", "state": "MS"},
 ]
 
 # ======================== AUTH HELPERS ========================
@@ -720,12 +765,30 @@ async def create_provider(provider_data: ProviderCreate, request: Request):
     if existing:
         raise HTTPException(status_code=400, detail="Você já possui um perfil de prestador")
     
+    # ESTRATÉGIA GRÁTIS: Novos prestadores começam com assinatura ativa por 4 meses
+    free_period_days = 120  # 4 meses grátis
+    expires_at = datetime.now(timezone.utc) + timedelta(days=free_period_days)
+    
     provider = Provider(
         user_id=user.user_id,
+        subscription_status="active",  # Já começa ativo
+        subscription_expires_at=expires_at,
+        is_active=True,
         **provider_data.model_dump()
     )
     
     await db.providers.insert_one(provider.model_dump())
+    
+    # Criar registro de assinatura automaticamente
+    subscription = Subscription(
+        provider_id=provider.provider_id,
+        user_id=user.user_id,
+        status="active",
+        payment_method="promotional_free",  # Período gratuito promocional
+        started_at=datetime.now(timezone.utc),
+        expires_at=expires_at
+    )
+    await db.subscriptions.insert_one(subscription.model_dump())
     
     await db.users.update_one(
         {"user_id": user.user_id},
@@ -903,11 +966,21 @@ async def create_review(review_data: ReviewCreate, request: Request):
         avg_rating = review_data.rating
         total_reviews = 1
     
+    # Verificar automaticamente: 5+ avaliações positivas (4+ estrelas)
+    positive_reviews_pipeline = [
+        {"$match": {"provider_id": review_data.provider_id, "rating": {"$gte": 4}}},
+        {"$count": "count"}
+    ]
+    positive_result = await db.reviews.aggregate(positive_reviews_pipeline).to_list(1)
+    positive_count = positive_result[0]["count"] if positive_result else 0
+    is_verified = positive_count >= 5
+    
     await db.providers.update_one(
         {"provider_id": review_data.provider_id},
         {"$set": {
             "average_rating": round(avg_rating, 1),
-            "total_reviews": total_reviews
+            "total_reviews": total_reviews,
+            "is_verified": is_verified
         }}
     )
     
