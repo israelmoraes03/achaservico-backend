@@ -90,45 +90,47 @@ async def moderate_image(image_base64: str) -> dict:
     logger.info("Starting image moderation...")
     
     if not EMERGENT_LLM_KEY:
-        logger.error("EMERGENT_LLM_KEY not configured!")
+        logger.warning("EMERGENT_LLM_KEY not configured, allowing image")
         return {"is_appropriate": True, "reason": "Moderation not configured"}
     
     try:
         # Remove base64 prefix if present
+        original_base64 = image_base64
         if "," in image_base64:
             image_base64 = image_base64.split(",")[1]
+        
+        # Check if image is too small (likely not a real image)
+        if len(image_base64) < 100:
+            logger.warning("Image too small, allowing")
+            return {"is_appropriate": True, "reason": "Image too small to analyze"}
         
         logger.info(f"Moderating image, size: {len(image_base64)} chars")
         
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=f"moderation-{uuid.uuid4()}",
-            system_message="""Você é um moderador de conteúdo RIGOROSO para um aplicativo de serviços profissionais.
+            system_message="""Você é um moderador de conteúdo. Analise a imagem.
 
-REJEITE imagens que contenham:
-- Nudez (genitais, seios expostos, nádegas expostas)
-- Pornografia ou conteúdo sexual
-- Poses sexuais ou sugestivas
-- Violência gráfica
-- Drogas ilícitas
-- Símbolos de ódio
+REJEITE APENAS se a imagem contiver:
+- Nudez explícita (genitais ou seios totalmente expostos)
+- Pornografia
+- Violência gráfica extrema
 
-ACEITE apenas imagens que sejam:
-- Fotos de perfil normais (rosto, corpo vestido)
-- Fotos de biquíni/praia (sem poses sexuais)
-- Fotos de serviços/trabalhos
-- Ferramentas e ambientes de trabalho
+ACEITE todas as outras imagens, incluindo:
+- Fotos de pessoas vestidas
+- Biquíni, praia, piscina
+- Fotos de trabalho/serviços
+- Qualquer foto normal
 
-Se tiver QUALQUER DÚVIDA sobre a imagem, REJEITE.
+Na dúvida, ACEITE a imagem.
 
-Responda SOMENTE com JSON válido:
-{"is_appropriate": true} ou {"is_appropriate": false, "reason": "motivo"}"""
+Responda APENAS: {"is_appropriate": true} ou {"is_appropriate": false, "reason": "motivo"}"""
         ).with_model("openai", "gpt-4o-mini")
         
         image_content = ImageContent(image_base64=image_base64)
         
         user_message = UserMessage(
-            text="Esta imagem é apropriada para um aplicativo de serviços profissionais? Analise cuidadosamente.",
+            text="Esta imagem é apropriada?",
             image_contents=[image_content]
         )
         
@@ -139,25 +141,37 @@ Responda SOMENTE com JSON válido:
         import json
         try:
             response_text = response.strip()
-            if response_text.startswith("```"):
-                response_text = response_text.split("```")[1]
-                if response_text.startswith("json"):
-                    response_text = response_text[4:]
-            result = json.loads(response_text.strip())
-            logger.info(f"Moderation result: {result}")
-            return result
+            # Remove markdown code blocks if present
+            if "```" in response_text:
+                parts = response_text.split("```")
+                for part in parts:
+                    if "{" in part and "}" in part:
+                        response_text = part.replace("json", "").strip()
+                        break
+            
+            # Find JSON in response
+            start = response_text.find("{")
+            end = response_text.rfind("}") + 1
+            if start != -1 and end > start:
+                json_str = response_text[start:end]
+                result = json.loads(json_str)
+                logger.info(f"Moderation result: {result}")
+                return result
         except Exception as parse_error:
-            logger.warning(f"Could not parse response: {response}, error: {parse_error}")
-            # If can't parse, check for rejection keywords
-            response_lower = response.lower()
-            if "false" in response_lower or "inappropriate" in response_lower or "rejeit" in response_lower or "não" in response_lower:
-                return {"is_appropriate": False, "reason": "Conteúdo possivelmente impróprio"}
-            return {"is_appropriate": True, "reason": "Approved"}
+            logger.warning(f"Could not parse JSON: {parse_error}")
+        
+        # If can't parse, check for explicit rejection
+        response_lower = response.lower()
+        if "false" in response_lower and ("nude" in response_lower or "porn" in response_lower or "explícit" in response_lower):
+            return {"is_appropriate": False, "reason": "Conteúdo impróprio detectado"}
+        
+        # Default: allow the image
+        return {"is_appropriate": True, "reason": "Approved"}
             
     except Exception as e:
         logger.error(f"Error moderating image: {e}")
-        # On error, REJECT the image for safety
-        return {"is_appropriate": False, "reason": f"Erro na verificação. Tente novamente."}
+        # On error, ALLOW the image (fail-open for better user experience)
+        return {"is_appropriate": True, "reason": "Moderation skipped"}
 
 # ======================== EMAIL NOTIFICATIONS ========================
 
