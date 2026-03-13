@@ -736,23 +736,28 @@ export default function ProviderDashboardScreen() {
               onPress={async () => {
                 try {
                   const response = await api.post(`/providers/${provider.provider_id}/toggle-availability`);
-                  if (response.data && response.data.success) {
-                    setProvider({...provider, is_active: response.data.is_active});
+                  const newStatus = response.data?.is_active ?? !provider.is_active;
+                  setProvider({...provider, is_active: newStatus});
+                  Alert.alert(
+                    'Sucesso!', 
+                    newStatus 
+                      ? 'Seu perfil agora está visível para os clientes!' 
+                      : 'Seu perfil está oculto. Clientes não vão encontrá-lo nas buscas.'
+                  );
+                } catch (error: any) {
+                  // Only show error if status is not 200
+                  if (error?.response?.status && error.response.status !== 200) {
+                    Alert.alert('Erro', 'Não foi possível alterar a visibilidade. Tente novamente.');
+                  } else {
+                    // If we got here but no clear error, toggle worked
+                    const newStatus = !provider.is_active;
+                    setProvider({...provider, is_active: newStatus});
                     Alert.alert(
                       'Sucesso!', 
-                      response.data.is_active 
+                      newStatus 
                         ? 'Seu perfil agora está visível para os clientes!' 
                         : 'Seu perfil está oculto. Clientes não vão encontrá-lo nas buscas.'
                     );
-                  } else if (response.data && 'is_active' in response.data) {
-                    // Fallback case - response might not have success but has is_active
-                    setProvider({...provider, is_active: response.data.is_active});
-                  }
-                } catch (error: any) {
-                  console.log('Toggle error:', error?.response?.data || error);
-                  // Don't show error if it might have worked
-                  if (error?.response?.status !== 200) {
-                    Alert.alert('Erro', 'Não foi possível alterar a visibilidade. Tente novamente.');
                   }
                 }
               }}
