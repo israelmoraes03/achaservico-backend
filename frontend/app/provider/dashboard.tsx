@@ -736,7 +736,7 @@ export default function ProviderDashboardScreen() {
               onPress={async () => {
                 try {
                   const response = await api.post(`/providers/${provider.provider_id}/toggle-availability`);
-                  if (response.data.success) {
+                  if (response.data && response.data.success) {
                     setProvider({...provider, is_active: response.data.is_active});
                     Alert.alert(
                       'Sucesso!', 
@@ -744,9 +744,16 @@ export default function ProviderDashboardScreen() {
                         ? 'Seu perfil agora está visível para os clientes!' 
                         : 'Seu perfil está oculto. Clientes não vão encontrá-lo nas buscas.'
                     );
+                  } else if (response.data && 'is_active' in response.data) {
+                    // Fallback case - response might not have success but has is_active
+                    setProvider({...provider, is_active: response.data.is_active});
                   }
-                } catch (error) {
-                  Alert.alert('Erro', 'Não foi possível alterar a visibilidade.');
+                } catch (error: any) {
+                  console.log('Toggle error:', error?.response?.data || error);
+                  // Don't show error if it might have worked
+                  if (error?.response?.status !== 200) {
+                    Alert.alert('Erro', 'Não foi possível alterar a visibilidade. Tente novamente.');
+                  }
                 }
               }}
             >
