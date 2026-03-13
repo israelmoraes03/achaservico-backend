@@ -497,11 +497,11 @@ export default function ProviderRegisterScreen() {
             </View>
           </View>
 
-          {/* Price Info */}
+          {/* Info - Perfil gratuito */}
           <View style={styles.priceInfo}>
-            <Ionicons name="information-circle" size={20} color="#10B981" />
+            <Ionicons name="checkmark-circle" size={20} color="#10B981" />
             <Text style={styles.priceInfoText}>
-              Após o cadastro, você precisará ativar sua assinatura de R$ 9,99/mês para que seu perfil fique visível.
+              Seu perfil será ativado automaticamente e ficará visível para todos os clientes!
             </Text>
           </View>
 

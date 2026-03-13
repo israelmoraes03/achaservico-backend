@@ -470,12 +470,6 @@ export default function AdminScreen() {
                   </View>
                 </View>
 
-                <View style={styles.pixInfoCard}>
-                  <Text style={styles.pixInfoTitle}>Chave PIX para receber:</Text>
-                  <Text style={styles.pixInfoKey}>499.586.888-75</Text>
-                  <Text style={styles.pixInfoAmount}>Assinatura: R$ 9,99/mês</Text>
-                </View>
-
                 {/* Export Excel Button */}
                 <TouchableOpacity 
                   style={styles.exportButton}

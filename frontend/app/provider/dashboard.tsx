@@ -687,63 +687,24 @@ export default function ProviderDashboardScreen() {
           </View>
         )}
 
-        {/* Subscription Status - Período Gratuito */}
+        {/* Status do Perfil - Simplificado */}
         {!provider.is_premium && (
         <View style={[
           styles.subscriptionCard,
-          provider.subscription_status === 'active' ? styles.subscriptionActive : 
-          (subscription?.status === 'pending' || provider.subscription_status === 'pending') ? styles.subscriptionPending : styles.subscriptionInactive
+          styles.subscriptionActive
         ]}>
           <View style={styles.subscriptionHeader}>
             <View style={styles.subscriptionStatus}>
-              <View style={[
-                styles.statusDot,
-                { backgroundColor: provider.subscription_status === 'active' ? '#10B981' : 
-                  (subscription?.status === 'pending' || provider.subscription_status === 'pending') ? '#F59E0B' : '#EF4444' }
-              ]} />
-              <Text style={styles.subscriptionStatusText}>
-                {provider.subscription_status === 'active' ? 'Perfil Ativo' : 
-                 (subscription?.status === 'pending' || provider.subscription_status === 'pending') ? 'Aguardando Aprovação' : 'Perfil Inativo'}
-              </Text>
+              <View style={[styles.statusDot, { backgroundColor: '#10B981' }]} />
+              <Text style={styles.subscriptionStatusText}>Perfil Ativo</Text>
             </View>
-            {provider.subscription_status === 'active' && (
-              <View style={styles.freeBadge}>
-                <Text style={styles.freeBadgeText}>Período Gratuito</Text>
-              </View>
-            )}
+            <View style={styles.freeBadge}>
+              <Text style={styles.freeBadgeText}>Gratuito</Text>
+            </View>
           </View>
-          
-          {provider.subscription_status === 'active' && subscription ? (
-            <View>
-              <Text style={styles.subscriptionExpiry}>
-                Válido até {formatDate(subscription.expires_at)}
-              </Text>
-              <Text style={styles.freeInfoText}>
-                Aproveite! Seu perfil está visível para todos os clientes.
-              </Text>
-            </View>
-          ) : (subscription?.status === 'pending' || provider.subscription_status === 'pending') ? (
-            <View>
-              <Text style={styles.subscriptionPendingText}>
-                Seu perfil está sendo verificado pelo administrador
-              </Text>
-              <View style={styles.pendingInfoBox}>
-                <Ionicons name="time" size={20} color="#F59E0B" />
-                <Text style={styles.pendingInfoText}>
-                  A ativação ocorre em até 24 horas
-                </Text>
-              </View>
-            </View>
-          ) : (
-            <View>
-              <Text style={styles.subscriptionInactiveText}>
-                Seu perfil não está visível para clientes
-              </Text>
-              <Text style={styles.freeInfoText}>
-                Entre em contato com o suporte para ativar seu perfil.
-              </Text>
-            </View>
-          )}
+          <Text style={styles.freeInfoText}>
+            Seu perfil está visível para todos os clientes!
+          </Text>
         </View>
         )}
 

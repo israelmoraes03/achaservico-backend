@@ -765,28 +765,25 @@ async def create_provider(provider_data: ProviderCreate, request: Request):
     if existing:
         raise HTTPException(status_code=400, detail="Você já possui um perfil de prestador")
     
-    # ESTRATÉGIA GRÁTIS: Novos prestadores começam com assinatura ativa por 4 meses
-    free_period_days = 120  # 4 meses grátis
-    expires_at = datetime.now(timezone.utc) + timedelta(days=free_period_days)
-    
+    # ESTRATÉGIA 100% GRÁTIS: Novos prestadores começam ativos sem data de expiração
     provider = Provider(
         user_id=user.user_id,
         subscription_status="active",  # Já começa ativo
-        subscription_expires_at=expires_at,
+        subscription_expires_at=None,  # Sem expiração - gratuito permanente
         is_active=True,
         **provider_data.model_dump()
     )
     
     await db.providers.insert_one(provider.model_dump())
     
-    # Criar registro de assinatura automaticamente
+    # Criar registro de assinatura (sem expiração)
     subscription = Subscription(
         provider_id=provider.provider_id,
         user_id=user.user_id,
         status="active",
-        payment_method="promotional_free",  # Período gratuito promocional
+        payment_method="free",  # Gratuito
         started_at=datetime.now(timezone.utc),
-        expires_at=expires_at
+        expires_at=None  # Sem expiração
     )
     await db.subscriptions.insert_one(subscription.model_dump())
     
