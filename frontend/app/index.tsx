@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../src/context/AuthContext';
 import api from '../src/services/api';
 
@@ -186,6 +186,15 @@ export default function HomeScreen() {
     loadFavorites();
     loadUnreadCount();
   }, [fetchData, loadFavorites, loadUnreadCount]);
+
+  // Refresh unread count when screen comes into focus (after returning from notifications)
+  useFocusEffect(
+    useCallback(() => {
+      if (isAuthenticated) {
+        loadUnreadCount();
+      }
+    }, [isAuthenticated, loadUnreadCount])
+  );
 
   useEffect(() => {
     fetchProviders();
