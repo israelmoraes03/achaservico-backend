@@ -357,21 +357,34 @@ export default function ProviderDashboardScreen() {
       return;
     }
 
+    // Calculate how many more photos can be added
+    const remainingSlots = MAX_SERVICE_PHOTOS - servicePhotos.length;
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
+      allowsMultipleSelection: true,
+      selectionLimit: remainingSlots,
       quality: 0.6,
       base64: true,
     });
 
-    if (!result.canceled && result.assets[0].base64) {
-      const newPhoto = `data:image/jpeg;base64,${result.assets[0].base64}`;
-      const updatedPhotos = [...servicePhotos, newPhoto];
-      setServicePhotos(updatedPhotos);
+    if (!result.canceled && result.assets.length > 0) {
+      setIsUploadingPhoto(true);
       
-      // Save immediately
-      await saveServicePhotos(updatedPhotos);
+      const newPhotos: string[] = [];
+      for (const asset of result.assets) {
+        if (asset.base64) {
+          newPhotos.push(`data:image/jpeg;base64,${asset.base64}`);
+        }
+      }
+      
+      if (newPhotos.length > 0) {
+        const updatedPhotos = [...servicePhotos, ...newPhotos];
+        setServicePhotos(updatedPhotos);
+        await saveServicePhotos(updatedPhotos);
+      }
+      
+      setIsUploadingPhoto(false);
     }
   };
 
@@ -1091,8 +1104,9 @@ export default function ProviderDashboardScreen() {
                   <ActivityIndicator size="small" color="#10B981" />
                 ) : (
                   <>
-                    <Ionicons name="add" size={32} color="#10B981" />
-                    <Text style={styles.addPhotoText}>Adicionar</Text>
+                    <Ionicons name="images" size={32} color="#10B981" />
+                    <Text style={styles.addPhotoText}>Selecionar Fotos</Text>
+                    <Text style={styles.addPhotoSubtext}>Até {MAX_SERVICE_PHOTOS - servicePhotos.length} fotos</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -1806,8 +1820,14 @@ const styles = StyleSheet.create({
   },
   addPhotoText: {
     color: '#10B981',
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 4,
+    fontWeight: '600',
+  },
+  addPhotoSubtext: {
+    color: '#6B7280',
+    fontSize: 10,
+    marginTop: 2,
   },
   noPhotosHint: {
     flexDirection: 'row',
