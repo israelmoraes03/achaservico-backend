@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Linking,
   Image,
+  Share,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -58,6 +60,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showCityPicker, setShowCityPicker] = useState(false);
   const [showNeighborhoodPicker, setShowNeighborhoodPicker] = useState(false);
+  const [favorites, setFavorites] = useState<string[]>([]);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -65,6 +68,52 @@ export default function HomeScreen() {
       router.replace('/login');
     }
   }, [authLoading, isAuthenticated]);
+
+  // Load favorites
+  const loadFavorites = useCallback(async () => {
+    try {
+      const response = await api.get('/users/favorites');
+      setFavorites(response.data.map((p: Provider) => p.provider_id));
+    } catch (error) {
+      console.log('Error loading favorites:', error);
+    }
+  }, []);
+
+  // Toggle favorite
+  const toggleFavorite = async (providerId: string) => {
+    try {
+      const response = await api.post(`/users/favorites/${providerId}`);
+      if (response.data.is_favorite) {
+        setFavorites([...favorites, providerId]);
+      } else {
+        setFavorites(favorites.filter(id => id !== providerId));
+      }
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível atualizar favoritos');
+    }
+  };
+
+  // Share provider
+  const shareProvider = async (provider: Provider) => {
+    const categoryNames = (provider.categories || [provider.category])
+      .filter(Boolean)
+      .map(catId => getCategoryName(catId || ''))
+      .join(', ');
+    
+    const message = `🔧 *${provider.name}*\n\n` +
+      `📋 ${categoryNames}\n` +
+      `📍 ${provider.neighborhood}\n` +
+      `📞 ${provider.phone}\n\n` +
+      `Encontre este e outros profissionais no AchaServiço!`;
+    
+    try {
+      await Share.share({
+        message: message,
+      });
+    } catch (error) {
+      console.log('Error sharing:', error);
+    }
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -123,7 +172,8 @@ export default function HomeScreen() {
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+    loadFavorites();
+  }, [fetchData, loadFavorites]);
 
   useEffect(() => {
     fetchProviders();
@@ -391,13 +441,36 @@ export default function HomeScreen() {
                   </Text>
                 </View>
                 
-                <TouchableOpacity
-                  style={styles.whatsappButton}
-                  onPress={() => openWhatsApp(provider.phone, provider.name)}
-                >
-                  <Ionicons name="logo-whatsapp" size={18} color="#FFFFFF" />
-                  <Text style={styles.whatsappButtonText}>Pedir Orçamento</Text>
-                </TouchableOpacity>
+                <View style={styles.actionButtons}>
+                  {/* Favorite Button */}
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => toggleFavorite(provider.provider_id)}
+                  >
+                    <Ionicons 
+                      name={favorites.includes(provider.provider_id) ? "heart" : "heart-outline"} 
+                      size={22} 
+                      color={favorites.includes(provider.provider_id) ? "#EF4444" : "#6B7280"} 
+                    />
+                  </TouchableOpacity>
+                  
+                  {/* Share Button */}
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => shareProvider(provider)}
+                  >
+                    <Ionicons name="share-social-outline" size={22} color="#6B7280" />
+                  </TouchableOpacity>
+                  
+                  {/* WhatsApp Button */}
+                  <TouchableOpacity
+                    style={styles.whatsappButton}
+                    onPress={() => openWhatsApp(provider.phone, provider.name)}
+                  >
+                    <Ionicons name="logo-whatsapp" size={18} color="#FFFFFF" />
+                    <Text style={styles.whatsappButtonText}>Orçamento</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </TouchableOpacity>
           ))
@@ -708,19 +781,29 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontSize: 13,
   },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#2A2A2A',
+  },
   whatsappButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#25D366',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
-    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 4,
   },
   whatsappButtonText: {
     color: '#FFFFFF',
     fontWeight: '600',
-    fontSize: 14,
+    fontSize: 13,
   },
   bottomSpacer: {
     height: 80,

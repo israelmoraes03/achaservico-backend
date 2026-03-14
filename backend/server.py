@@ -422,6 +422,7 @@ class User(BaseModel):
     phone: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     is_provider: bool = False
+    favorite_providers: List[str] = []  # List of provider_ids
 
 class UserSession(BaseModel):
     user_id: str
@@ -948,6 +949,67 @@ async def toggle_provider_availability(provider_id: str, request: Request):
     )
     
     return {"success": True, "is_active": new_status}
+
+# ======================== FAVORITES ========================
+
+@api_router.get("/users/favorites")
+async def get_user_favorites(request: Request):
+    """Get user's favorite providers"""
+    user = await require_auth(request)
+    
+    user_data = await db.users.find_one({"user_id": user.user_id}, {"_id": 0})
+    favorite_ids = user_data.get("favorite_providers", []) if user_data else []
+    
+    if not favorite_ids:
+        return []
+    
+    # Get provider details for favorites
+    favorites = await db.providers.find(
+        {"provider_id": {"$in": favorite_ids}, "is_active": True},
+        {"_id": 0, "service_photos": 0}
+    ).to_list(100)
+    
+    return favorites
+
+@api_router.post("/users/favorites/{provider_id}")
+async def toggle_favorite(provider_id: str, request: Request):
+    """Add or remove a provider from favorites"""
+    user = await require_auth(request)
+    
+    # Check if provider exists
+    provider = await db.providers.find_one({"provider_id": provider_id})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Prestador não encontrado")
+    
+    # Get current favorites
+    user_data = await db.users.find_one({"user_id": user.user_id}, {"_id": 0})
+    current_favorites = user_data.get("favorite_providers", []) if user_data else []
+    
+    # Toggle favorite
+    if provider_id in current_favorites:
+        current_favorites.remove(provider_id)
+        is_favorite = False
+    else:
+        current_favorites.append(provider_id)
+        is_favorite = True
+    
+    # Update user
+    await db.users.update_one(
+        {"user_id": user.user_id},
+        {"$set": {"favorite_providers": current_favorites}}
+    )
+    
+    return {"success": True, "is_favorite": is_favorite}
+
+@api_router.get("/users/favorites/check/{provider_id}")
+async def check_favorite(provider_id: str, request: Request):
+    """Check if a provider is in user's favorites"""
+    user = await require_auth(request)
+    
+    user_data = await db.users.find_one({"user_id": user.user_id}, {"_id": 0})
+    favorites = user_data.get("favorite_providers", []) if user_data else []
+    
+    return {"is_favorite": provider_id in favorites}
 
 # ======================== REVIEWS ========================
 
