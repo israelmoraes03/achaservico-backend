@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,20 +8,50 @@ import {
   ScrollView,
   Linking,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/context/AuthContext';
+import api from '../src/services/api';
 
 const SUPPORT_PHONE = '5566996841531';
 const SUPPORT_EMAIL = 'israel.moraes03@gmail.com';
+
+interface FavoriteProvider {
+  provider_id: string;
+  name: string;
+  phone: string;
+  categories: string[];
+  neighborhood: string;
+}
 
 export default function ProfileScreen() {
   const { user, provider, logout, isAuthenticated } = useAuth();
   const router = useRouter();
   const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
   const [showHelpModal, setShowHelpModal] = React.useState(false);
+  const [favorites, setFavorites] = useState<FavoriteProvider[]>([]);
+  const [loadingFavorites, setLoadingFavorites] = useState(true);
+
+  // Load favorites
+  const loadFavorites = useCallback(async () => {
+    try {
+      const response = await api.get('/users/favorites');
+      setFavorites(response.data);
+    } catch (error) {
+      console.log('Error loading favorites:', error);
+    } finally {
+      setLoadingFavorites(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadFavorites();
+    }
+  }, [isAuthenticated, loadFavorites]);
 
   const openWhatsApp = () => {
     const message = encodeURIComponent('Olá, preciso de ajuda com dúvidas no app AchaServiço.');
@@ -116,6 +146,43 @@ export default function ProfileScreen() {
             <Text style={styles.priceText}>Cadastro gratuito!</Text>
           </View>
         )}
+
+        {/* Favorites Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Meus Favoritos</Text>
+          
+          {loadingFavorites ? (
+            <ActivityIndicator size="small" color="#10B981" style={{ marginVertical: 20 }} />
+          ) : favorites.length === 0 ? (
+            <View style={styles.emptyFavorites}>
+              <Ionicons name="heart-outline" size={40} color="#6B7280" />
+              <Text style={styles.emptyFavoritesText}>Nenhum favorito ainda</Text>
+              <Text style={styles.emptyFavoritesSubtext}>
+                Toque no coração nos prestadores para salvá-los aqui
+              </Text>
+            </View>
+          ) : (
+            favorites.map((fav) => (
+              <TouchableOpacity 
+                key={fav.provider_id} 
+                style={styles.favoriteItem}
+                onPress={() => {
+                  const phone = fav.phone?.replace(/\D/g, '');
+                  const message = encodeURIComponent(`Olá ${fav.name}, encontrei seu perfil no AchaServiço e gostaria de um orçamento.`);
+                  Linking.openURL(`https://wa.me/55${phone}?text=${message}`);
+                }}
+              >
+                <View style={styles.favoriteInfo}>
+                  <Text style={styles.favoriteName}>{fav.name}</Text>
+                  <Text style={styles.favoriteCategory}>
+                    {fav.categories?.join(', ') || 'Prestador'} • {fav.neighborhood}
+                  </Text>
+                </View>
+                <Ionicons name="logo-whatsapp" size={24} color="#25D366" />
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
 
         {/* Menu Items */}
         <View style={styles.section}>
@@ -492,5 +559,43 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Favorites styles
+  emptyFavorites: {
+    alignItems: 'center',
+    paddingVertical: 30,
+  },
+  emptyFavoritesText: {
+    color: '#9CA3AF',
+    fontSize: 16,
+    marginTop: 12,
+  },
+  emptyFavoritesSubtext: {
+    color: '#6B7280',
+    fontSize: 13,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  favoriteItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#2D2D2D',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+  },
+  favoriteInfo: {
+    flex: 1,
+  },
+  favoriteName: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  favoriteCategory: {
+    color: '#6B7280',
+    fontSize: 13,
+    marginTop: 2,
   },
 });

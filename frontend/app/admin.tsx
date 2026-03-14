@@ -98,9 +98,49 @@ export default function AdminScreen() {
   // Search/Filter states
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Broadcast notification states
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
+
   // Modal states
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
+
+  // Send broadcast notification
+  const handleSendBroadcast = async () => {
+    if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
+      Alert.alert('Erro', 'Preencha o título e a mensagem');
+      return;
+    }
+
+    Alert.alert(
+      'Confirmar Envio',
+      `Enviar notificação para TODOS os prestadores?\n\nTítulo: ${broadcastTitle}\nMensagem: ${broadcastMessage}`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Enviar',
+          onPress: async () => {
+            setIsSendingBroadcast(true);
+            try {
+              const response = await api.post('/admin/broadcast-notification', {
+                title: broadcastTitle,
+                message: broadcastMessage,
+              });
+              Alert.alert('Sucesso!', response.data.message);
+              setBroadcastTitle('');
+              setBroadcastMessage('');
+            } catch (error: any) {
+              Alert.alert('Erro', error.response?.data?.detail || 'Falha ao enviar notificação');
+            } finally {
+              setIsSendingBroadcast(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleExportExcel = async () => {
     setIsExporting(true);
@@ -482,6 +522,51 @@ export default function AdminScreen() {
                     <>
                       <Ionicons name="download-outline" size={24} color="#FFFFFF" />
                       <Text style={styles.exportButtonText}>Baixar Relatório Excel</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Broadcast Notification Section */}
+            {activeTab === 'dashboard' && (
+              <View style={styles.broadcastSection}>
+                <Text style={styles.sectionTitle}>Enviar Comunicado</Text>
+                <Text style={styles.broadcastSubtitle}>
+                  Envie uma notificação push para todos os prestadores
+                </Text>
+                
+                <TextInput
+                  style={styles.broadcastInput}
+                  placeholder="Título do comunicado"
+                  placeholderTextColor="#6B7280"
+                  value={broadcastTitle}
+                  onChangeText={setBroadcastTitle}
+                  maxLength={50}
+                />
+                
+                <TextInput
+                  style={[styles.broadcastInput, styles.broadcastTextArea]}
+                  placeholder="Mensagem do comunicado..."
+                  placeholderTextColor="#6B7280"
+                  value={broadcastMessage}
+                  onChangeText={setBroadcastMessage}
+                  multiline
+                  numberOfLines={3}
+                  maxLength={200}
+                />
+                
+                <TouchableOpacity
+                  style={[styles.broadcastButton, isSendingBroadcast && styles.broadcastButtonDisabled]}
+                  onPress={handleSendBroadcast}
+                  disabled={isSendingBroadcast}
+                >
+                  {isSendingBroadcast ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="megaphone" size={20} color="#FFFFFF" />
+                      <Text style={styles.broadcastButtonText}>Enviar para Todos</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -1126,5 +1211,48 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 40,
+  },
+  // Broadcast styles
+  broadcastSection: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+  },
+  broadcastSubtitle: {
+    color: '#6B7280',
+    fontSize: 13,
+    marginBottom: 16,
+  },
+  broadcastInput: {
+    backgroundColor: '#2D2D2D',
+    borderRadius: 12,
+    padding: 14,
+    color: '#FFFFFF',
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  broadcastTextArea: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  broadcastButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#9333EA',
+    borderRadius: 12,
+    padding: 14,
+    gap: 8,
+  },
+  broadcastButtonDisabled: {
+    opacity: 0.6,
+  },
+  broadcastButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

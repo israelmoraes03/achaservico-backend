@@ -1877,6 +1877,49 @@ async def admin_get_premium_providers():
     ).to_list(100)
     return providers
 
+class BroadcastNotification(BaseModel):
+    title: str
+    message: str
+
+@api_router.post("/admin/broadcast-notification")
+async def admin_broadcast_notification(notification: BroadcastNotification):
+    """Send push notification to all providers with push tokens"""
+    # Get all providers with push tokens
+    providers = await db.providers.find(
+        {"push_token": {"$exists": True, "$ne": None, "$ne": ""}},
+        {"_id": 0, "push_token": 1, "name": 1, "provider_id": 1}
+    ).to_list(1000)
+    
+    if not providers:
+        return {"success": False, "message": "Nenhum prestador com notificações habilitadas", "sent": 0}
+    
+    sent_count = 0
+    failed_count = 0
+    
+    for provider in providers:
+        push_token = provider.get("push_token")
+        if push_token:
+            try:
+                await send_push_notification(
+                    push_token=push_token,
+                    title=notification.title,
+                    body=notification.message
+                )
+                sent_count += 1
+            except Exception as e:
+                logger.error(f"Failed to send notification to {provider.get('name')}: {e}")
+                failed_count += 1
+    
+    logger.info(f"Broadcast notification sent: {sent_count} success, {failed_count} failed")
+    
+    return {
+        "success": True,
+        "message": f"Notificação enviada para {sent_count} prestadores",
+        "sent": sent_count,
+        "failed": failed_count,
+        "total_providers": len(providers)
+    }
+
 @api_router.post("/admin/send-expiration-notifications")
 async def admin_send_expiration_notifications():
     """Manually trigger expiration notification check (admin only)"""
