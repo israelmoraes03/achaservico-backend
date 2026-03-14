@@ -496,6 +496,15 @@ class WhatsAppContact(BaseModel):
     provider_id: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+class Notification(BaseModel):
+    notification_id: str = Field(default_factory=lambda: f"notif_{uuid.uuid4().hex[:12]}")
+    user_id: str  # recipient user_id
+    title: str
+    message: str
+    is_read: bool = False
+    notification_type: str = "broadcast"  # broadcast, system, personal
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 class Subscription(BaseModel):
     subscription_id: str = Field(default_factory=lambda: f"sub_{uuid.uuid4().hex[:12]}")
     provider_id: str
@@ -1883,20 +1892,30 @@ class BroadcastNotification(BaseModel):
 
 @api_router.post("/admin/broadcast-notification")
 async def admin_broadcast_notification(notification: BroadcastNotification):
-    """Send push notification to all providers with push tokens"""
-    # Get all providers with push tokens
+    """Send push notification to all providers and save to notifications collection"""
+    # Get all providers
     providers = await db.providers.find(
-        {"push_token": {"$exists": True, "$ne": None, "$ne": ""}},
-        {"_id": 0, "push_token": 1, "name": 1, "provider_id": 1}
+        {},
+        {"_id": 0, "push_token": 1, "name": 1, "provider_id": 1, "user_id": 1}
     ).to_list(1000)
     
     if not providers:
-        return {"success": False, "message": "Nenhum prestador com notificações habilitadas", "sent": 0}
+        return {"success": False, "message": "Nenhum prestador cadastrado", "sent": 0}
     
     sent_count = 0
     failed_count = 0
     
     for provider in providers:
+        # Save notification to database for all providers
+        notif = Notification(
+            user_id=provider.get("user_id"),
+            title=notification.title,
+            message=notification.message,
+            notification_type="broadcast"
+        )
+        await db.notifications.insert_one(notif.model_dump())
+        
+        # Send push notification if token exists
         push_token = provider.get("push_token")
         if push_token:
             try:
@@ -1914,11 +1933,49 @@ async def admin_broadcast_notification(notification: BroadcastNotification):
     
     return {
         "success": True,
-        "message": f"Notificação enviada para {sent_count} prestadores",
+        "message": f"Notificação salva para {len(providers)} prestadores, {sent_count} push enviados",
         "sent": sent_count,
         "failed": failed_count,
         "total_providers": len(providers)
     }
+
+# ======================== NOTIFICATIONS ENDPOINTS ========================
+
+@api_router.get("/notifications")
+async def get_notifications(request: Request):
+    """Get user's notifications"""
+    user = await require_auth(request)
+    
+    notifications = await db.notifications.find(
+        {"user_id": user.user_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    
+    return notifications
+
+@api_router.get("/notifications/unread-count")
+async def get_unread_count(request: Request):
+    """Get count of unread notifications"""
+    user = await require_auth(request)
+    
+    count = await db.notifications.count_documents({
+        "user_id": user.user_id,
+        "is_read": False
+    })
+    
+    return {"count": count}
+
+@api_router.post("/notifications/mark-read")
+async def mark_notifications_read(request: Request):
+    """Mark all notifications as read"""
+    user = await require_auth(request)
+    
+    await db.notifications.update_many(
+        {"user_id": user.user_id, "is_read": False},
+        {"$set": {"is_read": True}}
+    )
+    
+    return {"success": True}
 
 @api_router.post("/admin/send-expiration-notifications")
 async def admin_send_expiration_notifications():

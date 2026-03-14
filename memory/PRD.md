@@ -111,7 +111,7 @@ O `Alert.alert` causa problemas no Expo Web/Preview, travando ações subsequent
 
 ### URLs e Endpoints
 - Backend Render: https://achassertico-backend.onrender.com
-- Preview Emergent: https://servico-staging.preview.emergentagent.com
+- Preview Emergent: https://acha-notif-hub.preview.emergentagent.com
 
 ---
 

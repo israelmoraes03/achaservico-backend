@@ -1,179 +1,203 @@
 <analysis>
 <original_problem_statement>
-The user is developing AchaServiço, a mobile-first application for local services. The initial goal was to complete the MVP and add features like automatic PIX payments.
+The user is developing AchaServiço, a mobile-first application for local services using React Native/Expo and FastAPI. The initial strategy pivoted from immediate monetization to a growth-focused phase.
 
-However, the strategy has pivoted. The new primary goal is to launch the app on the Google Play Store with an initial **free period of 3-4 months** to attract a critical mass of 100+ service providers. After this period, a tiered subscription model will be introduced.
+The primary goal is to launch the app on the Google Play Store as a completely **free service** to attract a critical mass of 100+ service providers. After a growth period, a tiered subscription model will be introduced.
 
 **PRODUCT REQUIREMENTS**:
-- **Core App**: A React Native/Expo and FastAPI application.
-- **Current Phase (Growth)**:
-    1.  The app must be **free** for all new providers. Payment flows should be hidden but the code preserved for the future. All new registrations should be automatically activated.
-    2.  A website with a **Privacy Policy** and **Terms of Use** must be live to meet Google Play Store requirements. (DONE)
-    3.  A Verified badge (⭐) should be automatically awarded to providers who receive 5+ positive reviews.
+- **Core App**: A React Native/Expo and FastAPI application. The app must be 100% free for all users and providers, with all payment/subscription-related UI and logic hidden or removed.
+- **Provider Features**:
+    - Providers must be able to set their profile visibility (active/inactive).
+    - A Verified badge (⭐) should be automatically awarded to providers who receive 5+ positive reviews (4+ stars).
+    - The star rating should not be public; only the total count of reviews.
+    - Providers should be able to select multiple service photos (up to 6) at once.
+- **User Features**:
+    - Users should be able to favorite providers and view them in a list on their profile.
+    - Users should be able to share a provider's profile via WhatsApp, etc.
+- **Admin Features**:
+    - An admin panel with statistics and user/provider management.
+    - Ability to filter users and providers by name.
+    - Ability to send a broadcast push notification to all providers.
 - **Future Phase (Monetization)**:
-    - Implement a 3-tier subscription model:
-        - **Básico**: R/mês (Profile listed)
-        - **Profissional**: R5/mês (Appears first in search)
-        - **Premium**: R9/mês (Destaque + 👑 Premium badge)
-    - An admin feature to Activate Paid Mode which will make profiles of non-paying users invisible.
-    - A way for the admin to grant lifetime free access to ~50 selected providers.
+    - Implement a 3-tier subscription model as detailed in .
+    - An admin feature to Activate Paid Mode.
+    - A way for the admin to grant lifetime free access to selected providers.
 </original_problem_statement>
 
 **User's preferred language**: Portuguese (pt-BR). The next agent MUST respond in Portuguese.
 
 **what currently exists?**
-A functional full-stack application with a React Native/Expo frontend and a FastAPI backend deployed on Render. The backend database is on MongoDB Atlas.
+A functional full-stack application with a React Native/Expo frontend and a FastAPI backend deployed on Render. The backend uses a MongoDB Atlas database.
 
-- **Key Features Implemented**: Google Social Login, provider registration & profile management, admin panel with stats and user management, search, and automated email/push notifications for subscription expiry.
-- **Payments**: The integration with **Mercado Pago Checkout Pro** is complete and working with PRODUCTION keys, supporting PIX, Card, and Boleto. A robust polling mechanism ensures subscription activation even with payment delays. Stripe has been logically removed from the frontend but the backend code still exists.
-- **Critical Fixes**: A persistent login loop was fixed by correctly configuring the backend URL in  for production builds and setting up UptimeRobot to prevent the free Render instance from sleeping.
-- **Google Play Readiness**: A static website containing the **Landing Page, Privacy Policy, and Terms of Use** has been created and is live on GitHub Pages, fulfilling a critical Google Play Store requirement.
-- **Future Monetization Plan**: A detailed plan for the future monetization strategy has been documented in .
+The application has been successfully transitioned to a **100% free model**. All UI related to payments, subscriptions, and expiration dates has been removed or hidden. New providers are activated automatically with no expiration.
+
+**Key Features Implemented**:
+- **UI/UX**: The login screen has been completely redesigned based on a user-provided image.
+- **Provider/User Management**:
+    - Admin panel includes search filters for providers and users.
+    - Admin can send broadcast push notifications to all providers.
+- **Provider Features**:
+    - Providers can toggle their visibility on the platform using an eye icon in their dashboard.
+    - An automated Verified badge system is in place.
+    - Public profiles show the total number of reviews, not the star rating.
+    - Providers can select up to 6 service photos at once.
+    - Photos can be viewed in a full-screen modal.
+- **User Features**:
+    - Users can add/remove providers from a Favorites list.
+    - A Share button is available on provider profiles.
+- **Bug Fixes**: A critical bug where neighborhood filters did not update based on the selected city has been resolved.
 
 **Last working item**:
-- **Last item agent was working**: Creating and deploying a static website to meet Google Play Store's requirement for a public Privacy Policy and Terms of Use. The agent successfully created the HTML files and deployed them using GitHub Pages.
-- **Status**: FINISHED
-- **Agent Testing Done**: Y
-- **Which testing method agent to use?**: NA
-- **User Testing Done**: Y
+- **Last item agent was working**: The user requested a notification center (sininho / bell icon) to store and display the broadcast messages sent by the admin. The agent started implementing this feature.
+- **Status**: IN PROGRESS
+- **Agent Testing Done**: N
+- **Which testing method agent to use?**: backend testing agent
+- **User Testing Done**: N
 
 **All Pending/In progress Issue list**:
-- **Issue 1**: Google Login opens Gmail on some devices (P2)
+- **Issue 1**: Finish implementing the Notification Center (P0)
+- **Issue 2**: Google Login opens Gmail on some devices (P2)
 
 **Issues Detail**:
 - **Issue 1**:
+    - **Description**: Implement a full notification history feature. This includes a bell icon in the UI, a screen to list all received notifications, and a backend system to store them. The user requested this after the admin broadcast feature was implemented.
+    - **Attempted fixes**: The agent started the backend work. It created a Pydantic model  and a MongoDB collection. It also began creating endpoints () and modifying the broadcast endpoint to save the messages to the database. The frontend has not been touched.
+    - **Next debug checklist**:
+        1.  **Backend ()**:
+            -   Complete the  endpoint to fetch notifications for the logged-in user.
+            -   Implement a mark as read endpoint.
+            -   Ensure the  endpoint correctly creates and saves a  entry for *every* provider.
+        2.  **Frontend**:
+            -   Create a new screen file .
+            -   Add a bell icon to the main app header (likely in ) that navigates to the new screen.
+            -   Implement a badge on the bell icon to show the count of unread notifications.
+            -   On the  screen, fetch and display the list of notifications.
+    - **Why fix this issue and what will be achieved with the fix?**: It provides a persistent history of important admin communications, ensuring providers don't miss announcements.
+    - **Status**: IN PROGRESS
+    - **Is recurring issue?**: N
+    - **Should Test frontend/backend/both after fix?**: both
+    - **Blocked on other issue**: None
+
+- **Issue 2**:
     - **Description**: A previously reported issue where, on some specific devices, the Google Login flow opens the Gmail app instead of the browser authentication flow.
-    - **Attempted fixes**: The authentication code in  and  configuration were checked and appear correct.
-    - **Next debug checklist**: This is likely a device-specific configuration issue (e.g., default browser settings). Given the lower priority, this can be investigated after the main strategic tasks are complete.
-    - **Why fix this issue and what will be achieved with the fix?**: It's a barrier to entry for a small subset of users.
+    - **Attempted fixes**: The authentication code in  and  configuration were checked previously and appeared correct.
+    - **Next debug checklist**: This is likely a device-specific configuration issue. Given the lower priority, it can be investigated after the Notification Center is complete.
+    - **Why fix this issue and what will be achieved with the fix?**: It improves the onboarding experience for a small subset of users.
     - **Status**: NOT STARTED
     - **Is recurring issue?**: N
     - **Should Test frontend/backend/both after fix?**: Frontend
     - **Blocked on other issue**: None
 
 **In progress Task List**:
-None.
+None. The Notification Center is listed as a P0 issue.
 
 **Upcoming and Future Tasks**
-
 - **Upcoming Tasks**:
-    - **P0: Implement Free for 3 Months Strategy in the App**: This is the highest priority task.
-        1.  **Backend**: Modify  so that all new provider registrations have their subscription status set to active by default, with a long expiration date (e.g., 3-4 months from now).
-        2.  **Frontend**: In , hide the Ativar Assinatura button and any payment-related UI. The code should be preserved (commented out or behind a feature flag) for future use.
-    - **P1: Implement Verified Badge System**:
-        1.  **Backend**: Add logic (likely in ) to count a provider's positive reviews. When the count reaches 5, set a  flag on the provider's profile.
-        2.  **Frontend**: Display a ⭐ Verificado badge on the provider's profile card when  is true.
-    - **P1: Prepare for Google Play Store Launch**:
-        1.  **Build AAB**: Generate a production-ready  file once the Expo build credits are available or the user has upgraded their plan. The current build profile is already configured for this.
-        2.  **Store Assets**: Guide the user on creating necessary screenshots (4-8) and a promotional banner (1024x500).
-        3.  **Store Description**: Help the user write compelling short (80 chars) and long (4000 chars) descriptions for the app listing.
+    - **P1: Implement Price Range for Providers**: The user expressed interest in this feature. This would involve adding fields to the provider model (e.g., , ) and UI for the provider to set these values, and then displaying them on the public profile card.
+    - **P1: Implement 24h Service Badge**: A suggestion from the agent to add a badge for providers who offer emergency services.
+    - **P1: Implement Contact History**: A suggestion to show users a list of providers they have previously contacted.
 - **Future Tasks**:
-    - **P2: Implement Monetization Plan (as per )**:
-        - Re-enable the payment UI.
-        - Implement the 3-tier plan selection UI.
-        - Create an admin-only button (Ativar Modo Pago) that enforces subscriptions for all non-VIP providers.
-        - Add logic for the admin to flag ~50 providers as VIP for lifetime free access.
+    - **P2: Implement Monetization Plan**: Re-enable the payment UI and implement the 3-tier subscription model as per . This includes creating an admin-only Activate Paid Mode button and a system for flagging VIP providers for lifetime access.
 
 **Completed work in this session**
-- **Mercado Pago Checkout Pro Integration (DONE)**: Fully integrated Mercado Pago for PIX, Card, and Boleto payments, replacing the initial direct API approach. This included solving credential issues, handling redirects, and implementing a robust polling system for automatic subscription activation.
-- **Critical Login Loop Bug (FIXED)**: Resolved a major bug causing login loops by configuring the production backend URL in  and guiding the user to set up UptimeRobot to keep the free Render server instance awake.
-- **Website with Legal Policies (DONE)**: Created and deployed a static website with a Landing Page, Privacy Policy, and Terms of Use to GitHub Pages, unblocking the Google Play Store submission process.
-- **Premium & Notification Features (DONE)**: Implemented a system for admins to mark providers as Premium (lifetime subscription) and a system to send automatic email and push notifications for expiring subscriptions.
-- **UI/UX and Content Updates (DONE)**:
-    - Removed Stripe as a payment option to simplify the flow.
-    - Changed subscription price to R,99 across the app.
-    - Implemented a Help/Support button linking to the user's WhatsApp and Email.
-    - Corrected the Pending user count on the admin dashboard.
-    - Made numerous UI text and layout corrections based on user feedback.
-- **New App Icon (DONE)**: Generated and applied a new, modern app icon and splash screen.
+- **Login Screen Redesign (DONE)**: The login screen UI was completely overhauled to match a user-provided image, including a dark theme, glow effects, and custom cards.
+- **Neighborhood Filter Bug (FIXED)**: Corrected a bug where neighborhood filters were static and didn't update when a new city was selected.
+- **100% Free Model (DONE)**: Refactored the app to be completely free. Removed all payment UI, pricing text, and subscription expiration logic. New providers are now activated automatically and permanently.
+- **Provider Visibility Toggle (DONE)**: Implemented a feature allowing providers to make their profile visible or invisible in search results.
+- **Review Display Change (DONE)**: Modified the UI to show only the total count of reviews, hiding the average star rating from public view.
+- **Multi-Image Selection (DONE)**: Enhanced the provider profile editor to allow selecting up to 6 service photos at once.
+- **Full-Screen Image Viewer (DONE)**: Implemented a modal to view profile and service photos in full screen.
+- **New Cities & Categories (DONE)**: Added 7 new cities (with their respective neighborhoods) and 6 new service categories to the backend.
+- **Admin Search Filter (DONE)**: Added a text input to the admin panel to filter providers and users by name.
+- **Favorites & Sharing (DONE)**: Implemented functionality for users to favorite providers and to share a provider's profile on social media.
+- **Admin Broadcast (DONE)**: Created a feature in the admin panel to send a push notification to all registered providers.
+- **Favorites List in Profile (DONE)**: Added a section to the user's profile page listing their favorited providers.
 
 **Earlier issues found/mentioned but not fixed**
 - **Issue 1**: Google Login opens Gmail on some devices. (Details in All Pending/In progress Issue list)
 
 **Known issue recurrence from previous fork**
-- None. The  workflow via PAT and the Render deployment issues have been resolved.
+- None.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **Frontend**: React Native, Expo, Expo Router
-- **Backend**: Python, FastAPI, Motor
+- **Frontend**: React Native, Expo, Expo Router, 
+- **Backend**: Python, FastAPI, Motor (for async MongoDB)
 - **Database**: MongoDB Atlas
-- **Deployment**: Backend on Render (CI/CD from GitHub), APKs/AABs via EAS Build.
-- **Static Site**: HTML/CSS deployed on GitHub Pages.
-- **Payments**: Mercado Pago (Checkout Pro).
-- **Notifications**: Resend (Email), Expo Push Notifications.
-- **Monitoring**: UptimeRobot to keep the free Render instance active.
+- **Deployment**: Backend on Render, APKs/AABs via EAS Build.
+- **Notifications**: Expo Push Notifications.
+- **Core Logic**: The application state is split between the frontend (UI state) and backend (data). The agent and user now have a clearer understanding that changes to data like categories/cities require a backend deploy on Render, while UI changes require a new APK build via Expo.
 
 **key DB schema**
 - **users**: 
 - **providers**: 
-- **subscriptions**: 
+- **reviews**: 
+- **notifications**:  (This collection is being implemented)
 
 **changes in tech stack**
--  added for push notifications.
-- Stripe has been deprecated in favor of Mercado Pago.
-- Static site deployed to GitHub Pages.
+- **Image Moderation (Attempted & Removed)**: An attempt was made to use  with GPT-4o-mini for image moderation. It failed due to deployment and runtime issues and was completely removed from the codebase at the user's request.
+- **Render Build Process**: A custom  script was created to handle installation of specific dependencies like , though the package itself was later removed. The build command in Render was updated to .
 
 **All files of reference**
-- : **CRITICAL**. Contains the user's long-term vision for monetizing the app.
-- : Contains all backend logic. Will need changes for the free period and verified badge.
-- : Main provider screen. UI needs to be hidden for the free period.
-- : Now correctly configured with the production backend URL, which fixed the login loop.
-- : The live Privacy Policy URL for the Google Play Store submission.
+- : The single source of all backend logic. Contains new endpoints for visibility toggle, favorites, and admin broadcast, plus models for new features.
+- : The redesigned login screen.
+- : The admin panel, with new search and broadcast features.
+- : The user profile, with the new My Favorites list.
+- : The provider dashboard, with the new visibility toggle.
+- : The main provider list, with updated card UI (favorite/share buttons, no star rating).
 
 **Areas that need refactoring**:
-- The  file is large. The payment logic is currently active but will be hidden. When re-enabled, it could be extracted into a separate component/hook.
+-  is becoming very large and monolithic. It could be broken down into multiple files (e.g., , , ).
+-  and  are also growing and could benefit from component extraction.
 
 **key api endpoints**
-- : Creates a Mercado Pago checkout session.
-- : Handles asynchronous payment confirmation from Mercado Pago.
-- : Custom endpoint for the app to poll for payment confirmation.
-- : Toggles a provider's premium status.
-- : Saves the user's push notification token.
-- : Manually triggers expiry notifications.
+- : Toggles the provider's visibility.
+- : Gets the user's list of favorite providers.
+- : Adds a provider to favorites.
+- : Removes a provider from favorites.
+- : Sends a push notification to all providers.
+- : (In Progress) To get notifications for a user.
 
 **Critical Info for New Agent**
-1.  **Strategic Shift**: The app's immediate goal is **growth, not revenue**. Your primary task is to implement the **Free for 3 Months** strategy by hiding payment flows and making all new sign-ups automatically active.
-2.  **Monetization Plan is for the FUTURE**: All details for the future paid plans are documented in . Do not implement them now. Preserve the existing payment code for later use.
-3.  **Expo Build Limit**: The user's free Expo build credits were exhausted. They were planning to upgrade to a paid plan. You **MUST** confirm with the user if the upgrade was done before attempting to generate a new APK/AAB. If not, you will be blocked.
-4.  **Website is LIVE**: The Privacy Policy is at . This is a major accomplishment and unblocks the Google Play submission.
-5.  **Login Loop is Fixed**: The combination of UptimeRobot and fixing the backend URL in  should have permanently resolved the login loop issue.
+1.  **Current Task is Unfinished**: The absolute first priority is to **finish implementing the Notification Center**. The backend is partially done, but the frontend is untouched. Refer to the Next debug checklist for Issue 1 for a full plan.
+2.  **Image Moderation Failed**: The agent spent significant time trying to implement AI image moderation. It failed due to multiple technical hurdles, and the user ultimately requested its complete removal. Do not suggest or attempt this again unless the user explicitly asks and is willing to debug potential platform issues.
+3.  **Deployment Workflow**: Be mindful of the two-step deployment process. UI changes require an An Expo user account is required to proceed.
+
+Log in to EAS with email or username (exit and run eas login --help to see other login options)
+Input is required, but stdin is not readable. Failed to display prompt: Email or username for a new APK. Backend data/logic changes (like adding categories, new endpoints) require a  followed by a manual deploy on Render. The user is now aware of this distinction.
+4.  **App is 100% Free**: The core strategy is growth. Do not implement any payment or subscription features until the user explicitly decides to pivot back to the monetization plan.
 
 **documents created in this job**
-- 
-- 
-- 
-- 
+- : A shell script to handle custom build steps on Render.
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User**: Asks to create a website with privacy policies and announces a strategy shift to make the app free initially to capture users, with a tiered plan for the future.
-2.  **User**: Confirms details for the future monetization plans and the Verified Badge logic. Specifies the need for a free domain for the policy website.
-3.  **User**: Outlines the plan to have 50 VIP providers with lifetime free access when monetization starts and asks for a plan to transition from free to paid.
-4.  **User**: Asks the agent to deploy the newly created website.
-5.  **User**: Asks if GitHub Pages is sufficient for Google Play's policy requirements. (Agent confirms it is).
-6.  **User**: Asks the agent to get everything ready for Google Play submission, as their developer account is under review. Asks if a version can be created without a build.
-7.  **User**: Announces they will upgrade their Expo plan.
-8.  **User**: Asks if the R5 plan is the correct one to upgrade to.
-9.  **User**: Again confirms the new strategy: free for a period, then paid plans. Asks to create a verified badge and outlines the future pricing tiers. (This is a repeat/clarification of the initial strategy message).
-10. **User**: Clarifies how the verified badge should work (automatic after 5 reviews), confirms no domain, and that the free period should be handled discreetly without a public countdown.
+10. **User**: Requests a section in My Profile to see a list of favorited providers. Also requests an admin feature to send a broadcast push notification to all providers. (Status: Implemented, but led to next request).
+9.  **User**: After seeing the broadcast feature, asks if the notifications are saved anywhere, like a notification center with a bell icon. (Status: This initiated the **current, in-progress task**).
+8.  **User**: Confirms the agent should build the notification center.
+7.  **User**: After the agent implements changes to hide star ratings, asks if the push notifications for expiring subscriptions are still active. (Agent confirmed they are in the code but won't trigger for new users).
+6.  **User**: Agrees to keep the dormant notification code. States they will test all the new functionalities.
+5.  **User**: Requests a new Disponível Agora (Available Now) button for providers and wants to change the WhatsApp button text. (Status: Implemented).
+4.  **User**: Requests to add Marido de Aluguel as a category. (Status: Implemented).
+3.  **User**: After testing the Available Now button, reports an error and clarifies its function should be to make the provider visible/invisible. (Status: Logic was corrected by the agent).
+2.  **User**: Reports the visibility button still shows an error message even though it works. Also asks for a way to block pornographic photos. (Status: Error message was fixed. Photo moderation was attempted and then removed).
+1.  **User**: Requests that the service photo uploader allow selecting multiple images at once instead of one-by-one. (Status: Implemented).
 
 **Project Health Check:**
-- **Broken**:
-    - **Expo Build Service**: Blocked due to exhausted free tier credits. The user was planning to upgrade their Expo account. This is the main blocker for creating new app builds.
-- **Mocked**:
-    - None.
+- **Broken**: None. The primary blocker (Expo build credits) was resolved by the user subscribing to a paid plan.
+- **Mocked**: None.
 
 **3rd Party Integrations**
 - **Emergent Google Social Login**: Handles user authentication.
-- **Mercado Pago**: For all payments (PIX, Card, Boleto). Uses User **PRODUCTION** API Key.
+- **Mercado Pago**: Code exists but is currently dormant as the app is free.
 - **Render**: Cloud platform hosting the FastAPI backend.
 - **MongoDB Atlas**: Cloud database service.
-- **GitHub / GitHub Pages**: For source control and hosting the static policy website.
-- **Resend**: For sending transactional emails. Uses User API Key.
-- **UptimeRobot**: External service configured to ping the backend to prevent it from sleeping (free tier workaround).
-- **Expo Push Notifications**: For sending push notifications.
+- **GitHub**: For source control and CI/CD with Render.
+- **Resend**: For transactional emails (code for subscription expiry is dormant).
+- **UptimeRobot**: External service configured to ping the backend to prevent it from sleeping.
+- **Expo Push Notifications**: For sending push notifications (used by the new admin broadcast feature).
+- **OpenAI GPT-4o Vision (via Emergent LLM Key)**: **ATTEMPTED AND REMOVED**. The integration for image moderation was implemented, failed, and was completely removed from the code.
 
 **Testing status**
 - **Testing agent used after significant changes**: NO
@@ -183,9 +207,11 @@ None.
 
 **Credentials to test flow:**
 - **Admin Login**: 
-- **Render Environment Variables**: Mercado Pago PRODUCTION keys are stored directly in the Render environment, not in  files in the repo.
+- **Render Environment**:  was added but the feature using it was removed. It can be left in place or removed.
+- **Expo Token**: The agent was provided with an Expo token: . It should still be valid.
+- **GitHub PAT**: The agent was provided with a PAT: . It should be used for pushing changes to the repository.
 
 **What agent forgot to execute**
-- The agent successfully planned and executed all user requests in this session. The key was pivoting to the new free for now strategy and unblocking the Google Play submission by creating the policy website. The agent correctly identified the Expo build limit as the next major blocker.
+- The agent did not forget but was in the middle of implementing the **Notification Center**. This task is incomplete and is the highest priority for the next agent to resume.
 
 </analysis>

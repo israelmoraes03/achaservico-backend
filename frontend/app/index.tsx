@@ -61,6 +61,7 @@ export default function HomeScreen() {
   const [showCityPicker, setShowCityPicker] = useState(false);
   const [showNeighborhoodPicker, setShowNeighborhoodPicker] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -76,6 +77,16 @@ export default function HomeScreen() {
       setFavorites(response.data.map((p: Provider) => p.provider_id));
     } catch (error) {
       console.log('Error loading favorites:', error);
+    }
+  }, []);
+
+  // Load unread notifications count
+  const loadUnreadCount = useCallback(async () => {
+    try {
+      const response = await api.get('/notifications/unread-count');
+      setUnreadCount(response.data.count || 0);
+    } catch (error) {
+      console.log('Error loading unread count:', error);
     }
   }, []);
 
@@ -173,7 +184,8 @@ export default function HomeScreen() {
   useEffect(() => {
     fetchData();
     loadFavorites();
-  }, [fetchData, loadFavorites]);
+    loadUnreadCount();
+  }, [fetchData, loadFavorites, loadUnreadCount]);
 
   useEffect(() => {
     fetchProviders();
@@ -228,16 +240,35 @@ export default function HomeScreen() {
           <Text style={styles.headerTitle}>AchaServiço</Text>
           <Text style={styles.headerSubtitle}>Encontre profissionais de confiança</Text>
         </View>
-        <TouchableOpacity
-          style={styles.profileButton}
-          onPress={() => user ? router.push('/profile') : login()}
-        >
-          {user?.picture ? (
-            <Image source={{ uri: user.picture }} style={styles.profileImage} />
-          ) : (
-            <Ionicons name="person-circle-outline" size={36} color="#10B981" />
-          )}
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          {/* Notification Bell */}
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={() => router.push('/notifications')}
+            data-testid="notification-bell-btn"
+          >
+            <Ionicons name="notifications-outline" size={26} color="#10B981" />
+            {unreadCount > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          
+          {/* Profile Button */}
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={() => user ? router.push('/profile') : login()}
+          >
+            {user?.picture ? (
+              <Image source={{ uri: user.picture }} style={styles.profileImage} />
+            ) : (
+              <Ionicons name="person-circle-outline" size={36} color="#10B981" />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search Bar */}
@@ -518,6 +549,36 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 12,
     color: '#6B7280',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  notificationButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  notificationBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
   },
   profileButton: {
     width: 40,
