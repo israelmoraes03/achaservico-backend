@@ -12,12 +12,16 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../src/context/AuthContext';
 import api from '../../src/services/api';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface Provider {
   provider_id: string;
@@ -62,6 +66,7 @@ export default function ProviderDetailScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [canReview, setCanReview] = useState(false);
   const [reviewStatus, setReviewStatus] = useState<string>('');
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -280,9 +285,8 @@ export default function ProviderDetailScreen() {
                   <TouchableOpacity 
                     key={index} 
                     style={styles.galleryImageWrapper}
-                    onPress={() => {
-                      // Could implement full-screen image viewer here
-                    }}
+                    onPress={() => setSelectedImageIndex(index)}
+                    data-testid={`service-photo-${index}`}
                   >
                     <Image source={{ uri: photo }} style={styles.galleryImage} />
                   </TouchableOpacity>
@@ -395,6 +399,59 @@ export default function ProviderDetailScreen() {
           <View style={styles.bottomSpacer} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Full Screen Image Modal */}
+      <Modal
+        visible={selectedImageIndex !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setSelectedImageIndex(null)}
+      >
+        <View style={styles.imageModalContainer}>
+          <TouchableOpacity
+            style={styles.imageModalCloseButton}
+            onPress={() => setSelectedImageIndex(null)}
+            data-testid="close-image-modal-btn"
+          >
+            <Ionicons name="close" size={32} color="#FFFFFF" />
+          </TouchableOpacity>
+
+          {selectedImageIndex !== null && provider?.service_photos && (
+            <>
+              <Image
+                source={{ uri: provider.service_photos[selectedImageIndex] }}
+                style={styles.fullScreenImage}
+                resizeMode="contain"
+              />
+              
+              {/* Navigation arrows */}
+              {provider.service_photos.length > 1 && (
+                <View style={styles.imageNavigation}>
+                  <TouchableOpacity
+                    style={[styles.navButton, selectedImageIndex === 0 && styles.navButtonDisabled]}
+                    onPress={() => selectedImageIndex > 0 && setSelectedImageIndex(selectedImageIndex - 1)}
+                    disabled={selectedImageIndex === 0}
+                  >
+                    <Ionicons name="chevron-back" size={32} color={selectedImageIndex === 0 ? '#6B7280' : '#FFFFFF'} />
+                  </TouchableOpacity>
+
+                  <Text style={styles.imageCounter}>
+                    {selectedImageIndex + 1} / {provider.service_photos.length}
+                  </Text>
+
+                  <TouchableOpacity
+                    style={[styles.navButton, selectedImageIndex === provider.service_photos.length - 1 && styles.navButtonDisabled]}
+                    onPress={() => selectedImageIndex < provider.service_photos.length - 1 && setSelectedImageIndex(selectedImageIndex + 1)}
+                    disabled={selectedImageIndex === provider.service_photos.length - 1}
+                  >
+                    <Ionicons name="chevron-forward" size={32} color={selectedImageIndex === provider.service_photos.length - 1 ? '#6B7280' : '#FFFFFF'} />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </>
+          )}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -703,5 +760,48 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 32,
+  },
+  // Full Screen Image Modal Styles
+  imageModalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageModalCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    padding: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 25,
+  },
+  fullScreenImage: {
+    width: screenWidth,
+    height: screenHeight * 0.7,
+  },
+  imageNavigation: {
+    position: 'absolute',
+    bottom: 80,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  navButton: {
+    padding: 15,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 30,
+  },
+  navButtonDisabled: {
+    opacity: 0.5,
+  },
+  imageCounter: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
