@@ -188,6 +188,14 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Configurações</Text>
           
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/contact-history')}>
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="chatbubbles" size={22} color="#10B981" />
+              <Text style={styles.menuItemText}>Histórico de Contatos</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+          </TouchableOpacity>
+          
           <TouchableOpacity style={styles.menuItem} onPress={() => setShowHelpModal(true)}>
             <View style={styles.menuItemLeft}>
               <Ionicons name="help-circle" size={22} color="#10B981" />

@@ -285,12 +285,14 @@ async def send_expiration_notification_email(provider_name: str, provider_email:
         logger.error(f"Failed to send expiration notification email: {str(e)}")
         return False
 
-async def send_push_notification(push_token: str, title: str, body: str):
+async def send_push_notification(push_token: str, title: str, body: str, data: dict = None):
     """Send push notification via Expo"""
     if not push_token or not push_token.startswith("ExponentPushToken"):
         return False
     
     try:
+        notification_data = data or {"type": "general"}
+        
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 "https://exp.host/--/api/v2/push/send",
@@ -300,7 +302,9 @@ async def send_push_notification(push_token: str, title: str, body: str):
                     "body": body,
                     "sound": "default",
                     "priority": "high",
-                    "data": {"type": "subscription_expiring"}
+                    "channelId": "default",  # Android notification channel
+                    "data": notification_data,
+                    "_displayInForeground": True  # Show even when app is open
                 },
                 headers={"Content-Type": "application/json"}
             )
@@ -2056,7 +2060,8 @@ async def admin_broadcast_notification(notification: BroadcastNotification):
                 await send_push_notification(
                     push_token=push_token,
                     title=notification.title,
-                    body=notification.message
+                    body=notification.message,
+                    data={"type": "broadcast", "notification_id": notification_entry.notification_id}
                 )
                 sent_count += 1
             except Exception as e:
