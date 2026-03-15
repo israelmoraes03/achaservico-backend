@@ -1095,7 +1095,7 @@ async def toggle_favorite(provider_id: str, request: Request):
         notification_entry = Notification(
             user_id=provider.get("user_id"),
             title="Novo favorito! ⭐",
-            body="Alguém adicionou você aos favoritos!",
+            message="Alguém adicionou você aos favoritos!",
             notification_type="favorite"
         )
         await db.notifications.insert_one(notification_entry.model_dump())
