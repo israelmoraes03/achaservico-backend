@@ -19,12 +19,22 @@ import mercadopago
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
+import cloudinary
+import cloudinary.uploader
+import base64
 
 # Import for image moderation
 from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+# Cloudinary Configuration
+cloudinary.config(
+    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.environ.get('CLOUDINARY_API_KEY'),
+    api_secret=os.environ.get('CLOUDINARY_API_SECRET')
+)
 
 # Emergent LLM Key for image moderation
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
@@ -172,6 +182,50 @@ Responda APENAS: {"is_appropriate": true} ou {"is_appropriate": false, "reason":
         logger.error(f"Error moderating image: {e}")
         # On error, ALLOW the image (fail-open for better user experience)
         return {"is_appropriate": True, "reason": "Moderation skipped"}
+
+# ======================== CLOUDINARY UPLOAD ========================
+
+async def upload_to_cloudinary(base64_image: str, folder: str = "achaservico") -> Optional[str]:
+    """
+    Upload base64 image to Cloudinary and return the URL.
+    Returns None if upload fails.
+    """
+    try:
+        # Check if Cloudinary is configured
+        if not os.environ.get('CLOUDINARY_CLOUD_NAME'):
+            logger.warning("Cloudinary not configured, returning original base64")
+            return base64_image
+        
+        # If it's already a URL, return as is
+        if base64_image.startswith('http'):
+            return base64_image
+        
+        # Upload to Cloudinary
+        result = cloudinary.uploader.upload(
+            base64_image,
+            folder=folder,
+            resource_type="image",
+            transformation=[
+                {"quality": "auto:good"},
+                {"fetch_format": "auto"}
+            ]
+        )
+        
+        logger.info(f"Image uploaded to Cloudinary: {result.get('secure_url')}")
+        return result.get('secure_url')
+    except Exception as e:
+        logger.error(f"Error uploading to Cloudinary: {e}")
+        # Return original base64 if upload fails
+        return base64_image
+
+async def upload_images_to_cloudinary(images: List[str], folder: str = "achaservico") -> List[str]:
+    """Upload multiple images to Cloudinary"""
+    uploaded_urls = []
+    for img in images:
+        url = await upload_to_cloudinary(img, folder)
+        if url:
+            uploaded_urls.append(url)
+    return uploaded_urls
 
 # ======================== EMAIL NOTIFICATIONS ========================
 
@@ -876,13 +930,26 @@ async def create_provider(provider_data: ProviderCreate, request: Request):
     if existing:
         raise HTTPException(status_code=400, detail="Você já possui um perfil de prestador")
     
+    # Upload images to Cloudinary
+    provider_dict = provider_data.model_dump()
+    if provider_dict.get('profile_image'):
+        provider_dict['profile_image'] = await upload_to_cloudinary(
+            provider_dict['profile_image'], 
+            folder="achaservico/profiles"
+        )
+    if provider_dict.get('service_photos'):
+        provider_dict['service_photos'] = await upload_images_to_cloudinary(
+            provider_dict['service_photos'],
+            folder="achaservico/services"
+        )
+    
     # ESTRATÉGIA 100% GRÁTIS: Novos prestadores começam ativos sem data de expiração
     provider = Provider(
         user_id=user.user_id,
         subscription_status="active",  # Já começa ativo
         subscription_expires_at=None,  # Sem expiração - gratuito permanente
         is_active=True,
-        **provider_data.model_dump()
+        **provider_dict
     )
     
     await db.providers.insert_one(provider.model_dump())
@@ -927,6 +994,24 @@ async def update_provider(provider_id: str, provider_data: ProviderUpdate, reque
         raise HTTPException(status_code=403, detail="Você não tem permissão para editar este perfil")
     
     update_data = {k: v for k, v in provider_data.model_dump().items() if v is not None}
+    
+    # Upload new images to Cloudinary
+    if update_data.get('profile_image') and update_data['profile_image'].startswith('data:'):
+        update_data['profile_image'] = await upload_to_cloudinary(
+            update_data['profile_image'],
+            folder="achaservico/profiles"
+        )
+    if update_data.get('service_photos'):
+        # Only upload new base64 images, keep existing URLs
+        new_photos = []
+        for photo in update_data['service_photos']:
+            if photo.startswith('data:') or photo.startswith('data:image'):
+                uploaded = await upload_to_cloudinary(photo, folder="achaservico/services")
+                new_photos.append(uploaded)
+            else:
+                new_photos.append(photo)
+        update_data['service_photos'] = new_photos
+    
     update_data["updated_at"] = datetime.now(timezone.utc)
     
     await db.providers.update_one(
@@ -1001,6 +1086,20 @@ async def toggle_favorite(provider_id: str, request: Request):
     else:
         current_favorites.append(provider_id)
         is_favorite = True
+        
+        # Send push notification to provider when favorited
+        provider_user = await db.users.find_one({"user_id": provider.get("user_id")})
+        if provider_user and provider_user.get("push_token"):
+            try:
+                await send_push_notification(
+                    push_token=provider_user["push_token"],
+                    title="Novo favorito! ⭐",
+                    body=f"Alguém adicionou você aos favoritos!",
+                    data={"type": "new_favorite"}
+                )
+                logger.info(f"Sent favorite notification to provider {provider_id}")
+            except Exception as e:
+                logger.error(f"Error sending favorite notification: {e}")
     
     # Update user
     await db.users.update_one(
@@ -1096,6 +1195,41 @@ async def check_can_review(provider_id: str, request: Request):
         return {"can_review": False, "reason": "no_contact"}
     
     return {"can_review": True, "reason": "eligible"}
+
+@api_router.get("/users/contact-history")
+async def get_contact_history(request: Request):
+    """Get list of providers the user has contacted (history)"""
+    user = await require_auth(request)
+    
+    # Get all contacts for this user
+    contacts = await db.whatsapp_contacts.find(
+        {"user_id": user.user_id}
+    ).sort("contacted_at", -1).to_list(100)
+    
+    if not contacts:
+        return []
+    
+    # Get provider details for each contact
+    provider_ids = [c["provider_id"] for c in contacts]
+    providers = await db.providers.find(
+        {"provider_id": {"$in": provider_ids}},
+        {"_id": 0, "profile_image": 1, "provider_id": 1, "name": 1, "categories": 1, "phone": 1, "neighborhood": 1}
+    ).to_list(100)
+    
+    # Create a map for quick lookup
+    provider_map = {p["provider_id"]: p for p in providers}
+    
+    # Build result with contact date
+    result = []
+    for contact in contacts:
+        provider = provider_map.get(contact["provider_id"])
+        if provider:
+            result.append({
+                **provider,
+                "contacted_at": contact.get("contacted_at")
+            })
+    
+    return result
 
 @api_router.post("/reviews")
 async def create_review(review_data: ReviewCreate, request: Request):
