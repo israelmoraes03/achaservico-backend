@@ -1091,6 +1091,16 @@ async def toggle_favorite(provider_id: str, request: Request):
         current_favorites.append(provider_id)
         is_favorite = True
         
+        # Save notification to database (appears in notification center / bell icon)
+        notification_entry = Notification(
+            user_id=provider.get("user_id"),
+            title="Novo favorito! ⭐",
+            body="Alguém adicionou você aos favoritos!",
+            notification_type="favorite"
+        )
+        await db.notifications.insert_one(notification_entry.model_dump())
+        logger.info(f"Saved favorite notification for provider {provider_id}")
+        
         # Send push notification to provider when favorited
         provider_user = await db.users.find_one({"user_id": provider.get("user_id")})
         if provider_user and provider_user.get("push_token"):
@@ -1099,9 +1109,9 @@ async def toggle_favorite(provider_id: str, request: Request):
                     push_token=provider_user["push_token"],
                     title="Novo favorito! ⭐",
                     body=f"Alguém adicionou você aos favoritos!",
-                    data={"type": "new_favorite"}
+                    data={"type": "new_favorite", "notification_id": notification_entry.notification_id}
                 )
-                logger.info(f"Sent favorite notification to provider {provider_id}")
+                logger.info(f"Sent favorite push notification to provider {provider_id}")
             except Exception as e:
                 logger.error(f"Error sending favorite notification: {e}")
     
