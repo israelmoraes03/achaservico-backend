@@ -552,7 +552,7 @@ class WhatsAppContact(BaseModel):
     contact_id: str = Field(default_factory=lambda: f"contact_{uuid.uuid4().hex[:12]}")
     user_id: str
     provider_id: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    contacted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class Notification(BaseModel):
     notification_id: str = Field(default_factory=lambda: f"notif_{uuid.uuid4().hex[:12]}")
@@ -1215,10 +1215,13 @@ async def get_contact_history(request: Request):
     """Get list of providers the user has contacted (history)"""
     user = await require_auth(request)
     
-    # Get all contacts for this user
+    # Get all contacts for this user (sorted by most recent first)
     contacts = await db.whatsapp_contacts.find(
         {"user_id": user.user_id}
-    ).sort("contacted_at", -1).to_list(100)
+    ).to_list(100)
+    
+    # Sort by contacted_at or created_at (for old records)
+    contacts.sort(key=lambda x: x.get("contacted_at") or x.get("created_at") or datetime.min, reverse=True)
     
     if not contacts:
         return []
@@ -1238,7 +1241,8 @@ async def get_contact_history(request: Request):
     for contact in contacts:
         provider = provider_map.get(contact["provider_id"])
         if provider:
-            contacted_at = contact.get("contacted_at")
+            # Try contacted_at first, fall back to created_at for old records
+            contacted_at = contact.get("contacted_at") or contact.get("created_at")
             # Convert datetime to ISO string if needed
             if contacted_at and hasattr(contacted_at, 'isoformat'):
                 contacted_at = contacted_at.isoformat()
