@@ -249,8 +249,19 @@ export default function ProviderDetailScreen() {
             
             <Text style={styles.providerName}>{provider.name}</Text>
             
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryBadgeText}>{getCategoryName(provider.category)}</Text>
+            {/* Show all categories/services */}
+            <View style={styles.categoriesContainer}>
+              {provider.categories && provider.categories.length > 0 ? (
+                provider.categories.map((cat, index) => (
+                  <View key={index} style={styles.categoryBadge}>
+                    <Text style={styles.categoryBadgeText}>{getCategoryName(cat)}</Text>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.categoryBadge}>
+                  <Text style={styles.categoryBadgeText}>{getCategoryName(provider.category)}</Text>
+                </View>
+              )}
             </View>
             
             <View style={styles.locationRow}>
@@ -259,9 +270,8 @@ export default function ProviderDetailScreen() {
             </View>
             
             <View style={styles.ratingRow}>
-              <View style={styles.starsRow}>{renderStars(provider.average_rating)}</View>
               <Text style={styles.ratingText}>
-                {provider.average_rating.toFixed(1)} ({provider.total_reviews} avaliações)
+                {provider.total_reviews} avaliações
               </Text>
             </View>
           </View>
@@ -295,9 +305,9 @@ export default function ProviderDetailScreen() {
             </View>
           )}
 
-          {/* WhatsApp Button */}
+          {/* WhatsApp Button - Smaller and more elegant */}
           <TouchableOpacity style={styles.whatsappButton} onPress={openWhatsApp}>
-            <Ionicons name="logo-whatsapp" size={24} color="#FFFFFF" />
+            <Ionicons name="logo-whatsapp" size={20} color="#FFFFFF" />
             <Text style={styles.whatsappButtonText}>Chamar no WhatsApp</Text>
           </TouchableOpacity>
 
@@ -541,16 +551,22 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: 'center',
   },
+  categoriesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
   categoryBadge: {
     backgroundColor: '#10B98120',
     paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderRadius: 16,
-    marginBottom: 8,
   },
   categoryBadgeText: {
     color: '#10B981',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
   },
   locationRow: {
@@ -610,14 +626,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#25D366',
     marginHorizontal: 16,
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 12,
+    borderRadius: 25,
     gap: 8,
     marginBottom: 24,
   },
   whatsappButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '600',
   },
   reviewsHeader: {

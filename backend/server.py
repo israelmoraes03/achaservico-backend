@@ -1238,9 +1238,13 @@ async def get_contact_history(request: Request):
     for contact in contacts:
         provider = provider_map.get(contact["provider_id"])
         if provider:
+            contacted_at = contact.get("contacted_at")
+            # Convert datetime to ISO string if needed
+            if contacted_at and hasattr(contacted_at, 'isoformat'):
+                contacted_at = contacted_at.isoformat()
             result.append({
                 **provider,
-                "contacted_at": contact.get("contacted_at")
+                "contacted_at": contacted_at
             })
     
     return result
