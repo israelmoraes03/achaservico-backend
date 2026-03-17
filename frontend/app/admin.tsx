@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   Linking,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -82,12 +83,14 @@ interface Review {
 
 export default function AdminScreen() {
   const router = useRouter();
+  const scrollViewRef = useRef<ScrollView>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   // Data states
   const [stats, setStats] = useState<Stats | null>(null);
@@ -107,6 +110,31 @@ export default function AdminScreen() {
 
   // Modal states
   const [editModalVisible, setEditModalVisible] = useState(false);
+
+  // Keyboard listener for auto-scroll
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        setKeyboardVisible(true);
+        // Scroll to bottom when keyboard opens
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        setKeyboardVisible(false);
+      }
+    );
+
+    return () => {
+      keyboardDidHideListener?.remove();
+      keyboardDidShowListener?.remove();
+    };
+  }, []);
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
 
   // Send broadcast notification
@@ -468,7 +496,9 @@ export default function AdminScreen() {
       </ScrollView>
 
       <ScrollView
+        ref={scrollViewRef}
         style={styles.content}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#10B981" />
         }
@@ -896,7 +926,8 @@ export default function AdminScreen() {
           </>
         )}
 
-        <View style={styles.bottomSpacer} />
+        {/* Extra space when keyboard is visible */}
+        <View style={[styles.bottomSpacer, keyboardVisible && styles.keyboardSpacer]} />
       </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -1219,6 +1250,9 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 40,
+  },
+  keyboardSpacer: {
+    height: 350,
   },
   // Broadcast styles
   broadcastSection: {
