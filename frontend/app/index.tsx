@@ -431,16 +431,6 @@ export default function HomeScreen() {
               style={styles.providerCard}
               onPress={() => router.push(`/provider/${provider.provider_id}`)}
             >
-              {/* Cities Badge - Top Right */}
-              {provider.cities && provider.cities.length > 0 && (
-                <View style={styles.citiesBadgeContainer}>
-                  <Text style={styles.citiesBadgeText} numberOfLines={1}>
-                    {provider.cities.slice(0, 2).map(c => getCityName(c)).join(', ')}
-                    {provider.cities.length > 2 ? ` +${provider.cities.length - 2}` : ''}
-                  </Text>
-                </View>
-              )}
-              
               <View style={styles.providerHeader}>
                 {provider.profile_image ? (
                   <Image
@@ -454,7 +444,7 @@ export default function HomeScreen() {
                 )}
                 <View style={styles.providerInfo}>
                   <View style={styles.providerNameRow}>
-                    <Text style={styles.providerName}>{provider.name}</Text>
+                    <Text style={styles.providerName} numberOfLines={1}>{provider.name}</Text>
                     {provider.is_verified && (
                       <View style={styles.verifiedBadge}>
                         <Ionicons name="checkmark-circle" size={16} color="#10B981" />
@@ -467,6 +457,18 @@ export default function HomeScreen() {
                       </View>
                     )}
                   </View>
+                  
+                  {/* Cities Badge - Below name */}
+                  {provider.cities && provider.cities.length > 0 && (
+                    <View style={styles.citiesRow}>
+                      <Ionicons name="location" size={12} color="#9CA3AF" />
+                      <Text style={styles.citiesInlineText} numberOfLines={1}>
+                        {provider.cities.slice(0, 2).map(c => getCityName(c)).join(', ')}
+                        {provider.cities.length > 2 ? ` +${provider.cities.length - 2}` : ''}
+                      </Text>
+                    </View>
+                  )}
+                  
                   <View style={styles.categoriesRow}>
                     {(provider.categories || [provider.category]).filter(Boolean).slice(0, 2).map((catId, index) => (
                       <View key={index} style={styles.categoryBadge}>
@@ -478,8 +480,8 @@ export default function HomeScreen() {
                     )}
                   </View>
                   <View style={styles.locationRow}>
-                    <Ionicons name="location" size={14} color="#6B7280" />
-                    <Text style={styles.locationText}>{provider.neighborhood}</Text>
+                    <Ionicons name="navigate" size={14} color="#6B7280" />
+                    <Text style={styles.locationText}>{provider.neighborhood || provider.neighborhoods?.join(', ') || 'Não informado'}</Text>
                   </View>
                 </View>
               </View>
@@ -733,22 +735,6 @@ const styles = StyleSheet.create({
     padding: 16,
     marginHorizontal: 16,
     marginBottom: 12,
-    position: 'relative',
-  },
-  citiesBadgeContainer: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: '#374151',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    maxWidth: 150,
-  },
-  citiesBadgeText: {
-    color: '#E5E7EB',
-    fontSize: 11,
-    fontWeight: '500',
   },
   providerHeader: {
     flexDirection: 'row',
@@ -779,9 +765,21 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   providerName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+    flex: 1,
+  },
+  citiesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  citiesInlineText: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    flex: 1,
   },
   verifiedBadge: {
     flexDirection: 'row',
