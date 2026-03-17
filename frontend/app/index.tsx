@@ -218,6 +218,11 @@ export default function HomeScreen() {
     return cat?.name || categoryId;
   };
 
+  const getCityName = (cityId: string) => {
+    const city = cities.find(c => c.id === cityId);
+    return city?.name || cityId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
   const renderStars = (rating: number) => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
@@ -426,6 +431,16 @@ export default function HomeScreen() {
               style={styles.providerCard}
               onPress={() => router.push(`/provider/${provider.provider_id}`)}
             >
+              {/* Cities Badge - Top Right */}
+              {provider.cities && provider.cities.length > 0 && (
+                <View style={styles.citiesBadgeContainer}>
+                  <Text style={styles.citiesBadgeText} numberOfLines={1}>
+                    {provider.cities.slice(0, 2).map(c => getCityName(c)).join(', ')}
+                    {provider.cities.length > 2 ? ` +${provider.cities.length - 2}` : ''}
+                  </Text>
+                </View>
+              )}
+              
               <View style={styles.providerHeader}>
                 {provider.profile_image ? (
                   <Image
@@ -718,6 +733,22 @@ const styles = StyleSheet.create({
     padding: 16,
     marginHorizontal: 16,
     marginBottom: 12,
+    position: 'relative',
+  },
+  citiesBadgeContainer: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: '#374151',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    maxWidth: 150,
+  },
+  citiesBadgeText: {
+    color: '#E5E7EB',
+    fontSize: 11,
+    fontWeight: '500',
   },
   providerHeader: {
     flexDirection: 'row',
