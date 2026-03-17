@@ -481,7 +481,11 @@ export default function HomeScreen() {
                   </View>
                   <View style={styles.locationRow}>
                     <Ionicons name="navigate" size={14} color="#6B7280" />
-                    <Text style={styles.locationText}>{provider.neighborhood || provider.neighborhoods?.join(', ') || 'Não informado'}</Text>
+                    <Text style={styles.locationText}>
+                      {provider.neighborhoods && provider.neighborhoods.length > 0 
+                        ? provider.neighborhoods.join(', ')
+                        : provider.neighborhood || 'Não informado'}
+                    </Text>
                   </View>
                 </View>
               </View>
