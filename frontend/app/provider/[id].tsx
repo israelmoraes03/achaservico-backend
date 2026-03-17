@@ -277,9 +277,14 @@ export default function ProviderDetailScreen() {
               </View>
             )}
             
+            {/* Neighborhoods served */}
             <View style={styles.locationRow}>
               <Ionicons name="location" size={16} color="#6B7280" />
-              <Text style={styles.locationText}>{provider.neighborhood}</Text>
+              <Text style={styles.locationText}>
+                {provider.neighborhoods && provider.neighborhoods.length > 0
+                  ? provider.neighborhoods.join(', ')
+                  : provider.neighborhood || 'Não informado'}
+              </Text>
             </View>
             
             <View style={styles.ratingRow}>

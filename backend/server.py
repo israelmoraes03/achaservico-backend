@@ -2129,16 +2129,21 @@ async def admin_broadcast_notification(notification: BroadcastNotification):
         push_token = provider.get("push_token")
         if push_token:
             try:
-                await send_push_notification(
+                success = await send_push_notification(
                     push_token=push_token,
                     title=notification.title,
                     body=notification.message,
-                    data={"type": "broadcast", "notification_id": notification_entry.notification_id}
+                    data={"type": "broadcast", "notification_id": notif.notification_id}
                 )
-                sent_count += 1
+                if success:
+                    sent_count += 1
+                else:
+                    failed_count += 1
             except Exception as e:
                 logger.error(f"Failed to send notification to {provider.get('name')}: {e}")
                 failed_count += 1
+        else:
+            logger.warning(f"Provider {provider.get('name')} has no push token")
     
     logger.info(f"Broadcast notification sent: {sent_count} success, {failed_count} failed")
     

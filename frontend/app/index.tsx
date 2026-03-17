@@ -458,17 +458,7 @@ export default function HomeScreen() {
                     )}
                   </View>
                   
-                  {/* Cities Badge - Below name */}
-                  {provider.cities && provider.cities.length > 0 && (
-                    <View style={styles.citiesRow}>
-                      <Ionicons name="location" size={12} color="#9CA3AF" />
-                      <Text style={styles.citiesInlineText} numberOfLines={1}>
-                        {provider.cities.slice(0, 2).map(c => getCityName(c)).join(', ')}
-                        {provider.cities.length > 2 ? ` +${provider.cities.length - 2}` : ''}
-                      </Text>
-                    </View>
-                  )}
-                  
+                  {/* 1. Services/Categories - First */}
                   <View style={styles.categoriesRow}>
                     {(provider.categories || [provider.category]).filter(Boolean).slice(0, 2).map((catId, index) => (
                       <View key={index} style={styles.categoryBadge}>
@@ -479,11 +469,24 @@ export default function HomeScreen() {
                       <Text style={styles.moreCategoriesText}>+{(provider.categories?.length || 0) - 2}</Text>
                     )}
                   </View>
+                  
+                  {/* 2. Cities - Second */}
+                  {provider.cities && provider.cities.length > 0 && (
+                    <View style={styles.citiesRow}>
+                      <Ionicons name="business" size={12} color="#10B981" />
+                      <Text style={styles.citiesInlineText} numberOfLines={1}>
+                        {provider.cities.slice(0, 2).map(c => getCityName(c)).join(', ')}
+                        {provider.cities.length > 2 ? ` +${provider.cities.length - 2}` : ''}
+                      </Text>
+                    </View>
+                  )}
+                  
+                  {/* 3. Neighborhoods - Third */}
                   <View style={styles.locationRow}>
-                    <Ionicons name="navigate" size={14} color="#6B7280" />
-                    <Text style={styles.locationText}>
+                    <Ionicons name="location" size={14} color="#6B7280" />
+                    <Text style={styles.locationText} numberOfLines={1}>
                       {provider.neighborhoods && provider.neighborhoods.length > 0 
-                        ? provider.neighborhoods.join(', ')
+                        ? provider.neighborhoods.slice(0, 2).join(', ') + (provider.neighborhoods.length > 2 ? ` +${provider.neighborhoods.length - 2}` : '')
                         : provider.neighborhood || 'Não informado'}
                     </Text>
                   </View>
