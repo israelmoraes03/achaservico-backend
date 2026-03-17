@@ -8,7 +8,6 @@
     "scheme": "achaservico",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "owner": "sara_gomes",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.achaservico.app"
