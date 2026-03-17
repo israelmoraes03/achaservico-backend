@@ -102,7 +102,7 @@ export default function ProviderDashboardScreen() {
   const [editPhone, setEditPhone] = useState('');
   const [editCategories, setEditCategories] = useState<string[]>([]);
   const [editCities, setEditCities] = useState<string[]>([]);
-  const [editNeighborhood, setEditNeighborhood] = useState('');
+  const [editNeighborhoods, setEditNeighborhoods] = useState<string[]>([]);
   const [editDescription, setEditDescription] = useState('');
   const [editProfileImage, setEditProfileImage] = useState<string | null>(null);
   const [servicePhotos, setServicePhotos] = useState<string[]>([]);
@@ -137,7 +137,15 @@ export default function ProviderDashboardScreen() {
       setEditPhone(formatPhoneDisplay(provider.phone || ''));
       setEditCategories(provider.categories || []);
       setEditCities(provider.cities || ['tres_lagoas']);
-      setEditNeighborhood(provider.neighborhood || '');
+      // Support both old (string) and new (array) format
+      const neighborhoodData = provider.neighborhood || provider.neighborhoods;
+      if (Array.isArray(neighborhoodData)) {
+        setEditNeighborhoods(neighborhoodData);
+      } else if (neighborhoodData) {
+        setEditNeighborhoods([neighborhoodData]);
+      } else {
+        setEditNeighborhoods([]);
+      }
       setEditDescription(provider.description || '');
       setEditProfileImage(provider.profile_image || null);
       setServicePhotos(provider.service_photos || []);
@@ -429,6 +437,7 @@ export default function ProviderDashboardScreen() {
       console.log('Saving provider data:', {
         categories: editCategories,
         cities: editCities,
+        neighborhoods: editNeighborhoods,
       });
       
       const response = await api.put(`/providers/${provider.provider_id}`, {
@@ -436,7 +445,7 @@ export default function ProviderDashboardScreen() {
         phone: editPhone.replace(/\D/g, ''),
         categories: editCategories,
         cities: editCities,
-        neighborhood: editNeighborhood,
+        neighborhoods: editNeighborhoods,
         description: editDescription.trim(),
         profile_image: editProfileImage,
       });
@@ -1004,36 +1013,72 @@ export default function ProviderDashboardScreen() {
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Bairro</Text>
+            <Text style={styles.fieldLabel}>Bairros que atende</Text>
             {isEditing ? (
               <>
                 <TouchableOpacity
                   style={styles.selectButton}
                   onPress={() => setShowNeighborhoodPicker(!showNeighborhoodPicker)}
                 >
-                  <Text style={styles.selectButtonText}>{editNeighborhood}</Text>
+                  <Text style={styles.selectButtonText}>
+                    {editNeighborhoods.length > 0 
+                      ? `${editNeighborhoods.length} bairro(s) selecionado(s)`
+                      : 'Selecionar bairros'}
+                  </Text>
                   <Ionicons name="chevron-down" size={20} color="#6B7280" />
                 </TouchableOpacity>
+                
+                {/* Selected neighborhoods tags */}
+                {editNeighborhoods.length > 0 && (
+                  <View style={styles.selectedTagsContainer}>
+                    {editNeighborhoods.map((n) => (
+                      <View key={n} style={styles.selectedTag}>
+                        <Text style={styles.selectedTagText}>{n}</Text>
+                        <TouchableOpacity onPress={() => setEditNeighborhoods(editNeighborhoods.filter(item => item !== n))}>
+                          <Ionicons name="close-circle" size={18} color="#10B981" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                
                 {showNeighborhoodPicker && (
                   <View style={styles.pickerContainer}>
                     <ScrollView style={styles.pickerScroll} nestedScrollEnabled>
                       {neighborhoods.map((n) => (
                         <TouchableOpacity
                           key={n}
-                          style={[styles.pickerItem, editNeighborhood === n && styles.pickerItemActive]}
-                          onPress={() => { setEditNeighborhood(n); setShowNeighborhoodPicker(false); }}
+                          style={[styles.pickerItem, editNeighborhoods.includes(n) && styles.pickerItemActive]}
+                          onPress={() => {
+                            if (editNeighborhoods.includes(n)) {
+                              setEditNeighborhoods(editNeighborhoods.filter(item => item !== n));
+                            } else {
+                              setEditNeighborhoods([...editNeighborhoods, n]);
+                            }
+                          }}
                         >
-                          <Text style={[styles.pickerItemText, editNeighborhood === n && styles.pickerItemTextActive]}>
+                          <Text style={[styles.pickerItemText, editNeighborhoods.includes(n) && styles.pickerItemTextActive]}>
                             {n}
                           </Text>
+                          {editNeighborhoods.includes(n) && (
+                            <Ionicons name="checkmark" size={20} color="#10B981" />
+                          )}
                         </TouchableOpacity>
                       ))}
                     </ScrollView>
+                    <TouchableOpacity
+                      style={styles.pickerDoneButton}
+                      onPress={() => setShowNeighborhoodPicker(false)}
+                    >
+                      <Text style={styles.pickerDoneText}>Concluído</Text>
+                    </TouchableOpacity>
                   </View>
                 )}
               </>
             ) : (
-              <Text style={styles.fieldValue}>{provider.neighborhood}</Text>
+              <Text style={styles.fieldValue}>
+                {provider.neighborhoods?.join(', ') || provider.neighborhood || 'Não informado'}
+              </Text>
             )}
           </View>
 
@@ -1846,6 +1891,18 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 32,
+  },
+  pickerDoneButton: {
+    backgroundColor: '#10B981',
+    padding: 12,
+    alignItems: 'center',
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  pickerDoneText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 14,
   },
   // Payment Modal Styles
   modalOverlay: {

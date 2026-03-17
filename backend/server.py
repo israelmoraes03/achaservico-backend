@@ -495,7 +495,8 @@ class Provider(BaseModel):
     phone: str
     categories: List[str] = []  # Multiple categories
     cities: List[str] = ["tres_lagoas"]  # Multiple cities of operation
-    neighborhood: str
+    neighborhood: Optional[str] = None  # Legacy field (single)
+    neighborhoods: List[str] = []  # New field (multiple)
     description: str
     profile_image: Optional[str] = None  # base64
     service_photos: List[str] = []  # Array of base64 images for service gallery
@@ -517,7 +518,8 @@ class ProviderCreate(BaseModel):
     phone: str
     categories: List[str]  # Multiple categories
     cities: List[str] = ["tres_lagoas"]  # Multiple cities of operation
-    neighborhood: str
+    neighborhood: Optional[str] = None  # Legacy field
+    neighborhoods: List[str] = []  # New field (multiple)
     description: str
     profile_image: Optional[str] = None
 
@@ -526,7 +528,8 @@ class ProviderUpdate(BaseModel):
     phone: Optional[str] = None
     categories: Optional[List[str]] = None  # Multiple categories
     cities: Optional[List[str]] = None  # Multiple cities of operation
-    neighborhood: Optional[str] = None
+    neighborhood: Optional[str] = None  # Legacy field
+    neighborhoods: Optional[List[str]] = None  # New field (multiple)
     description: Optional[str] = None
     profile_image: Optional[str] = None
     service_photos: Optional[List[str]] = None  # Array of base64 images for service gallery
