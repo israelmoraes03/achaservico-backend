@@ -264,6 +264,19 @@ export default function ProviderDetailScreen() {
               )}
             </View>
             
+            {/* Cities served */}
+            {provider.cities && provider.cities.length > 0 && (
+              <View style={styles.citiesRow}>
+                <Ionicons name="map" size={16} color="#10B981" />
+                <Text style={styles.citiesText}>
+                  {provider.cities.map(c => {
+                    // Convert city id to readable name
+                    return c.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                  }).join(' • ')}
+                </Text>
+              </View>
+            )}
+            
             <View style={styles.locationRow}>
               <Ionicons name="location" size={16} color="#6B7280" />
               <Text style={styles.locationText}>{provider.neighborhood}</Text>
@@ -578,6 +591,17 @@ const styles = StyleSheet.create({
   locationText: {
     color: '#6B7280',
     fontSize: 14,
+  },
+  citiesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  citiesText: {
+    color: '#10B981',
+    fontSize: 14,
+    flex: 1,
   },
   ratingRow: {
     flexDirection: 'row',
