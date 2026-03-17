@@ -684,6 +684,52 @@ NEIGHBORHOODS_BY_CITY = {
         "Todos os bairros",
         "Centro", "Cohab", "Jardim América", "Jardim Brasil", "Jardim das Flores",
         "Jardim Planalto", "Jardim Primavera", "Nova Ribas", "Vila Nova", "Vila Operária"
+    ],
+    "maringa": [
+        "Todos os bairros",
+        "Centro", "Zona 01", "Zona 02", "Zona 03", "Zona 04", "Zona 05", "Zona 06", "Zona 07",
+        "Vila Morangueira", "Vila Santo Antônio", "Vila Nova", "Vila Esperança", "Vila Operária",
+        "Jardim Alvorada", "Jardim América", "Jardim Aclimação", "Jardim Andrade", "Jardim Atami",
+        "Jardim Brasília", "Jardim Canadá", "Jardim Dias", "Jardim Guaporé", "Jardim Imperial",
+        "Jardim Indaiá", "Jardim Internorte", "Jardim Ipanema", "Jardim Itália", "Jardim Liberdade",
+        "Jardim Mandacaru", "Jardim Maravilha", "Jardim Monte Carlo", "Jardim Novo Horizonte",
+        "Jardim Olímpico", "Jardim Oásis", "Jardim Paris", "Jardim Paulista", "Jardim Pinheiros",
+        "Jardim Real", "Jardim Santa Helena", "Jardim São Jorge", "Jardim São Silvestre",
+        "Jardim Tóquio", "Jardim Tropical", "Jardim Universitário", "Parque Avenida",
+        "Parque das Bandeiras", "Parque das Laranjeiras", "Parque Industrial", "Parque Residencial Cidade Nova",
+        "Conjunto Habitacional Hermann Moraes Barros", "Conjunto Habitacional Iguatemi",
+        "Conjunto Habitacional Sol Nascente", "Cidade Universitária", "Maringá Velho"
+    ],
+    "curitiba": [
+        "Todos os bairros",
+        "Centro", "Água Verde", "Alto Boqueirão", "Alto da Glória", "Alto da XV", "Ahú",
+        "Abranches", "Atuba", "Augusta", "Bacacheri", "Bairro Alto", "Barreirinha", "Batel",
+        "Bigorrilho", "Boa Vista", "Bom Retiro", "Boqueirão", "Butiatuvinha", "Cabral",
+        "Cachoeira", "Cajuru", "Campina do Siqueira", "Campo Comprido", "Campo de Santana",
+        "Capão Raso", "Capão da Imbuia", "Cascatinha", "Caximba", "Centro Cívico",
+        "Cidade Industrial", "Cristo Rei", "Fanny", "Fazendinha", "Ganchinho", "Guabirotuba",
+        "Guaíra", "Hauer", "Hugo Lange", "Jardim Botânico", "Jardim das Américas", "Jardim Social",
+        "Juvevê", "Lamenha Pequena", "Lindóia", "Mercês", "Mossunguê", "Novo Mundo", "Orleans",
+        "Parolin", "Pilarzinho", "Pinheirinho", "Portão", "Prado Velho", "Rebouças", "Riviera",
+        "Santa Cândida", "Santa Felicidade", "Santa Quitéria", "Santo Inácio", "São Braz",
+        "São Francisco", "São João", "São Lourenço", "São Miguel", "Seminário", "Sítio Cercado",
+        "Taboão", "Tarumã", "Tatuquara", "Tingui", "Uberaba", "Umbará", "Vila Izabel",
+        "Vista Alegre", "Xaxim", "Ecoville"
+    ],
+    "alto_taquari": [
+        "Todos os bairros",
+        "Centro", "Setor Comercial", "Setor Residencial Norte", "Setor Residencial Sul",
+        "Vila Rural", "Área Industrial"
+    ],
+    "alto_araguaia": [
+        "Todos os bairros",
+        "Centro", "Buriti", "Barreiro", "Colônia do Ariranha", "Graciosa", "Paraíso",
+        "Ribeirão Claro", "Setor Comercial", "Vila Nova", "Jardim América"
+    ],
+    "costa_rica": [
+        "Todos os bairros",
+        "Centro", "Baús", "Buritizal", "Jardim Eminassai", "Jardim São Francisco",
+        "Vila Alvorada", "Vila Santana", "Flor do Campo", "Sonho Meu", "Jardim Planalto"
     ]
 }
 
@@ -700,6 +746,11 @@ CITIES = [
     {"id": "paranaiba", "name": "Paranaíba", "state": "MS"},
     {"id": "aparecida_do_taboado", "name": "Aparecida do Taboado", "state": "MS"},
     {"id": "ribas_do_rio_pardo", "name": "Ribas do Rio Pardo", "state": "MS"},
+    {"id": "maringa", "name": "Maringá", "state": "PR"},
+    {"id": "curitiba", "name": "Curitiba", "state": "PR"},
+    {"id": "alto_taquari", "name": "Alto Taquari", "state": "MT"},
+    {"id": "alto_araguaia", "name": "Alto Araguaia", "state": "MT"},
+    {"id": "costa_rica", "name": "Costa Rica", "state": "MS"},
 ]
 
 # ======================== AUTH HELPERS ========================
