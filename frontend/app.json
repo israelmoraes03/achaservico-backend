@@ -25,7 +25,8 @@
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "useNextNotificationsApi": true
     },
     "web": {
       "bundler": "metro",
