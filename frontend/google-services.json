@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "639805008201",
+    "project_id": "achaservico",
+    "storage_bucket": "achaservico.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:639805008201:android:51a4770eeee501f8c2d298",
+        "android_client_info": {
+          "package_name": "com.achaservico.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBunQj3resOQi1JE1aEESpteO9Cy9crkxs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -10,7 +10,7 @@ import sys
 from datetime import datetime
 
 # Backend URL from the review request
-BACKEND_URL = "https://acha-notif-hub.preview.emergentagent.com"
+BACKEND_URL = "https://acha-tray-notify.preview.emergentagent.com"
 API_BASE = f"{BACKEND_URL}/api"
 
 def test_notifications_require_auth():
