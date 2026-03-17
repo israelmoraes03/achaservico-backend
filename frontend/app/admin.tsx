@@ -11,6 +11,8 @@ import {
   Modal,
   Alert,
   Linking,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -414,6 +416,11 @@ export default function AdminScreen() {
   // Admin Dashboard
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      >
       {/* Action Message Toast */}
       {actionMessage ? (
         <View style={styles.actionToast}>
@@ -891,6 +898,7 @@ export default function AdminScreen() {
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

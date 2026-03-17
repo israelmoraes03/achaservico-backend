@@ -46,7 +46,7 @@ export default function ProviderRegisterScreen() {
   const [phone, setPhone] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedCities, setSelectedCities] = useState<string[]>(['tres_lagoas']);
-  const [neighborhood, setNeighborhood] = useState('');
+  const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<string[]>([]);
   const [description, setDescription] = useState('');
   const [profileImage, setProfileImage] = useState<string | null>(null);
   
@@ -62,6 +62,22 @@ export default function ProviderRegisterScreen() {
         return [...prev, categoryId];
       }
     });
+  };
+
+  const toggleNeighborhood = (neighborhoodName: string) => {
+    setSelectedNeighborhoods(prev => {
+      if (prev.includes(neighborhoodName)) {
+        return prev.filter(n => n !== neighborhoodName);
+      } else {
+        return [...prev, neighborhoodName];
+      }
+    });
+  };
+
+  const getSelectedNeighborhoodsText = () => {
+    if (selectedNeighborhoods.length === 0) return 'Selecionar áreas de atuação';
+    if (selectedNeighborhoods.length === 1) return selectedNeighborhoods[0];
+    return `${selectedNeighborhoods.length} área(s) selecionada(s)`;
   };
 
   useEffect(() => {
@@ -165,8 +181,8 @@ export default function ProviderRegisterScreen() {
       Alert.alert('Erro', 'Por favor, selecione pelo menos uma categoria.');
       return;
     }
-    if (!neighborhood) {
-      Alert.alert('Erro', 'Por favor, selecione uma área de atuação.');
+    if (selectedNeighborhoods.length === 0) {
+      Alert.alert('Erro', 'Por favor, selecione pelo menos uma área de atuação.');
       return;
     }
     if (!description.trim() || description.length < 20) {
@@ -182,7 +198,7 @@ export default function ProviderRegisterScreen() {
         phone: phone.replace(/\D/g, ''),
         categories: selectedCategories,
         cities: selectedCities,
-        neighborhood,
+        neighborhoods: selectedNeighborhoods,
         description: description.trim(),
         profile_image: profileImage,
       });
@@ -429,16 +445,32 @@ export default function ProviderRegisterScreen() {
 
             {/* Neighborhood */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Área de Atuação *</Text>
+              <Text style={styles.label}>Áreas de Atuação * (selecione uma ou mais)</Text>
               <TouchableOpacity
                 style={styles.selectButton}
                 onPress={() => setShowNeighborhoodPicker(!showNeighborhoodPicker)}
               >
-                <Text style={[styles.selectButtonText, neighborhood && styles.selectButtonTextActive]}>
-                  {neighborhood || 'Selecionar área de atuação'}
+                <Text style={[styles.selectButtonText, selectedNeighborhoods.length > 0 && styles.selectButtonTextActive]}>
+                  {getSelectedNeighborhoodsText()}
                 </Text>
-                <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                <Ionicons name={showNeighborhoodPicker ? "chevron-up" : "chevron-down"} size={20} color="#6B7280" />
               </TouchableOpacity>
+              
+              {/* Selected neighborhoods badges */}
+              {selectedNeighborhoods.length > 0 && (
+                <View style={styles.selectedCategoriesContainer}>
+                  {selectedNeighborhoods.map((n) => (
+                    <TouchableOpacity
+                      key={n}
+                      style={styles.categoryBadge}
+                      onPress={() => toggleNeighborhood(n)}
+                    >
+                      <Text style={styles.categoryBadgeText}>{n}</Text>
+                      <Ionicons name="close-circle" size={16} color="#10B981" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
               
               {showNeighborhoodPicker && (
                 <View style={styles.pickerContainer}>
@@ -448,22 +480,24 @@ export default function ProviderRegisterScreen() {
                         key={n}
                         style={[
                           styles.pickerItem,
-                          neighborhood === n && styles.pickerItemActive,
+                          selectedNeighborhoods.includes(n) && styles.pickerItemActive,
                           index === 0 && styles.allNeighborhoodsItem
                         ]}
-                        onPress={() => {
-                          setNeighborhood(n);
-                          setShowNeighborhoodPicker(false);
-                        }}
+                        onPress={() => toggleNeighborhood(n)}
                       >
+                        <Ionicons 
+                          name={selectedNeighborhoods.includes(n) ? "checkbox" : "square-outline"} 
+                          size={20} 
+                          color={selectedNeighborhoods.includes(n) ? '#10B981' : (index === 0 ? '#F59E0B' : '#9CA3AF')} 
+                        />
                         <Ionicons 
                           name={index === 0 ? "globe" : "location"} 
                           size={20} 
-                          color={neighborhood === n ? '#10B981' : (index === 0 ? '#F59E0B' : '#9CA3AF')} 
+                          color={selectedNeighborhoods.includes(n) ? '#10B981' : (index === 0 ? '#F59E0B' : '#9CA3AF')} 
                         />
                         <Text style={[
                           styles.pickerItemText,
-                          neighborhood === n && styles.pickerItemTextActive,
+                          selectedNeighborhoods.includes(n) && styles.pickerItemTextActive,
                           index === 0 && styles.allNeighborhoodsText
                         ]}>
                           {n}
