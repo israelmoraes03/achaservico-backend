@@ -8,6 +8,7 @@
     "scheme": "achaservico",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "owner": "sara_gomes",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.achaservico.app"
@@ -66,6 +67,10 @@
       "router": {},
       "eas": {
         "projectId": "333b989a-14ab-48fc-9378-62f4c9ea5145"
+      },
+      "developer": {
+        "name": "Sara Gomes da Silva",
+        "email": "saragomeshh@gmail.com"
       }
     }
   }
