@@ -3109,6 +3109,248 @@ async def pix_webhook(request: Request):
         logger.error(f"Webhook error: {e}")
         return {"status": "error", "message": str(e)}
 
+# ======================== LEGAL PAGES ========================
+
+PRIVACY_POLICY_HTML = """
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Política de Privacidade - AchaServiço</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0A0A0A; color: #E5E5E5; line-height: 1.7; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { color: #10B981; font-size: 28px; margin-bottom: 10px; }
+        h2 { color: #10B981; font-size: 20px; margin: 30px 0 15px; }
+        p { margin-bottom: 15px; }
+        ul { margin: 15px 0 15px 25px; }
+        li { margin-bottom: 8px; }
+        .updated { color: #6B7280; font-size: 14px; margin-bottom: 30px; }
+        .highlight { background: #10B98120; padding: 15px; border-radius: 8px; border-left: 4px solid #10B981; margin: 20px 0; }
+        a { color: #10B981; }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #333; color: #6B7280; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Política de Privacidade</h1>
+        <p class="updated">Última atualização: Março de 2026</p>
+        
+        <div class="highlight">
+            <strong>Resumo:</strong> O AchaServiço coleta apenas as informações necessárias para conectar você a prestadores de serviços. Não vendemos seus dados.
+        </div>
+        
+        <h2>1. Informações que Coletamos</h2>
+        <p>Ao utilizar o AchaServiço, podemos coletar:</p>
+        <ul>
+            <li><strong>Dados de cadastro:</strong> Nome, e-mail e foto de perfil (via login Google)</li>
+            <li><strong>Dados de prestadores:</strong> Nome, telefone/WhatsApp, descrição dos serviços, fotos dos trabalhos, cidade e bairros de atuação</li>
+            <li><strong>Dados de uso:</strong> Avaliações, favoritos e histórico de contatos</li>
+        </ul>
+        
+        <h2>2. Como Usamos suas Informações</h2>
+        <p>Utilizamos seus dados para:</p>
+        <ul>
+            <li>Permitir o cadastro e login no aplicativo</li>
+            <li>Exibir perfis de prestadores para usuários que buscam serviços</li>
+            <li>Facilitar o contato entre usuários e prestadores via WhatsApp</li>
+            <li>Enviar notificações sobre favoritos e comunicados importantes</li>
+            <li>Melhorar nossos serviços e experiência do usuário</li>
+        </ul>
+        
+        <h2>3. Compartilhamento de Dados</h2>
+        <p>Seus dados podem ser compartilhados:</p>
+        <ul>
+            <li><strong>Com outros usuários:</strong> Informações públicas do perfil de prestadores são visíveis para quem busca serviços</li>
+            <li><strong>Com serviços de terceiros:</strong> Google (autenticação), Cloudinary (armazenamento de imagens), Expo (notificações push)</li>
+        </ul>
+        <p><strong>Não vendemos, alugamos ou comercializamos seus dados pessoais.</strong></p>
+        
+        <h2>4. Armazenamento e Segurança</h2>
+        <p>Seus dados são armazenados em servidores seguros com criptografia. Utilizamos práticas de segurança padrão da indústria para proteger suas informações.</p>
+        
+        <h2>5. Seus Direitos</h2>
+        <p>Você tem direito a:</p>
+        <ul>
+            <li>Acessar seus dados pessoais</li>
+            <li>Corrigir informações incorretas</li>
+            <li>Solicitar a exclusão da sua conta e dados</li>
+            <li>Revogar consentimento para uso dos dados</li>
+        </ul>
+        <p>Para exercer esses direitos, entre em contato conosco.</p>
+        
+        <h2>6. Cookies e Tecnologias</h2>
+        <p>O aplicativo pode utilizar tecnologias de armazenamento local para manter sua sessão ativa e preferências salvas.</p>
+        
+        <h2>7. Menores de Idade</h2>
+        <p>O AchaServiço não é destinado a menores de 18 anos. Não coletamos intencionalmente dados de menores.</p>
+        
+        <h2>8. Alterações nesta Política</h2>
+        <p>Podemos atualizar esta política periodicamente. Notificaremos sobre mudanças significativas através do aplicativo.</p>
+        
+        <h2>9. Contato</h2>
+        <p>Para dúvidas sobre privacidade:</p>
+        <ul>
+            <li><strong>E-mail:</strong> contato.achaservico@gmail.com</li>
+            <li><strong>Desenvolvedor:</strong> Sara Gomes da Silva</li>
+            <li><strong>Localização:</strong> Três Lagoas - MS, Brasil</li>
+        </ul>
+        
+        <div class="footer">
+            <p>© 2026 AchaServiço. Todos os direitos reservados.</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+TERMS_OF_USE_HTML = """
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Termos de Uso - AchaServiço</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0A0A0A; color: #E5E5E5; line-height: 1.7; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { color: #10B981; font-size: 28px; margin-bottom: 10px; }
+        h2 { color: #10B981; font-size: 20px; margin: 30px 0 15px; }
+        p { margin-bottom: 15px; }
+        ul { margin: 15px 0 15px 25px; }
+        li { margin-bottom: 8px; }
+        .updated { color: #6B7280; font-size: 14px; margin-bottom: 30px; }
+        .highlight { background: #10B98120; padding: 15px; border-radius: 8px; border-left: 4px solid #10B981; margin: 20px 0; }
+        .warning { background: #EF444420; padding: 15px; border-radius: 8px; border-left: 4px solid #EF4444; margin: 20px 0; }
+        a { color: #10B981; }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #333; color: #6B7280; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Termos de Uso</h1>
+        <p class="updated">Última atualização: Março de 2026</p>
+        
+        <div class="highlight">
+            <strong>Resumo:</strong> O AchaServiço é uma plataforma que conecta usuários a prestadores de serviços. Não somos responsáveis pelos serviços prestados.
+        </div>
+        
+        <h2>1. Aceitação dos Termos</h2>
+        <p>Ao acessar ou usar o AchaServiço, você concorda com estes Termos de Uso. Se não concordar, não utilize o aplicativo.</p>
+        
+        <h2>2. Descrição do Serviço</h2>
+        <p>O AchaServiço é uma plataforma gratuita que:</p>
+        <ul>
+            <li>Conecta usuários que precisam de serviços a prestadores locais</li>
+            <li>Permite que prestadores divulguem seus serviços</li>
+            <li>Facilita o contato direto via WhatsApp</li>
+            <li>Possibilita avaliações de prestadores</li>
+        </ul>
+        
+        <h2>3. Cadastro e Conta</h2>
+        <p>Para utilizar o AchaServiço:</p>
+        <ul>
+            <li>Você deve ter pelo menos 18 anos</li>
+            <li>O cadastro é feito via conta Google</li>
+            <li>Você é responsável por manter suas credenciais seguras</li>
+            <li>As informações fornecidas devem ser verdadeiras e atualizadas</li>
+        </ul>
+        
+        <h2>4. Regras para Prestadores</h2>
+        <p>Prestadores cadastrados devem:</p>
+        <ul>
+            <li>Fornecer informações verdadeiras sobre seus serviços</li>
+            <li>Manter telefone de contato atualizado</li>
+            <li>Não publicar conteúdo ofensivo, ilegal ou enganoso</li>
+            <li>Respeitar os usuários e responder de forma profissional</li>
+            <li>Usar apenas fotos próprias ou com direitos de uso</li>
+        </ul>
+        
+        <h2>5. Regras para Usuários</h2>
+        <p>Usuários do AchaServiço devem:</p>
+        <ul>
+            <li>Usar o aplicativo de forma respeitosa</li>
+            <li>Fazer avaliações honestas e construtivas</li>
+            <li>Não usar linguagem ofensiva ou discriminatória</li>
+            <li>Não tentar fraudar ou manipular o sistema</li>
+        </ul>
+        
+        <div class="warning">
+            <h2>6. Isenção de Responsabilidade</h2>
+            <p><strong>IMPORTANTE:</strong> O AchaServiço é apenas uma plataforma de conexão.</p>
+            <ul>
+                <li>Não somos parte dos contratos entre usuários e prestadores</li>
+                <li>Não garantimos a qualidade dos serviços prestados</li>
+                <li>Não nos responsabilizamos por danos decorrentes dos serviços contratados</li>
+                <li>A negociação de preços e condições é feita diretamente entre as partes</li>
+            </ul>
+        </div>
+        
+        <h2>7. Avaliações</h2>
+        <p>O sistema de avaliações:</p>
+        <ul>
+            <li>É anônimo para proteger os usuários</li>
+            <li>Requer contato prévio com o prestador via WhatsApp</li>
+            <li>Deve refletir experiências reais</li>
+            <li>Pode ser removido se violar nossas diretrizes</li>
+        </ul>
+        
+        <h2>8. Propriedade Intelectual</h2>
+        <p>Todo o conteúdo do AchaServiço (logotipos, design, código) é de propriedade da desenvolvedora. É proibida a reprodução sem autorização.</p>
+        
+        <h2>9. Suspensão e Encerramento</h2>
+        <p>Reservamo-nos o direito de suspender ou encerrar contas que:</p>
+        <ul>
+            <li>Violem estes termos</li>
+            <li>Publiquem conteúdo inadequado</li>
+            <li>Prejudiquem outros usuários ou a plataforma</li>
+        </ul>
+        
+        <h2>10. Alterações nos Termos</h2>
+        <p>Podemos modificar estes termos a qualquer momento. Mudanças significativas serão comunicadas pelo aplicativo.</p>
+        
+        <h2>11. Lei Aplicável</h2>
+        <p>Estes termos são regidos pelas leis da República Federativa do Brasil.</p>
+        
+        <h2>12. Contato</h2>
+        <p>Para dúvidas sobre estes termos:</p>
+        <ul>
+            <li><strong>E-mail:</strong> contato.achaservico@gmail.com</li>
+            <li><strong>Desenvolvedor:</strong> Sara Gomes da Silva</li>
+            <li><strong>Localização:</strong> Três Lagoas - MS, Brasil</li>
+        </ul>
+        
+        <div class="footer">
+            <p>© 2026 AchaServiço. Todos os direitos reservados.</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy_policy():
+    """Serve the Privacy Policy page"""
+    return HTMLResponse(content=PRIVACY_POLICY_HTML)
+
+@app.get("/privacy-policy", response_class=HTMLResponse)
+async def privacy_policy_alt():
+    """Alternative URL for Privacy Policy"""
+    return HTMLResponse(content=PRIVACY_POLICY_HTML)
+
+@app.get("/terms", response_class=HTMLResponse)
+async def terms_of_use():
+    """Serve the Terms of Use page"""
+    return HTMLResponse(content=TERMS_OF_USE_HTML)
+
+@app.get("/terms-of-use", response_class=HTMLResponse)
+async def terms_of_use_alt():
+    """Alternative URL for Terms of Use"""
+    return HTMLResponse(content=TERMS_OF_USE_HTML)
+
 # ======================== ROOT ========================
 
 @api_router.get("/")
