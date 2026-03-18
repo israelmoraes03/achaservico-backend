@@ -127,9 +127,27 @@ export default function HomeScreen() {
       .map(catId => getCategoryName(catId || ''))
       .join(', ');
     
+    // Get location text - first city + count if more
+    let locationText = '';
+    if (provider.cities && provider.cities.length > 0) {
+      const firstCity = getCityName(provider.cities[0]);
+      locationText = provider.cities.length > 1 
+        ? `${firstCity} +${provider.cities.length - 1}` 
+        : firstCity;
+    } else if (provider.neighborhoods && provider.neighborhoods.length > 0) {
+      locationText = provider.neighborhoods[0];
+      if (provider.neighborhoods.length > 1) {
+        locationText += ` +${provider.neighborhoods.length - 1}`;
+      }
+    } else if (provider.neighborhood) {
+      locationText = provider.neighborhood;
+    } else {
+      locationText = 'Três Lagoas - MS';
+    }
+    
     const message = `🔧 *${provider.name}*\n\n` +
       `📋 ${categoryNames}\n` +
-      `📍 ${provider.neighborhood}\n` +
+      `📍 ${locationText}\n` +
       `📞 ${provider.phone}\n\n` +
       `Encontre este e outros profissionais no AchaServiço!`;
     
@@ -222,7 +240,15 @@ export default function HomeScreen() {
     setRefreshing(false);
   }, [fetchData, fetchProviders]);
 
-  const openWhatsApp = (phone: string, providerName: string) => {
+  const openWhatsApp = async (phone: string, providerName: string, providerId: string) => {
+    // Register contact before opening WhatsApp
+    try {
+      await api.post(`/providers/${providerId}/contact`);
+    } catch (error) {
+      // Silently fail - user can still contact
+      console.log('Could not register contact:', error);
+    }
+    
     const cleanPhone = phone.replace(/\D/g, '');
     const message = encodeURIComponent(`Olá ${providerName}! Encontrei seu perfil no AchaServiço e gostaria de solicitar um orçamento.`);
     const url = `https://wa.me/55${cleanPhone}?text=${message}`;
@@ -545,7 +571,7 @@ export default function HomeScreen() {
                   {/* WhatsApp Button */}
                   <TouchableOpacity
                     style={styles.whatsappButton}
-                    onPress={() => openWhatsApp(provider.phone, provider.name)}
+                    onPress={() => openWhatsApp(provider.phone, provider.name, provider.provider_id)}
                   >
                     <Ionicons name="logo-whatsapp" size={18} color="#FFFFFF" />
                     <Text style={styles.whatsappButtonText}>Orçamento</Text>

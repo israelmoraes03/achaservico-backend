@@ -17,7 +17,7 @@ import { useAuth } from '../src/context/AuthContext';
 import api from '../src/services/api';
 
 const SUPPORT_PHONE = '5566996841531';
-const SUPPORT_EMAIL = 'israel.moraes03@gmail.com';
+const SUPPORT_EMAIL = 'contato.achaservico@gmail.com';
 
 interface FavoriteProvider {
   provider_id: string;

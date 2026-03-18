@@ -602,6 +602,7 @@ CATEGORIES = [
     {"id": "informatica", "name": "Técnico de Informática", "icon": "laptop"},
     {"id": "manicure", "name": "Manicure/Pedicure", "icon": "hand-left"},
     {"id": "cabeleireiro", "name": "Cabeleireiro(a)", "icon": "cut"},
+    {"id": "design_sobrancelha", "name": "Design de Sobrancelha", "icon": "eye"},
     {"id": "personal", "name": "Personal Trainer", "icon": "fitness"},
     {"id": "professor", "name": "Professor Particular", "icon": "school"},
     {"id": "costureira", "name": "Costureira", "icon": "shirt"},
@@ -1239,11 +1240,16 @@ async def register_whatsapp_contact(provider_id: str, request: Request):
 
 @api_router.get("/providers/{provider_id}/can-review")
 async def check_can_review(provider_id: str, request: Request):
-    """Check if user can review this provider (must have contacted via WhatsApp)"""
+    """Check if user can review this provider (must have contacted via WhatsApp and not be the provider)"""
     user = await get_current_user(request)
     
     if not user:
         return {"can_review": False, "reason": "not_authenticated"}
+    
+    # Check if user is the provider (block self-review)
+    provider = await db.providers.find_one({"provider_id": provider_id}, {"_id": 0, "user_id": 1})
+    if provider and provider.get("user_id") == user.user_id:
+        return {"can_review": False, "reason": "self_review_not_allowed"}
     
     # Check if user already reviewed
     existing_review = await db.reviews.find_one({
