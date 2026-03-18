@@ -89,7 +89,7 @@ export default function ProviderDashboardScreen() {
   
   const [categories, setCategories] = useState<Category[]>([]);
   const [cities, setCities] = useState<City[]>([]);
-  const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
+  const [availableNeighborhoods, setAvailableNeighborhoods] = useState<string[]>([]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -112,6 +112,46 @@ export default function ProviderDashboardScreen() {
   const [showCityPicker, setShowCityPicker] = useState(false);
   const [showNeighborhoodPicker, setShowNeighborhoodPicker] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  // Fetch neighborhoods when selected cities change during editing
+  useEffect(() => {
+    const fetchNeighborhoodsForCities = async () => {
+      if (!isEditing || editCities.length === 0) {
+        return;
+      }
+      
+      try {
+        // Fetch neighborhoods for each selected city
+        const neighborhoodPromises = editCities.map(cityId => 
+          api.get(`/neighborhoods?city=${cityId}`)
+        );
+        const responses = await Promise.all(neighborhoodPromises);
+        
+        // Combine all neighborhoods from selected cities
+        const allNeighborhoods: string[] = [];
+        
+        responses.forEach((res) => {
+          const cityNeighborhoods = res.data || [];
+          cityNeighborhoods.forEach((n: string) => {
+            if (!allNeighborhoods.includes(n)) {
+              allNeighborhoods.push(n);
+            }
+          });
+        });
+        
+        setAvailableNeighborhoods(allNeighborhoods);
+        
+        // Clear selected neighborhoods that are no longer available
+        setEditNeighborhoods(prev => 
+          prev.filter(n => allNeighborhoods.includes(n))
+        );
+      } catch (error) {
+        console.error('Error fetching neighborhoods:', error);
+      }
+    };
+    
+    fetchNeighborhoodsForCities();
+  }, [editCities, isEditing]);
   
   // PIX Modal states
   const [showPixModal, setShowPixModal] = useState(false);
@@ -205,14 +245,12 @@ export default function ProviderDashboardScreen() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [catRes, neighRes, citiesRes, subRes] = await Promise.all([
+      const [catRes, citiesRes, subRes] = await Promise.all([
         api.get('/categories'),
-        api.get('/neighborhoods'),
         api.get('/cities'),
         api.get('/subscriptions/status'),
       ]);
       setCategories(catRes.data);
-      setNeighborhoods(neighRes.data);
       setCities(citiesRes.data);
       setSubscription(subRes.data.subscription);
       
@@ -1045,26 +1083,34 @@ export default function ProviderDashboardScreen() {
                 {showNeighborhoodPicker && (
                   <View style={styles.pickerContainer}>
                     <ScrollView style={styles.pickerScroll} nestedScrollEnabled>
-                      {neighborhoods.map((n) => (
-                        <TouchableOpacity
-                          key={n}
-                          style={[styles.pickerItem, editNeighborhoods.includes(n) && styles.pickerItemActive]}
-                          onPress={() => {
-                            if (editNeighborhoods.includes(n)) {
-                              setEditNeighborhoods(editNeighborhoods.filter(item => item !== n));
-                            } else {
-                              setEditNeighborhoods([...editNeighborhoods, n]);
-                            }
-                          }}
-                        >
-                          <Text style={[styles.pickerItemText, editNeighborhoods.includes(n) && styles.pickerItemTextActive]}>
-                            {n}
+                      {availableNeighborhoods.length === 0 ? (
+                        <View style={styles.emptyNeighborhoods}>
+                          <Text style={styles.emptyNeighborhoodsText}>
+                            Selecione pelo menos uma cidade para ver os bairros disponíveis
                           </Text>
-                          {editNeighborhoods.includes(n) && (
-                            <Ionicons name="checkmark" size={20} color="#10B981" />
-                          )}
-                        </TouchableOpacity>
-                      ))}
+                        </View>
+                      ) : (
+                        availableNeighborhoods.map((n) => (
+                          <TouchableOpacity
+                            key={n}
+                            style={[styles.pickerItem, editNeighborhoods.includes(n) && styles.pickerItemActive]}
+                            onPress={() => {
+                              if (editNeighborhoods.includes(n)) {
+                                setEditNeighborhoods(editNeighborhoods.filter(item => item !== n));
+                              } else {
+                                setEditNeighborhoods([...editNeighborhoods, n]);
+                              }
+                            }}
+                          >
+                            <Text style={[styles.pickerItemText, editNeighborhoods.includes(n) && styles.pickerItemTextActive]}>
+                              {n}
+                            </Text>
+                            {editNeighborhoods.includes(n) && (
+                              <Ionicons name="checkmark" size={20} color="#10B981" />
+                            )}
+                          </TouchableOpacity>
+                        ))
+                      )}
                     </ScrollView>
                     <TouchableOpacity
                       style={styles.pickerDoneButton}
@@ -1783,6 +1829,15 @@ const styles = StyleSheet.create({
   },
   pickerScroll: {
     padding: 8,
+  },
+  emptyNeighborhoods: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyNeighborhoodsText: {
+    color: '#6B7280',
+    fontSize: 14,
+    textAlign: 'center',
   },
   pickerItem: {
     paddingVertical: 10,
