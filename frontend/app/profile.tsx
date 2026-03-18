@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../src/context/AuthContext';
 import api from '../src/services/api';
 
-const SUPPORT_PHONE = '5566996841531';
+const SUPPORT_PHONE = '5567998146122';
 const SUPPORT_EMAIL = 'contato.achaservico@gmail.com';
 
 interface FavoriteProvider {
