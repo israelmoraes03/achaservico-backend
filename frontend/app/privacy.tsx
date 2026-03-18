@@ -25,82 +25,85 @@ export default function PrivacyPolicyScreen() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.lastUpdate}>Última atualização: Janeiro de 2025</Text>
+        <Text style={styles.lastUpdate}>Última atualização: Março de 2026</Text>
 
-        <Text style={styles.sectionTitle}>1. Introdução</Text>
+        <View style={styles.highlight}>
+          <Text style={styles.highlightText}>
+            <Text style={styles.bold}>Resumo:</Text> O AchaServiço coleta apenas as informações necessárias para conectar você a prestadores de serviços. Não vendemos seus dados.
+          </Text>
+        </View>
+
+        <Text style={styles.sectionTitle}>1. Informações que Coletamos</Text>
         <Text style={styles.paragraph}>
-          O AchaServiço ("nós", "nosso" ou "aplicativo") está comprometido em proteger sua privacidade. Esta Política de Privacidade explica como coletamos, usamos, armazenamos e protegemos suas informações pessoais quando você utiliza nosso aplicativo de serviços locais em Três Lagoas - MS.
+          Ao utilizar o AchaServiço, podemos coletar:
+        </Text>
+        <Text style={styles.bulletPoint}>• <Text style={styles.bold}>Dados de cadastro:</Text> Nome, e-mail e foto de perfil (via login Google)</Text>
+        <Text style={styles.bulletPoint}>• <Text style={styles.bold}>Dados de prestadores:</Text> Nome, telefone/WhatsApp, descrição dos serviços, fotos dos trabalhos, cidade e bairros de atuação</Text>
+        <Text style={styles.bulletPoint}>• <Text style={styles.bold}>Dados de uso:</Text> Avaliações, favoritos e histórico de contatos</Text>
+
+        <Text style={styles.sectionTitle}>2. Como Usamos suas Informações</Text>
+        <Text style={styles.paragraph}>
+          Utilizamos seus dados para:
+        </Text>
+        <Text style={styles.bulletPoint}>• Permitir o cadastro e login no aplicativo</Text>
+        <Text style={styles.bulletPoint}>• Exibir perfis de prestadores para usuários que buscam serviços</Text>
+        <Text style={styles.bulletPoint}>• Facilitar o contato entre usuários e prestadores via WhatsApp</Text>
+        <Text style={styles.bulletPoint}>• Enviar notificações sobre favoritos e comunicados importantes</Text>
+        <Text style={styles.bulletPoint}>• Melhorar nossos serviços e experiência do usuário</Text>
+
+        <Text style={styles.sectionTitle}>3. Compartilhamento de Dados</Text>
+        <Text style={styles.paragraph}>
+          Seus dados podem ser compartilhados:
+        </Text>
+        <Text style={styles.bulletPoint}>• <Text style={styles.bold}>Com outros usuários:</Text> Informações públicas do perfil de prestadores são visíveis para quem busca serviços</Text>
+        <Text style={styles.bulletPoint}>• <Text style={styles.bold}>Com serviços de terceiros:</Text> Google (autenticação), Cloudinary (armazenamento de imagens), Expo (notificações push)</Text>
+        <Text style={[styles.paragraph, styles.bold]}>
+          Não vendemos, alugamos ou comercializamos seus dados pessoais.
         </Text>
 
-        <Text style={styles.sectionTitle}>2. Informações que Coletamos</Text>
+        <Text style={styles.sectionTitle}>4. Armazenamento e Segurança</Text>
         <Text style={styles.paragraph}>
-          Coletamos as seguintes informações:
-        </Text>
-        <Text style={styles.bulletPoint}>• Nome completo</Text>
-        <Text style={styles.bulletPoint}>• Endereço de e-mail</Text>
-        <Text style={styles.bulletPoint}>• Número de telefone (WhatsApp)</Text>
-        <Text style={styles.bulletPoint}>• Foto de perfil (opcional)</Text>
-        <Text style={styles.bulletPoint}>• Categoria de serviço (para prestadores)</Text>
-        <Text style={styles.bulletPoint}>• Bairro de atuação (para prestadores)</Text>
-        <Text style={styles.bulletPoint}>• Avaliações e comentários</Text>
-
-        <Text style={styles.sectionTitle}>3. Como Usamos suas Informações</Text>
-        <Text style={styles.paragraph}>
-          Utilizamos suas informações para:
-        </Text>
-        <Text style={styles.bulletPoint}>• Criar e gerenciar sua conta</Text>
-        <Text style={styles.bulletPoint}>• Exibir seu perfil para clientes (prestadores)</Text>
-        <Text style={styles.bulletPoint}>• Facilitar o contato entre clientes e prestadores</Text>
-        <Text style={styles.bulletPoint}>• Processar pagamentos de assinatura</Text>
-        <Text style={styles.bulletPoint}>• Melhorar nossos serviços</Text>
-        <Text style={styles.bulletPoint}>• Enviar comunicações importantes sobre o serviço</Text>
-
-        <Text style={styles.sectionTitle}>4. Compartilhamento de Dados</Text>
-        <Text style={styles.paragraph}>
-          Suas informações de perfil público (nome, categoria, bairro, avaliações) são visíveis para outros usuários do aplicativo. Seu número de telefone é compartilhado apenas quando um cliente opta por entrar em contato via WhatsApp.
-        </Text>
-        <Text style={styles.paragraph}>
-          Não vendemos, alugamos ou compartilhamos suas informações pessoais com terceiros para fins de marketing.
+          Seus dados são armazenados em servidores seguros com criptografia. Utilizamos práticas de segurança padrão da indústria para proteger suas informações.
         </Text>
 
-        <Text style={styles.sectionTitle}>5. Armazenamento e Segurança</Text>
+        <Text style={styles.sectionTitle}>5. Seus Direitos</Text>
         <Text style={styles.paragraph}>
-          Suas informações são armazenadas em servidores seguros. Implementamos medidas de segurança técnicas e organizacionais para proteger seus dados contra acesso não autorizado, alteração, divulgação ou destruição.
-        </Text>
-
-        <Text style={styles.sectionTitle}>6. Seus Direitos</Text>
-        <Text style={styles.paragraph}>
-          De acordo com a Lei Geral de Proteção de Dados (LGPD), você tem direito a:
+          Você tem direito a:
         </Text>
         <Text style={styles.bulletPoint}>• Acessar seus dados pessoais</Text>
-        <Text style={styles.bulletPoint}>• Corrigir dados incompletos ou desatualizados</Text>
-        <Text style={styles.bulletPoint}>• Solicitar a exclusão de seus dados</Text>
-        <Text style={styles.bulletPoint}>• Revogar seu consentimento</Text>
-        <Text style={styles.bulletPoint}>• Solicitar a portabilidade dos dados</Text>
-
-        <Text style={styles.sectionTitle}>7. Cookies e Tecnologias Similares</Text>
+        <Text style={styles.bulletPoint}>• Corrigir informações incorretas</Text>
+        <Text style={styles.bulletPoint}>• Solicitar a exclusão da sua conta e dados</Text>
+        <Text style={styles.bulletPoint}>• Revogar consentimento para uso dos dados</Text>
         <Text style={styles.paragraph}>
-          Utilizamos tecnologias de armazenamento local para manter sua sessão ativa e melhorar sua experiência no aplicativo.
+          Para exercer esses direitos, entre em contato conosco.
         </Text>
 
-        <Text style={styles.sectionTitle}>8. Menores de Idade</Text>
+        <Text style={styles.sectionTitle}>6. Cookies e Tecnologias</Text>
         <Text style={styles.paragraph}>
-          O AchaServiço não é destinado a menores de 18 anos. Não coletamos intencionalmente informações de menores de idade.
+          O aplicativo pode utilizar tecnologias de armazenamento local para manter sua sessão ativa e preferências salvas.
         </Text>
 
-        <Text style={styles.sectionTitle}>9. Alterações nesta Política</Text>
+        <Text style={styles.sectionTitle}>7. Menores de Idade</Text>
         <Text style={styles.paragraph}>
-          Podemos atualizar esta Política de Privacidade periodicamente. Notificaremos você sobre quaisquer alterações significativas através do aplicativo ou por e-mail.
+          O AchaServiço não é destinado a menores de 18 anos. Não coletamos intencionalmente dados de menores.
         </Text>
 
-        <Text style={styles.sectionTitle}>10. Contato</Text>
+        <Text style={styles.sectionTitle}>8. Alterações nesta Política</Text>
         <Text style={styles.paragraph}>
-          Se você tiver dúvidas sobre esta Política de Privacidade ou sobre como tratamos seus dados, entre em contato conosco:
+          Podemos atualizar esta política periodicamente. Notificaremos sobre mudanças significativas através do aplicativo.
         </Text>
-        <Text style={styles.contactInfo}>E-mail: contato@achaservico.com.br</Text>
-        <Text style={styles.contactInfo}>Localização: Três Lagoas - MS, Brasil</Text>
 
-        <View style={styles.bottomSpacer} />
+        <Text style={styles.sectionTitle}>9. Contato</Text>
+        <Text style={styles.paragraph}>
+          Para dúvidas sobre privacidade:
+        </Text>
+        <Text style={styles.bulletPoint}>• <Text style={styles.bold}>E-mail:</Text> contato.achaservico@gmail.com</Text>
+        <Text style={styles.bulletPoint}>• <Text style={styles.bold}>Desenvolvedor:</Text> Sara Gomes da Silva</Text>
+        <Text style={styles.bulletPoint}>• <Text style={styles.bold}>Localização:</Text> Três Lagoas - MS, Brasil</Text>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>© 2026 AchaServiço. Todos os direitos reservados.</Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -113,10 +116,12 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1F1F1F',
   },
   backButton: {
     width: 40,
@@ -131,18 +136,32 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   lastUpdate: {
+    fontSize: 14,
     color: '#6B7280',
-    fontSize: 12,
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  highlight: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    padding: 16,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#10B981',
     marginBottom: 24,
   },
+  highlightText: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    lineHeight: 22,
+  },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#10B981',
-    marginTop: 20,
+    marginTop: 24,
     marginBottom: 12,
   },
   paragraph: {
@@ -156,13 +175,22 @@ const styles = StyleSheet.create({
     color: '#D1D5DB',
     lineHeight: 24,
     marginLeft: 8,
-  },
-  contactInfo: {
-    fontSize: 14,
-    color: '#10B981',
     marginBottom: 4,
   },
-  bottomSpacer: {
-    height: 40,
+  bold: {
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  footer: {
+    marginTop: 40,
+    marginBottom: 40,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
   },
 });

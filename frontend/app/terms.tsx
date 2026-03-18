@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-export default function TermsScreen() {
+export default function TermsOfUseScreen() {
   const router = useRouter();
 
   return (
@@ -25,102 +25,110 @@ export default function TermsScreen() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.lastUpdate}>Última atualização: Janeiro de 2025</Text>
+        <Text style={styles.lastUpdate}>Última atualização: Março de 2026</Text>
+
+        <View style={styles.highlight}>
+          <Text style={styles.highlightText}>
+            <Text style={styles.bold}>Resumo:</Text> O AchaServiço é uma plataforma que conecta usuários a prestadores de serviços. Não somos responsáveis pelos serviços prestados.
+          </Text>
+        </View>
 
         <Text style={styles.sectionTitle}>1. Aceitação dos Termos</Text>
         <Text style={styles.paragraph}>
-          Ao usar o aplicativo AchaServiço, você concorda com estes Termos de Uso. Se você não concordar com qualquer parte destes termos, não utilize o aplicativo.
+          Ao acessar ou usar o AchaServiço, você concorda com estes Termos de Uso. Se não concordar, não utilize o aplicativo.
         </Text>
 
         <Text style={styles.sectionTitle}>2. Descrição do Serviço</Text>
         <Text style={styles.paragraph}>
-          O AchaServiço é uma plataforma que conecta clientes a prestadores de serviços locais em Três Lagoas - MS. O aplicativo permite que:
+          O AchaServiço é uma plataforma gratuita que:
         </Text>
-        <Text style={styles.bulletPoint}>• Clientes encontrem e entrem em contato com prestadores de serviços</Text>
-        <Text style={styles.bulletPoint}>• Prestadores divulguem seus serviços mediante assinatura mensal</Text>
+        <Text style={styles.bulletPoint}>• Conecta usuários que precisam de serviços a prestadores locais</Text>
+        <Text style={styles.bulletPoint}>• Permite que prestadores divulguem seus serviços</Text>
+        <Text style={styles.bulletPoint}>• Facilita o contato direto via WhatsApp</Text>
+        <Text style={styles.bulletPoint}>• Possibilita avaliações de prestadores</Text>
 
-        <Text style={styles.sectionTitle}>3. Tipos de Usuários</Text>
-        <Text style={styles.subTitle}>3.1 Clientes</Text>
+        <Text style={styles.sectionTitle}>3. Cadastro e Conta</Text>
         <Text style={styles.paragraph}>
-          Clientes podem usar o aplicativo gratuitamente para buscar e entrar em contato com prestadores de serviços. O cadastro não é obrigatório para visualizar perfis.
+          Para utilizar o AchaServiço:
         </Text>
-        <Text style={styles.subTitle}>3.2 Prestadores de Serviço</Text>
+        <Text style={styles.bulletPoint}>• Você deve ter pelo menos 18 anos</Text>
+        <Text style={styles.bulletPoint}>• O cadastro é feito via conta Google</Text>
+        <Text style={styles.bulletPoint}>• Você é responsável por manter suas credenciais seguras</Text>
+        <Text style={styles.bulletPoint}>• As informações fornecidas devem ser verdadeiras e atualizadas</Text>
+
+        <Text style={styles.sectionTitle}>4. Regras para Prestadores</Text>
         <Text style={styles.paragraph}>
-          Prestadores pagam uma assinatura mensal de R$ 9,99 para manter seus perfis ativos e visíveis para clientes. A assinatura pode ser cancelada a qualquer momento.
+          Prestadores cadastrados devem:
+        </Text>
+        <Text style={styles.bulletPoint}>• Fornecer informações verdadeiras sobre seus serviços</Text>
+        <Text style={styles.bulletPoint}>• Manter telefone de contato atualizado</Text>
+        <Text style={styles.bulletPoint}>• Não publicar conteúdo ofensivo, ilegal ou enganoso</Text>
+        <Text style={styles.bulletPoint}>• Respeitar os usuários e responder de forma profissional</Text>
+        <Text style={styles.bulletPoint}>• Usar apenas fotos próprias ou com direitos de uso</Text>
+
+        <Text style={styles.sectionTitle}>5. Regras para Usuários</Text>
+        <Text style={styles.paragraph}>
+          Usuários do AchaServiço devem:
+        </Text>
+        <Text style={styles.bulletPoint}>• Usar o aplicativo de forma respeitosa</Text>
+        <Text style={styles.bulletPoint}>• Fazer avaliações honestas e construtivas</Text>
+        <Text style={styles.bulletPoint}>• Não usar linguagem ofensiva ou discriminatória</Text>
+        <Text style={styles.bulletPoint}>• Não tentar fraudar ou manipular o sistema</Text>
+
+        <View style={styles.warning}>
+          <Text style={styles.warningSectionTitle}>6. Isenção de Responsabilidade</Text>
+          <Text style={styles.warningText}>
+            <Text style={styles.bold}>IMPORTANTE:</Text> O AchaServiço é apenas uma plataforma de conexão.
+          </Text>
+          <Text style={styles.warningBullet}>• Não somos parte dos contratos entre usuários e prestadores</Text>
+          <Text style={styles.warningBullet}>• Não garantimos a qualidade dos serviços prestados</Text>
+          <Text style={styles.warningBullet}>• Não nos responsabilizamos por danos decorrentes dos serviços contratados</Text>
+          <Text style={styles.warningBullet}>• A negociação de preços e condições é feita diretamente entre as partes</Text>
+        </View>
+
+        <Text style={styles.sectionTitle}>7. Avaliações</Text>
+        <Text style={styles.paragraph}>
+          O sistema de avaliações:
+        </Text>
+        <Text style={styles.bulletPoint}>• É anônimo para proteger os usuários</Text>
+        <Text style={styles.bulletPoint}>• Requer contato prévio com o prestador via WhatsApp</Text>
+        <Text style={styles.bulletPoint}>• Deve refletir experiências reais</Text>
+        <Text style={styles.bulletPoint}>• Pode ser removido se violar nossas diretrizes</Text>
+
+        <Text style={styles.sectionTitle}>8. Propriedade Intelectual</Text>
+        <Text style={styles.paragraph}>
+          Todo o conteúdo do AchaServiço (logotipos, design, código) é de propriedade da desenvolvedora. É proibida a reprodução sem autorização.
         </Text>
 
-        <Text style={styles.sectionTitle}>4. Cadastro e Conta</Text>
-        <Text style={styles.paragraph}>
-          Ao criar uma conta, você se compromete a:
-        </Text>
-        <Text style={styles.bulletPoint}>• Fornecer informações verdadeiras e atualizadas</Text>
-        <Text style={styles.bulletPoint}>• Manter a segurança de sua conta</Text>
-        <Text style={styles.bulletPoint}>• Não compartilhar suas credenciais de acesso</Text>
-        <Text style={styles.bulletPoint}>• Notificar-nos sobre qualquer uso não autorizado</Text>
-
-        <Text style={styles.sectionTitle}>5. Pagamentos e Assinaturas</Text>
-        <Text style={styles.paragraph}>
-          A assinatura para prestadores custa R$ 9,99 por mês. O pagamento é realizado via PIX. A assinatura é válida por 30 dias a partir da data de ativação.
-        </Text>
-        <Text style={styles.paragraph}>
-          Em caso de não renovação, o perfil do prestador ficará inativo e não será exibido para clientes.
-        </Text>
-
-        <Text style={styles.sectionTitle}>6. Responsabilidades do Usuário</Text>
-        <Text style={styles.paragraph}>
-          Os usuários são responsáveis por:
-        </Text>
-        <Text style={styles.bulletPoint}>• Negociar diretamente os termos dos serviços</Text>
-        <Text style={styles.bulletPoint}>• Verificar a qualidade dos serviços contratados</Text>
-        <Text style={styles.bulletPoint}>• Realizar avaliações honestas e construtivas</Text>
-        <Text style={styles.bulletPoint}>• Não usar o aplicativo para fins ilegais</Text>
-
-        <Text style={styles.sectionTitle}>7. Limitação de Responsabilidade</Text>
-        <Text style={styles.paragraph}>
-          O AchaServiço é apenas uma plataforma de conexão. Não somos responsáveis por:
-        </Text>
-        <Text style={styles.bulletPoint}>• Qualidade dos serviços prestados</Text>
-        <Text style={styles.bulletPoint}>• Acordos entre clientes e prestadores</Text>
-        <Text style={styles.bulletPoint}>• Danos resultantes de serviços contratados</Text>
-        <Text style={styles.bulletPoint}>• Condutas de terceiros na plataforma</Text>
-
-        <Text style={styles.sectionTitle}>8. Avaliações e Comentários</Text>
-        <Text style={styles.paragraph}>
-          Os usuários podem avaliar prestadores com notas de 1 a 5 estrelas e deixar comentários opcionais. Avaliações falsas, ofensivas ou spam podem ser removidas.
-        </Text>
-
-        <Text style={styles.sectionTitle}>9. Suspensão de Contas</Text>
+        <Text style={styles.sectionTitle}>9. Suspensão e Encerramento</Text>
         <Text style={styles.paragraph}>
           Reservamo-nos o direito de suspender ou encerrar contas que:
         </Text>
-        <Text style={styles.bulletPoint}>• Violem estes Termos de Uso</Text>
-        <Text style={styles.bulletPoint}>• Forneçam informações falsas</Text>
-        <Text style={styles.bulletPoint}>• Sejam denunciadas por condutas inadequadas</Text>
-        <Text style={styles.bulletPoint}>• Não paguem a assinatura (prestadores)</Text>
+        <Text style={styles.bulletPoint}>• Violem estes termos</Text>
+        <Text style={styles.bulletPoint}>• Publiquem conteúdo inadequado</Text>
+        <Text style={styles.bulletPoint}>• Prejudiquem outros usuários ou a plataforma</Text>
 
-        <Text style={styles.sectionTitle}>10. Propriedade Intelectual</Text>
+        <Text style={styles.sectionTitle}>10. Alterações nos Termos</Text>
         <Text style={styles.paragraph}>
-          Todo o conteúdo do aplicativo, incluindo design, logotipos e funcionalidades, é propriedade do AchaServiço e está protegido por leis de propriedade intelectual.
+          Podemos modificar estes termos a qualquer momento. Mudanças significativas serão comunicadas pelo aplicativo.
         </Text>
 
-        <Text style={styles.sectionTitle}>11. Alterações nos Termos</Text>
+        <Text style={styles.sectionTitle}>11. Lei Aplicável</Text>
         <Text style={styles.paragraph}>
-          Podemos modificar estes Termos a qualquer momento. Alterações significativas serão comunicadas através do aplicativo. O uso contínuo após alterações constitui aceitação dos novos termos.
+          Estes termos são regidos pelas leis da República Federativa do Brasil.
         </Text>
 
-        <Text style={styles.sectionTitle}>12. Lei Aplicável</Text>
+        <Text style={styles.sectionTitle}>12. Contato</Text>
         <Text style={styles.paragraph}>
-          Estes Termos são regidos pelas leis brasileiras. Qualquer disputa será resolvida no foro da comarca de Três Lagoas - MS.
+          Para dúvidas sobre estes termos:
         </Text>
+        <Text style={styles.bulletPoint}>• <Text style={styles.bold}>E-mail:</Text> contato.achaservico@gmail.com</Text>
+        <Text style={styles.bulletPoint}>• <Text style={styles.bold}>Desenvolvedor:</Text> Sara Gomes da Silva</Text>
+        <Text style={styles.bulletPoint}>• <Text style={styles.bold}>Localização:</Text> Três Lagoas - MS, Brasil</Text>
 
-        <Text style={styles.sectionTitle}>13. Contato</Text>
-        <Text style={styles.paragraph}>
-          Para dúvidas sobre estes Termos de Uso:
-        </Text>
-        <Text style={styles.contactInfo}>E-mail: contato@achaservico.com.br</Text>
-        <Text style={styles.contactInfo}>Localização: Três Lagoas - MS, Brasil</Text>
-
-        <View style={styles.bottomSpacer} />
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>© 2026 AchaServiço. Todos os direitos reservados.</Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -133,10 +141,12 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1F1F1F',
   },
   backButton: {
     width: 40,
@@ -151,26 +161,59 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   lastUpdate: {
+    fontSize: 14,
     color: '#6B7280',
-    fontSize: 12,
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  highlight: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    padding: 16,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#10B981',
     marginBottom: 24,
   },
-  sectionTitle: {
-    fontSize: 16,
+  highlightText: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    lineHeight: 22,
+  },
+  warning: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    padding: 16,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#EF4444',
+    marginVertical: 16,
+  },
+  warningSectionTitle: {
+    fontSize: 18,
     fontWeight: '600',
-    color: '#10B981',
-    marginTop: 20,
+    color: '#EF4444',
     marginBottom: 12,
   },
-  subTitle: {
+  warningText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginTop: 12,
+    color: '#FCA5A5',
+    lineHeight: 22,
     marginBottom: 8,
+  },
+  warningBullet: {
+    fontSize: 14,
+    color: '#FCA5A5',
+    lineHeight: 24,
+    marginLeft: 8,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#10B981',
+    marginTop: 24,
+    marginBottom: 12,
   },
   paragraph: {
     fontSize: 14,
@@ -183,13 +226,22 @@ const styles = StyleSheet.create({
     color: '#D1D5DB',
     lineHeight: 24,
     marginLeft: 8,
-  },
-  contactInfo: {
-    fontSize: 14,
-    color: '#10B981',
     marginBottom: 4,
   },
-  bottomSpacer: {
-    height: 40,
+  bold: {
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  footer: {
+    marginTop: 40,
+    marginBottom: 40,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
   },
 });
