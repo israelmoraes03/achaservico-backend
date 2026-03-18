@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../src/context/AuthContext';
 import api from '../src/services/api';
+import OnboardingTutorial, { checkTutorialCompleted } from '../src/components/OnboardingTutorial';
 
 interface Category {
   id: string;
@@ -62,6 +63,21 @@ export default function HomeScreen() {
   const [showNeighborhoodPicker, setShowNeighborhoodPicker] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  // Check if tutorial should be shown
+  useEffect(() => {
+    async function checkTutorial() {
+      const completed = await checkTutorialCompleted();
+      if (!completed && isAuthenticated) {
+        // Small delay to let the UI render first
+        setTimeout(() => setShowTutorial(true), 500);
+      }
+    }
+    if (!authLoading) {
+      checkTutorial();
+    }
+  }, [authLoading, isAuthenticated]);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -548,9 +564,15 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={styles.fab}
           onPress={() => router.push('/provider/dashboard')}
+          data-testid="provider-fab-btn"
         >
           <Ionicons name="briefcase" size={24} color="#FFFFFF" />
         </TouchableOpacity>
+      )}
+
+      {/* Onboarding Tutorial */}
+      {showTutorial && (
+        <OnboardingTutorial onComplete={() => setShowTutorial(false)} />
       )}
     </SafeAreaView>
   );
