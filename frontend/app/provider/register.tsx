@@ -36,7 +36,8 @@ export default function ProviderRegisterScreen() {
   const { user, isAuthenticated, login, refreshUser } = useAuth();
   
   const [categories, setCategories] = useState<Category[]>([]);
-  const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
+  const [availableNeighborhoods, setAvailableNeighborhoods] = useState<string[]>([]);
+  const [neighborhoodsByCity, setNeighborhoodsByCity] = useState<{[key: string]: string[]}>({});
   const [cities, setCities] = useState<City[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,6 +54,51 @@ export default function ProviderRegisterScreen() {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showCityPicker, setShowCityPicker] = useState(false);
   const [showNeighborhoodPicker, setShowNeighborhoodPicker] = useState(false);
+
+  // Fetch neighborhoods when selected cities change
+  useEffect(() => {
+    const fetchNeighborhoodsForCities = async () => {
+      if (selectedCities.length === 0) {
+        setAvailableNeighborhoods([]);
+        return;
+      }
+      
+      try {
+        // Fetch neighborhoods for each selected city
+        const neighborhoodPromises = selectedCities.map(cityId => 
+          api.get(`/neighborhoods?city=${cityId}`)
+        );
+        const responses = await Promise.all(neighborhoodPromises);
+        
+        // Combine all neighborhoods from selected cities
+        const allNeighborhoods: string[] = [];
+        const byCity: {[key: string]: string[]} = {};
+        
+        responses.forEach((res, index) => {
+          const cityId = selectedCities[index];
+          const cityNeighborhoods = res.data || [];
+          byCity[cityId] = cityNeighborhoods;
+          cityNeighborhoods.forEach((n: string) => {
+            if (!allNeighborhoods.includes(n)) {
+              allNeighborhoods.push(n);
+            }
+          });
+        });
+        
+        setNeighborhoodsByCity(byCity);
+        setAvailableNeighborhoods(allNeighborhoods);
+        
+        // Clear selected neighborhoods that are no longer available
+        setSelectedNeighborhoods(prev => 
+          prev.filter(n => allNeighborhoods.includes(n))
+        );
+      } catch (error) {
+        console.error('Error fetching neighborhoods:', error);
+      }
+    };
+    
+    fetchNeighborhoodsForCities();
+  }, [selectedCities]);
 
   const toggleCategory = (categoryId: string) => {
     setSelectedCategories(prev => {
@@ -107,13 +153,11 @@ export default function ProviderRegisterScreen() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [catRes, neighRes, citiesRes] = await Promise.all([
+        const [catRes, citiesRes] = await Promise.all([
           api.get('/categories'),
-          api.get('/neighborhoods'),
           api.get('/cities'),
         ]);
         setCategories(catRes.data);
-        setNeighborhoods(neighRes.data);
         setCities(citiesRes.data);
         
         // Pre-fill name from user
@@ -475,40 +519,48 @@ export default function ProviderRegisterScreen() {
               {showNeighborhoodPicker && (
                 <View style={styles.pickerContainer}>
                   <ScrollView style={styles.pickerScroll} nestedScrollEnabled>
-                    {neighborhoods.map((n, index) => (
-                      <TouchableOpacity
-                        key={n}
-                        style={[
-                          styles.pickerItem,
-                          selectedNeighborhoods.includes(n) && styles.pickerItemActive,
-                          index === 0 && styles.allNeighborhoodsItem
-                        ]}
-                        onPress={() => toggleNeighborhood(n)}
-                      >
-                        <Ionicons 
-                          name={selectedNeighborhoods.includes(n) ? "checkbox" : "square-outline"} 
-                          size={20} 
-                          color={selectedNeighborhoods.includes(n) ? '#10B981' : (index === 0 ? '#F59E0B' : '#9CA3AF')} 
-                        />
-                        <Ionicons 
-                          name={index === 0 ? "globe" : "location"} 
-                          size={20} 
-                          color={selectedNeighborhoods.includes(n) ? '#10B981' : (index === 0 ? '#F59E0B' : '#9CA3AF')} 
-                        />
-                        <Text style={[
-                          styles.pickerItemText,
-                          selectedNeighborhoods.includes(n) && styles.pickerItemTextActive,
-                          index === 0 && styles.allNeighborhoodsText
-                        ]}>
-                          {n}
+                    {availableNeighborhoods.length === 0 ? (
+                      <View style={styles.emptyNeighborhoods}>
+                        <Text style={styles.emptyNeighborhoodsText}>
+                          Selecione pelo menos uma cidade para ver os bairros disponíveis
                         </Text>
-                        {index === 0 && (
-                          <View style={styles.recommendedBadge}>
-                            <Text style={styles.recommendedBadgeText}>Recomendado</Text>
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    ))}
+                      </View>
+                    ) : (
+                      availableNeighborhoods.map((n, index) => (
+                        <TouchableOpacity
+                          key={n}
+                          style={[
+                            styles.pickerItem,
+                            selectedNeighborhoods.includes(n) && styles.pickerItemActive,
+                            index === 0 && styles.allNeighborhoodsItem
+                          ]}
+                          onPress={() => toggleNeighborhood(n)}
+                        >
+                          <Ionicons 
+                            name={selectedNeighborhoods.includes(n) ? "checkbox" : "square-outline"} 
+                            size={20} 
+                            color={selectedNeighborhoods.includes(n) ? '#10B981' : (index === 0 ? '#F59E0B' : '#9CA3AF')} 
+                          />
+                          <Ionicons 
+                            name={index === 0 ? "globe" : "location"} 
+                            size={20} 
+                            color={selectedNeighborhoods.includes(n) ? '#10B981' : (index === 0 ? '#F59E0B' : '#9CA3AF')} 
+                          />
+                          <Text style={[
+                            styles.pickerItemText,
+                            selectedNeighborhoods.includes(n) && styles.pickerItemTextActive,
+                            index === 0 && styles.allNeighborhoodsText
+                          ]}>
+                            {n}
+                          </Text>
+                          {index === 0 && (
+                            <View style={styles.recommendedBadge}>
+                              <Text style={styles.recommendedBadgeText}>Recomendado</Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      ))
+                    )}
                   </ScrollView>
                 </View>
               )}
@@ -696,6 +748,15 @@ const styles = StyleSheet.create({
   },
   pickerScroll: {
     padding: 8,
+  },
+  emptyNeighborhoods: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyNeighborhoodsText: {
+    color: '#6B7280',
+    fontSize: 14,
+    textAlign: 'center',
   },
   pickerItem: {
     flexDirection: 'row',
