@@ -108,17 +108,25 @@ export default function TermsOfUseScreen() {
         <Text style={styles.bulletPoint}>• Publiquem conteúdo inadequado</Text>
         <Text style={styles.bulletPoint}>• Prejudiquem outros usuários ou a plataforma</Text>
 
-        <Text style={styles.sectionTitle}>10. Alterações nos Termos</Text>
+        <Text style={styles.sectionTitle}>10. Planos e Preços</Text>
+        <Text style={styles.paragraph}>
+          O AchaServiço é atualmente gratuito para todos os usuários. Reservamo-nos o direito de, no futuro, introduzir planos pagos com recursos adicionais para prestadores de serviços.
+        </Text>
+        <Text style={styles.paragraph}>
+          Qualquer alteração nos preços ou introdução de cobranças será comunicada com antecedência mínima de 30 dias através do aplicativo e/ou e-mail cadastrado. O uso continuado após as alterações implica aceitação dos novos termos.
+        </Text>
+
+        <Text style={styles.sectionTitle}>11. Alterações nos Termos</Text>
         <Text style={styles.paragraph}>
           Podemos modificar estes termos a qualquer momento. Mudanças significativas serão comunicadas pelo aplicativo.
         </Text>
 
-        <Text style={styles.sectionTitle}>11. Lei Aplicável</Text>
+        <Text style={styles.sectionTitle}>12. Lei Aplicável</Text>
         <Text style={styles.paragraph}>
           Estes termos são regidos pelas leis da República Federativa do Brasil.
         </Text>
 
-        <Text style={styles.sectionTitle}>12. Contato</Text>
+        <Text style={styles.sectionTitle}>13. Contato</Text>
         <Text style={styles.paragraph}>
           Para dúvidas sobre estes termos:
         </Text>
