@@ -286,7 +286,7 @@ async def send_expiration_notification_email(provider_name: str, provider_email:
         return False
 
 async def send_push_notification(push_token: str, title: str, body: str, data: dict = None):
-    """Send push notification via Expo with proper Android configuration"""
+    """Send push notification via Expo with proper Android background support"""
     if not push_token or not push_token.startswith("ExponentPushToken"):
         logger.warning(f"Invalid push token: {push_token[:20] if push_token else 'None'}...")
         return False
@@ -294,7 +294,7 @@ async def send_push_notification(push_token: str, title: str, body: str, data: d
     try:
         notification_data = data or {"type": "general"}
         
-        # Build notification payload with Android-specific settings
+        # Build notification payload optimized for Android background delivery
         payload = {
             "to": push_token,
             "title": title,
@@ -303,17 +303,9 @@ async def send_push_notification(push_token: str, title: str, body: str, data: d
             "priority": "high",
             "channelId": "default",
             "data": notification_data,
-            # Android specific
-            "android": {
-                "channelId": "default",
-                "priority": "max",
-                "sound": "default",
-            },
-            # iOS specific
-            "ios": {
-                "sound": "default",
-                "_displayInForeground": True
-            }
+            # Critical for Android background notifications
+            "mutableContent": True,
+            "contentAvailable": True,
         }
         
         async with httpx.AsyncClient() as client:
@@ -324,21 +316,30 @@ async def send_push_notification(push_token: str, title: str, body: str, data: d
                     "Content-Type": "application/json",
                     "Accept": "application/json",
                     "Accept-Encoding": "gzip, deflate"
-                }
+                },
+                timeout=30.0
             )
             
             result = response.json()
-            logger.info(f"Push response: {result}")
+            logger.info(f"Push API response: {result}")
             
             if response.status_code == 200:
-                # Check if there are any errors in the response
-                if "data" in result and result["data"].get("status") == "error":
-                    logger.error(f"Push notification error: {result['data'].get('message')}")
-                    return False
-                logger.info(f"Push notification sent to: {push_token[:30]}...")
+                # Check for errors in response data
+                if isinstance(result.get("data"), dict):
+                    if result["data"].get("status") == "error":
+                        error_msg = result["data"].get("message", "Unknown error")
+                        logger.error(f"Push notification error: {error_msg}")
+                        return False
+                elif isinstance(result.get("data"), list):
+                    for item in result["data"]:
+                        if item.get("status") == "error":
+                            logger.error(f"Push error: {item.get('message')}")
+                            return False
+                
+                logger.info(f"Push notification sent successfully to: {push_token[:30]}...")
                 return True
             else:
-                logger.error(f"Push notification failed: {response.text}")
+                logger.error(f"Push notification HTTP failed: {response.status_code} - {response.text}")
                 return False
     except Exception as e:
         logger.error(f"Error sending push notification: {str(e)}")
