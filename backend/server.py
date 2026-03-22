@@ -1029,14 +1029,18 @@ async def create_provider(provider_data: ProviderCreate, request: Request):
         {"$set": {"is_provider": True}}
     )
     
-    # Send email notification to admin about new provider registration
-    await send_admin_notification_email(
-        provider_name=provider.name,
-        provider_email=user.email,
-        categories=provider.categories,
-        cities=provider.cities,
-        phone=provider.phone
-    )
+    # Send email notification to admin about new provider registration (non-blocking)
+    try:
+        await send_admin_notification_email(
+            provider_name=provider.name,
+            provider_email=user.email,
+            categories=provider.categories,
+            cities=provider.cities,
+            phone=provider.phone
+        )
+    except Exception as e:
+        # Log error but don't fail the registration
+        print(f"Warning: Failed to send admin notification email: {e}")
     
     return provider
 

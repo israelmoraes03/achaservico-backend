@@ -236,6 +236,7 @@ export default function ProviderRegisterScreen() {
 
     try {
       setIsSubmitting(true);
+      setErrorMessage(''); // Clear previous errors
       
       await api.post('/providers', {
         name: name.trim(),
@@ -247,7 +248,12 @@ export default function ProviderRegisterScreen() {
         profile_image: profileImage,
       });
 
-      await refreshUser();
+      // Provider created successfully - try to refresh user but don't fail if it errors
+      try {
+        await refreshUser();
+      } catch (refreshError) {
+        console.log('Warning: Could not refresh user after registration');
+      }
       
       // Go to dashboard where user can choose payment method (PIX or Card)
       router.replace('/provider/dashboard');
