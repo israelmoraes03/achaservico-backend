@@ -403,6 +403,85 @@ async def check_expiring_subscriptions():
         logger.error(f"Error checking expiring subscriptions: {str(e)}")
         return 0
 
+async def send_review_reminders():
+    """Send push notifications to users 24h after contacting a provider, reminding them to leave a review"""
+    try:
+        now = datetime.now(timezone.utc)
+        # Find contacts from 24h ago (with 1 hour window) that haven't received reminder yet
+        time_24h_ago = now - timedelta(hours=24)
+        time_25h_ago = now - timedelta(hours=25)
+        
+        contacts_to_remind = await db.whatsapp_contacts.find({
+            "contacted_at": {
+                "$gte": time_25h_ago,
+                "$lte": time_24h_ago
+            },
+            "review_reminder_sent": {"$ne": True}
+        }).to_list(100)
+        
+        reminders_sent = 0
+        
+        for contact in contacts_to_remind:
+            user_id = contact.get("user_id")
+            provider_id = contact.get("provider_id")
+            
+            # Get user's push token
+            user = await db.users.find_one({"user_id": user_id}, {"_id": 0, "push_token": 1, "name": 1})
+            if not user or not user.get("push_token"):
+                continue
+            
+            # Get provider name
+            provider = await db.providers.find_one({"provider_id": provider_id}, {"_id": 0, "name": 1})
+            if not provider:
+                continue
+            
+            provider_name = provider.get("name", "o prestador")
+            
+            # Check if user already reviewed this provider
+            existing_review = await db.reviews.find_one({
+                "user_id": user_id,
+                "provider_id": provider_id
+            })
+            
+            if existing_review:
+                # Already reviewed, just mark as sent and skip
+                await db.whatsapp_contacts.update_one(
+                    {"contact_id": contact.get("contact_id")},
+                    {"$set": {"review_reminder_sent": True}}
+                )
+                continue
+            
+            # Send push notification
+            try:
+                success = await send_push_notification(
+                    push_token=user.get("push_token"),
+                    title="⭐ Como foi o serviço?",
+                    body=f"Você contatou {provider_name} ontem. Que tal deixar uma avaliação?",
+                    data={
+                        "type": "review_reminder",
+                        "provider_id": provider_id
+                    }
+                )
+                
+                if success:
+                    reminders_sent += 1
+                    
+                # Mark as sent regardless of success (to avoid spam)
+                await db.whatsapp_contacts.update_one(
+                    {"contact_id": contact.get("contact_id")},
+                    {"$set": {"review_reminder_sent": True}}
+                )
+                
+            except Exception as e:
+                logger.error(f"Failed to send review reminder to {user_id}: {e}")
+        
+        logger.info(f"Review reminders sent: {reminders_sent}")
+        return reminders_sent
+        
+    except Exception as e:
+        logger.error(f"Error sending review reminders: {str(e)}")
+        return 0
+
 async def send_admin_notification_email(provider_name: str, provider_email: str, categories: List[str], cities: List[str], phone: str):
     """Send email notification to admin when a new provider registers"""
     if not RESEND_API_KEY:
@@ -556,6 +635,7 @@ class WhatsAppContact(BaseModel):
     user_id: str
     provider_id: str
     contacted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    review_reminder_sent: bool = False  # Track if 24h reminder was sent
 
 class Notification(BaseModel):
     notification_id: str = Field(default_factory=lambda: f"notif_{uuid.uuid4().hex[:12]}")
@@ -2265,6 +2345,25 @@ async def admin_send_expiration_notifications():
         "success": True,
         "notifications_sent": notifications_sent,
         "message": f"{notifications_sent} notificações enviadas"
+    }
+
+@api_router.post("/admin/send-review-reminders")
+async def admin_send_review_reminders():
+    """Send review reminder notifications to users who contacted providers 24h ago"""
+    reminders_sent = await send_review_reminders()
+    return {
+        "success": True,
+        "reminders_sent": reminders_sent,
+        "message": f"{reminders_sent} lembretes de avaliação enviados"
+    }
+
+@api_router.get("/cron/review-reminders")
+async def cron_review_reminders():
+    """Cron endpoint for review reminders - can be called by external cron service"""
+    reminders_sent = await send_review_reminders()
+    return {
+        "success": True,
+        "reminders_sent": reminders_sent
     }
 
 @api_router.post("/providers/register-push-token")
