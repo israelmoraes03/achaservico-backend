@@ -13,6 +13,7 @@ import {
   Linking,
   Platform,
   Modal,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +23,8 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '../../src/context/AuthContext';
 import api from '../../src/services/api';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // Configure notification handling
 Notifications.setNotificationHandler({
@@ -916,53 +919,31 @@ export default function ProviderDashboardScreen() {
             {isEditing ? (
               <>
                 <TouchableOpacity
-                  style={styles.selectButton}
-                  onPress={() => setShowCategoryPicker(!showCategoryPicker)}
+                  style={styles.modernSelectButton}
+                  onPress={() => setShowCategoryPicker(true)}
                 >
-                  <Text style={styles.selectButtonText}>
+                  <Ionicons name="list" size={18} color="#10B981" />
+                  <Text style={styles.modernSelectButtonText}>
                     {editCategories.length === 0 
                       ? 'Selecionar categorias' 
-                      : `${editCategories.length} categoria(s) selecionada(s)`}
+                      : `${editCategories.length} categoria(s)`}
                   </Text>
-                  <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                  <Ionicons name="chevron-forward" size={18} color="#10B981" />
                 </TouchableOpacity>
                 
                 {/* Selected categories badges */}
                 {editCategories.length > 0 && (
-                  <View style={styles.selectedCategoriesContainer}>
+                  <View style={styles.selectedBadgesContainer}>
                     {editCategories.map((catId) => (
                       <TouchableOpacity
                         key={catId}
-                        style={styles.categoryBadge}
+                        style={styles.modernBadge}
                         onPress={() => toggleCategory(catId)}
                       >
-                        <Text style={styles.categoryBadgeText}>{getCategoryName(catId)}</Text>
-                        <Ionicons name="close-circle" size={16} color="#10B981" />
+                        <Text style={styles.modernBadgeText}>{getCategoryName(catId)}</Text>
+                        <Ionicons name="close-circle" size={16} color="#FFFFFF" />
                       </TouchableOpacity>
                     ))}
-                  </View>
-                )}
-                
-                {showCategoryPicker && (
-                  <View style={styles.pickerContainer}>
-                    <ScrollView style={styles.pickerScroll} nestedScrollEnabled>
-                      {categories.map((cat) => (
-                        <TouchableOpacity
-                          key={cat.id}
-                          style={[styles.pickerItem, editCategories.includes(cat.id) && styles.pickerItemActive]}
-                          onPress={() => toggleCategory(cat.id)}
-                        >
-                          <Ionicons 
-                            name={editCategories.includes(cat.id) ? "checkbox" : "square-outline"} 
-                            size={20} 
-                            color={editCategories.includes(cat.id) ? '#10B981' : '#9CA3AF'} 
-                          />
-                          <Text style={[styles.pickerItemText, editCategories.includes(cat.id) && styles.pickerItemTextActive]}>
-                            {cat.name}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
                   </View>
                 )}
               </>
@@ -986,52 +967,29 @@ export default function ProviderDashboardScreen() {
             {isEditing ? (
               <>
                 <TouchableOpacity
-                  style={styles.selectButton}
-                  onPress={() => setShowCityPicker(!showCityPicker)}
+                  style={styles.modernSelectButton}
+                  onPress={() => setShowCityPicker(true)}
                 >
-                  <Text style={styles.selectButtonText}>
+                  <Ionicons name="business" size={18} color="#10B981" />
+                  <Text style={styles.modernSelectButtonText}>
                     {getSelectedCitiesText()}
                   </Text>
-                  <Ionicons name={showCityPicker ? "chevron-up" : "chevron-down"} size={20} color="#6B7280" />
+                  <Ionicons name="chevron-forward" size={18} color="#10B981" />
                 </TouchableOpacity>
                 
                 {/* Selected cities badges */}
                 {editCities.length > 0 && (
-                  <View style={styles.selectedCategoriesContainer}>
+                  <View style={styles.selectedBadgesContainer}>
                     {editCities.map((cityId) => (
                       <TouchableOpacity
                         key={cityId}
-                        style={styles.categoryBadge}
+                        style={styles.modernBadge}
                         onPress={() => toggleCity(cityId)}
                       >
-                        <Text style={styles.categoryBadgeText}>{getCityName(cityId)}</Text>
-                        <Ionicons name="close-circle" size={16} color="#10B981" />
+                        <Text style={styles.modernBadgeText}>{getCityName(cityId)}</Text>
+                        <Ionicons name="close-circle" size={16} color="#FFFFFF" />
                       </TouchableOpacity>
                     ))}
-                  </View>
-                )}
-                
-                {showCityPicker && (
-                  <View style={styles.pickerContainer}>
-                    <ScrollView style={styles.pickerScroll} nestedScrollEnabled>
-                      {cities.map((city) => (
-                        <TouchableOpacity
-                          key={city.id}
-                          style={[styles.pickerItem, editCities.includes(city.id) && styles.pickerItemActive]}
-                          onPress={() => toggleCity(city.id)}
-                        >
-                          <Ionicons 
-                            name={editCities.includes(city.id) ? "checkbox" : "square-outline"} 
-                            size={20} 
-                            color={editCities.includes(city.id) ? '#10B981' : '#9CA3AF'} 
-                          />
-                          <Ionicons name="location" size={20} color={editCities.includes(city.id) ? '#10B981' : '#9CA3AF'} />
-                          <Text style={[styles.pickerItemText, editCities.includes(city.id) && styles.pickerItemTextActive]}>
-                            {city.name} - {city.state}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
                   </View>
                 )}
               </>
@@ -1051,82 +1009,209 @@ export default function ProviderDashboardScreen() {
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Bairros que atende</Text>
+            <Text style={styles.fieldLabel}>Bairros de Atuação</Text>
             {isEditing ? (
               <>
                 <TouchableOpacity
-                  style={styles.selectButton}
-                  onPress={() => setShowNeighborhoodPicker(!showNeighborhoodPicker)}
+                  style={[styles.modernSelectButton, editCities.length === 0 && styles.modernSelectButtonDisabled]}
+                  onPress={() => editCities.length > 0 && setShowNeighborhoodPicker(true)}
+                  disabled={editCities.length === 0}
                 >
-                  <Text style={styles.selectButtonText}>
-                    {editNeighborhoods.length > 0 
-                      ? `${editNeighborhoods.length} bairro(s) selecionado(s)`
-                      : 'Selecionar bairros'}
+                  <Ionicons name="location" size={18} color={editCities.length > 0 ? "#10B981" : "#6B7280"} />
+                  <Text style={[styles.modernSelectButtonText, editCities.length === 0 && styles.modernSelectButtonTextDisabled]}>
+                    {editCities.length === 0 
+                      ? 'Selecione uma cidade primeiro' 
+                      : editNeighborhoods.length === 0 
+                        ? 'Selecionar bairros' 
+                        : `${editNeighborhoods.length} bairro(s)`}
                   </Text>
-                  <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                  <Ionicons name="chevron-forward" size={18} color={editCities.length > 0 ? "#10B981" : "#6B7280"} />
                 </TouchableOpacity>
                 
-                {/* Selected neighborhoods tags */}
+                {/* Selected neighborhoods badges */}
                 {editNeighborhoods.length > 0 && (
-                  <View style={styles.selectedTagsContainer}>
-                    {editNeighborhoods.map((n) => (
-                      <View key={n} style={styles.selectedTag}>
-                        <Text style={styles.selectedTagText}>{n}</Text>
-                        <TouchableOpacity onPress={() => setEditNeighborhoods(editNeighborhoods.filter(item => item !== n))}>
-                          <Ionicons name="close-circle" size={18} color="#10B981" />
-                        </TouchableOpacity>
-                      </View>
+                  <View style={styles.selectedBadgesContainer}>
+                    {editNeighborhoods.map((neighborhood) => (
+                      <TouchableOpacity
+                        key={neighborhood}
+                        style={styles.modernBadge}
+                        onPress={() => toggleNeighborhood(neighborhood)}
+                      >
+                        <Text style={styles.modernBadgeText}>{neighborhood}</Text>
+                        <Ionicons name="close-circle" size={16} color="#FFFFFF" />
+                      </TouchableOpacity>
                     ))}
-                  </View>
-                )}
-                
-                {showNeighborhoodPicker && (
-                  <View style={styles.pickerContainer}>
-                    <ScrollView style={styles.pickerScroll} nestedScrollEnabled>
-                      {availableNeighborhoods.length === 0 ? (
-                        <View style={styles.emptyNeighborhoods}>
-                          <Text style={styles.emptyNeighborhoodsText}>
-                            Selecione pelo menos uma cidade para ver os bairros disponíveis
-                          </Text>
-                        </View>
-                      ) : (
-                        availableNeighborhoods.map((n) => (
-                          <TouchableOpacity
-                            key={n}
-                            style={[styles.pickerItem, editNeighborhoods.includes(n) && styles.pickerItemActive]}
-                            onPress={() => {
-                              if (editNeighborhoods.includes(n)) {
-                                setEditNeighborhoods(editNeighborhoods.filter(item => item !== n));
-                              } else {
-                                setEditNeighborhoods([...editNeighborhoods, n]);
-                              }
-                            }}
-                          >
-                            <Text style={[styles.pickerItemText, editNeighborhoods.includes(n) && styles.pickerItemTextActive]}>
-                              {n}
-                            </Text>
-                            {editNeighborhoods.includes(n) && (
-                              <Ionicons name="checkmark" size={20} color="#10B981" />
-                            )}
-                          </TouchableOpacity>
-                        ))
-                      )}
-                    </ScrollView>
-                    <TouchableOpacity
-                      style={styles.pickerDoneButton}
-                      onPress={() => setShowNeighborhoodPicker(false)}
-                    >
-                      <Text style={styles.pickerDoneText}>Concluído</Text>
-                    </TouchableOpacity>
                   </View>
                 )}
               </>
             ) : (
-              <Text style={styles.fieldValue}>
-                {provider.neighborhoods?.join(', ') || provider.neighborhood || 'Não informado'}
-              </Text>
+              <View style={styles.categoriesDisplay}>
+                {provider.neighborhoods && provider.neighborhoods.length > 0 ? (
+                  provider.neighborhoods.map((neighborhood) => (
+                    <View key={neighborhood} style={styles.categoryTagDisplay}>
+                      <Text style={styles.categoryTagText}>{neighborhood}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.fieldValue}>Nenhum bairro definido</Text>
+                )}
+              </View>
             )}
           </View>
+
+          {/* Bottom Sheet Modal for Categories */}
+          <Modal
+            visible={showCategoryPicker}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowCategoryPicker(false)}
+          >
+            <TouchableOpacity
+              style={styles.bottomSheetOverlay}
+              activeOpacity={1}
+              onPress={() => setShowCategoryPicker(false)}
+            >
+              <View style={styles.bottomSheetContainer}>
+                <View style={styles.bottomSheetHandle} />
+                <View style={styles.bottomSheetHeader}>
+                  <Text style={styles.bottomSheetTitle}>📋 Selecione as Categorias</Text>
+                  <TouchableOpacity onPress={() => setShowCategoryPicker(false)}>
+                    <Ionicons name="close" size={24} color="#9CA3AF" />
+                  </TouchableOpacity>
+                </View>
+                
+                <ScrollView style={styles.bottomSheetScroll} showsVerticalScrollIndicator={false}>
+                  {categories.map((cat) => (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={[styles.bottomSheetOption, editCategories.includes(cat.id) && styles.bottomSheetOptionActive]}
+                      onPress={() => toggleCategory(cat.id)}
+                    >
+                      <Ionicons 
+                        name={editCategories.includes(cat.id) ? "checkbox" : "square-outline"} 
+                        size={22} 
+                        color={editCategories.includes(cat.id) ? '#10B981' : '#9CA3AF'} 
+                      />
+                      <Text style={[styles.bottomSheetOptionText, editCategories.includes(cat.id) && styles.bottomSheetOptionTextActive]}>
+                        {cat.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+                
+                <TouchableOpacity
+                  style={styles.bottomSheetConfirmButton}
+                  onPress={() => setShowCategoryPicker(false)}
+                >
+                  <Text style={styles.bottomSheetConfirmText}>Confirmar ({editCategories.length} selecionada(s))</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+
+          {/* Bottom Sheet Modal for Cities */}
+          <Modal
+            visible={showCityPicker}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowCityPicker(false)}
+          >
+            <TouchableOpacity
+              style={styles.bottomSheetOverlay}
+              activeOpacity={1}
+              onPress={() => setShowCityPicker(false)}
+            >
+              <View style={styles.bottomSheetContainer}>
+                <View style={styles.bottomSheetHandle} />
+                <View style={styles.bottomSheetHeader}>
+                  <Text style={styles.bottomSheetTitle}>🏙️ Selecione as Cidades</Text>
+                  <TouchableOpacity onPress={() => setShowCityPicker(false)}>
+                    <Ionicons name="close" size={24} color="#9CA3AF" />
+                  </TouchableOpacity>
+                </View>
+                
+                <ScrollView style={styles.bottomSheetScroll} showsVerticalScrollIndicator={false}>
+                  {cities.map((city) => (
+                    <TouchableOpacity
+                      key={city.id}
+                      style={[styles.bottomSheetOption, editCities.includes(city.id) && styles.bottomSheetOptionActive]}
+                      onPress={() => toggleCity(city.id)}
+                    >
+                      <Ionicons 
+                        name={editCities.includes(city.id) ? "checkbox" : "square-outline"} 
+                        size={22} 
+                        color={editCities.includes(city.id) ? '#10B981' : '#9CA3AF'} 
+                      />
+                      <Text style={[styles.bottomSheetOptionText, editCities.includes(city.id) && styles.bottomSheetOptionTextActive]}>
+                        {city.name} - {city.state}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+                
+                <TouchableOpacity
+                  style={styles.bottomSheetConfirmButton}
+                  onPress={() => setShowCityPicker(false)}
+                >
+                  <Text style={styles.bottomSheetConfirmText}>Confirmar ({editCities.length} selecionada(s))</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+
+          {/* Bottom Sheet Modal for Neighborhoods */}
+          <Modal
+            visible={showNeighborhoodPicker}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowNeighborhoodPicker(false)}
+          >
+            <TouchableOpacity
+              style={styles.bottomSheetOverlay}
+              activeOpacity={1}
+              onPress={() => setShowNeighborhoodPicker(false)}
+            >
+              <View style={styles.bottomSheetContainer}>
+                <View style={styles.bottomSheetHandle} />
+                <View style={styles.bottomSheetHeader}>
+                  <Text style={styles.bottomSheetTitle}>📍 Selecione os Bairros</Text>
+                  <TouchableOpacity onPress={() => setShowNeighborhoodPicker(false)}>
+                    <Ionicons name="close" size={24} color="#9CA3AF" />
+                  </TouchableOpacity>
+                </View>
+                
+                <ScrollView style={styles.bottomSheetScroll} showsVerticalScrollIndicator={false}>
+                  {availableNeighborhoods.length > 0 ? (
+                    availableNeighborhoods.map((neighborhood) => (
+                      <TouchableOpacity
+                        key={neighborhood}
+                        style={[styles.bottomSheetOption, editNeighborhoods.includes(neighborhood) && styles.bottomSheetOptionActive]}
+                        onPress={() => toggleNeighborhood(neighborhood)}
+                      >
+                        <Ionicons 
+                          name={editNeighborhoods.includes(neighborhood) ? "checkbox" : "square-outline"} 
+                          size={22} 
+                          color={editNeighborhoods.includes(neighborhood) ? '#10B981' : '#9CA3AF'} 
+                        />
+                        <Text style={[styles.bottomSheetOptionText, editNeighborhoods.includes(neighborhood) && styles.bottomSheetOptionTextActive]}>
+                          {neighborhood}
+                        </Text>
+                      </TouchableOpacity>
+                    ))
+                  ) : (
+                    <Text style={styles.emptyNeighborhoodsText}>Nenhum bairro disponível para as cidades selecionadas</Text>
+                  )}
+                </ScrollView>
+                
+                <TouchableOpacity
+                  style={styles.bottomSheetConfirmButton}
+                  onPress={() => setShowNeighborhoodPicker(false)}
+                >
+                  <Text style={styles.bottomSheetConfirmText}>Confirmar ({editNeighborhoods.length} selecionado(s))</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </Modal>
 
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>Descrição</Text>
@@ -2216,5 +2301,131 @@ const styles = StyleSheet.create({
   fullScreenImage: {
     width: '100%',
     height: '80%',
+  },
+  // Modern select button styles
+  modernSelectButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#10B981',
+    gap: 10,
+  },
+  modernSelectButtonDisabled: {
+    borderColor: '#374151',
+    backgroundColor: '#111827',
+  },
+  modernSelectButtonText: {
+    flex: 1,
+    color: '#10B981',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  modernSelectButtonTextDisabled: {
+    color: '#6B7280',
+  },
+  selectedBadgesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  modernBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#10B981',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    gap: 6,
+  },
+  modernBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  // Bottom Sheet styles
+  bottomSheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'flex-end',
+  },
+  bottomSheetContainer: {
+    backgroundColor: '#1F2937',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: SCREEN_HEIGHT * 0.7,
+    paddingBottom: 30,
+  },
+  bottomSheetHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#4B5563',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  bottomSheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  bottomSheetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  bottomSheetScroll: {
+    paddingHorizontal: 16,
+    maxHeight: SCREEN_HEIGHT * 0.45,
+  },
+  bottomSheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: '#111827',
+    gap: 12,
+  },
+  bottomSheetOptionActive: {
+    backgroundColor: '#10B98120',
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  bottomSheetOptionText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#D1D5DB',
+  },
+  bottomSheetOptionTextActive: {
+    color: '#10B981',
+    fontWeight: '600',
+  },
+  bottomSheetConfirmButton: {
+    backgroundColor: '#10B981',
+    marginHorizontal: 16,
+    marginTop: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  bottomSheetConfirmText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  emptyNeighborhoodsText: {
+    color: '#6B7280',
+    fontSize: 14,
+    textAlign: 'center',
+    padding: 20,
   },
 });
