@@ -286,29 +286,55 @@ async def send_expiration_notification_email(provider_name: str, provider_email:
         return False
 
 async def send_push_notification(push_token: str, title: str, body: str, data: dict = None):
-    """Send push notification via Expo"""
+    """Send push notification via Expo with proper Android configuration"""
     if not push_token or not push_token.startswith("ExponentPushToken"):
+        logger.warning(f"Invalid push token: {push_token[:20] if push_token else 'None'}...")
         return False
     
     try:
         notification_data = data or {"type": "general"}
         
+        # Build notification payload with Android-specific settings
+        payload = {
+            "to": push_token,
+            "title": title,
+            "body": body,
+            "sound": "default",
+            "priority": "high",
+            "channelId": "default",
+            "data": notification_data,
+            # Android specific
+            "android": {
+                "channelId": "default",
+                "priority": "max",
+                "sound": "default",
+            },
+            # iOS specific
+            "ios": {
+                "sound": "default",
+                "_displayInForeground": True
+            }
+        }
+        
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 "https://exp.host/--/api/v2/push/send",
-                json={
-                    "to": push_token,
-                    "title": title,
-                    "body": body,
-                    "sound": "default",
-                    "priority": "high",
-                    "channelId": "default",  # Android notification channel
-                    "data": notification_data,
-                    "_displayInForeground": True  # Show even when app is open
-                },
-                headers={"Content-Type": "application/json"}
+                json=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                    "Accept-Encoding": "gzip, deflate"
+                }
             )
+            
+            result = response.json()
+            logger.info(f"Push response: {result}")
+            
             if response.status_code == 200:
+                # Check if there are any errors in the response
+                if "data" in result and result["data"].get("status") == "error":
+                    logger.error(f"Push notification error: {result['data'].get('message')}")
+                    return False
                 logger.info(f"Push notification sent to: {push_token[:30]}...")
                 return True
             else:
