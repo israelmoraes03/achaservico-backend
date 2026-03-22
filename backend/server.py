@@ -621,6 +621,8 @@ CATEGORIES = [
     {"id": "motoboy", "name": "Motoboy", "icon": "bicycle"},
     {"id": "cozinheiro", "name": "Cozinheiro(a)", "icon": "restaurant"},
     {"id": "marido_de_aluguel", "name": "Marido de Aluguel", "icon": "hammer"},
+    {"id": "operador_maquinas", "name": "Operador de Máquinas", "icon": "cog"},
+    {"id": "motorista_carreta", "name": "Motorista de Carreta", "icon": "bus"},
 ]
 
 # Bairros organizados por cidade
