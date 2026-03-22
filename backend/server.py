@@ -3355,9 +3355,18 @@ PRIVACY_POLICY_HTML = """
             <li><strong>Dados de cadastro:</strong> Nome, e-mail e foto de perfil (via login Google)</li>
             <li><strong>Dados de prestadores:</strong> Nome, telefone/WhatsApp, descrição dos serviços, fotos dos trabalhos, cidade e bairros de atuação</li>
             <li><strong>Dados de uso:</strong> Avaliações, favoritos e histórico de contatos</li>
+            <li><strong>Imagens e fotos:</strong> Fotos tiradas pela câmera do dispositivo ou selecionadas da galeria para o perfil e portfólio de serviços</li>
         </ul>
         
-        <h2>2. Como Usamos suas Informações</h2>
+        <h2>2. Uso da Câmera e Galeria</h2>
+        <p>O AchaServiço solicita permissão para acessar:</p>
+        <ul>
+            <li><strong>Câmera:</strong> Para permitir que prestadores tirem fotos de seus trabalhos e serviços diretamente pelo aplicativo</li>
+            <li><strong>Galeria de fotos:</strong> Para permitir a seleção de imagens existentes para o perfil e portfólio</li>
+        </ul>
+        <p>Essas permissões são utilizadas <strong>exclusivamente</strong> para as funcionalidades do aplicativo. As fotos são armazenadas de forma segura e você pode removê-las a qualquer momento.</p>
+        
+        <h2>3. Como Usamos suas Informações</h2>
         <p>Utilizamos seus dados para:</p>
         <ul>
             <li>Permitir o cadastro e login no aplicativo</li>
@@ -3367,7 +3376,7 @@ PRIVACY_POLICY_HTML = """
             <li>Melhorar nossos serviços e experiência do usuário</li>
         </ul>
         
-        <h2>3. Compartilhamento de Dados</h2>
+        <h2>4. Compartilhamento de Dados</h2>
         <p>Seus dados podem ser compartilhados:</p>
         <ul>
             <li><strong>Com outros usuários:</strong> Informações públicas do perfil de prestadores são visíveis para quem busca serviços</li>
@@ -3375,10 +3384,10 @@ PRIVACY_POLICY_HTML = """
         </ul>
         <p><strong>Não vendemos, alugamos ou comercializamos seus dados pessoais.</strong></p>
         
-        <h2>4. Armazenamento e Segurança</h2>
+        <h2>5. Armazenamento e Segurança</h2>
         <p>Seus dados são armazenados em servidores seguros com criptografia. Utilizamos práticas de segurança padrão da indústria para proteger suas informações.</p>
         
-        <h2>5. Seus Direitos</h2>
+        <h2>6. Seus Direitos</h2>
         <p>Você tem direito a:</p>
         <ul>
             <li>Acessar seus dados pessoais</li>
@@ -3388,16 +3397,16 @@ PRIVACY_POLICY_HTML = """
         </ul>
         <p>Para exercer esses direitos, entre em contato conosco.</p>
         
-        <h2>6. Cookies e Tecnologias</h2>
+        <h2>7. Cookies e Tecnologias</h2>
         <p>O aplicativo pode utilizar tecnologias de armazenamento local para manter sua sessão ativa e preferências salvas.</p>
         
-        <h2>7. Menores de Idade</h2>
+        <h2>8. Menores de Idade</h2>
         <p>O AchaServiço não é destinado a menores de 18 anos. Não coletamos intencionalmente dados de menores.</p>
         
-        <h2>8. Alterações nesta Política</h2>
+        <h2>9. Alterações nesta Política</h2>
         <p>Podemos atualizar esta política periodicamente. Notificaremos sobre mudanças significativas através do aplicativo.</p>
         
-        <h2>9. Contato</h2>
+        <h2>10. Contato</h2>
         <p>Para dúvidas sobre privacidade:</p>
         <ul>
             <li><strong>E-mail:</strong> contato.achaservico@gmail.com</li>
