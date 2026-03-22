@@ -423,6 +423,46 @@ export default function HomeScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#10B981" />}
         showsVerticalScrollIndicator={false}
       >
+        {/* Banner - Seja um Prestador */}
+        {user && !user.is_provider && (
+          <TouchableOpacity
+            style={styles.providerBanner}
+            onPress={() => router.push('/provider/register')}
+            activeOpacity={0.9}
+          >
+            <View style={styles.providerBannerContent}>
+              <View style={styles.providerBannerIcon}>
+                <Ionicons name="briefcase" size={28} color="#FFFFFF" />
+              </View>
+              <View style={styles.providerBannerText}>
+                <Text style={styles.providerBannerTitle}>Seja um Prestador!</Text>
+                <Text style={styles.providerBannerSubtitle}>Cadastre-se grátis e divulgue seus serviços</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* Banner - Acessar Dashboard (para prestadores) */}
+        {user && user.is_provider && (
+          <TouchableOpacity
+            style={styles.providerDashboardBanner}
+            onPress={() => router.push('/provider/dashboard')}
+            activeOpacity={0.9}
+          >
+            <View style={styles.providerBannerContent}>
+              <View style={styles.providerDashboardIcon}>
+                <Ionicons name="stats-chart" size={24} color="#FFFFFF" />
+              </View>
+              <View style={styles.providerBannerText}>
+                <Text style={styles.providerDashboardTitle}>Meu Painel</Text>
+                <Text style={styles.providerDashboardSubtitle}>Gerencie seu perfil de prestador</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+        )}
+
         {/* Categories */}
         <Text style={styles.sectionTitle}>Categorias</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesContainer}>
@@ -584,17 +624,6 @@ export default function HomeScreen() {
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
-
-      {/* Floating Action Button for Providers */}
-      {user && (
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => router.push('/provider/dashboard')}
-          data-testid="provider-fab-btn"
-        >
-          <Ionicons name="briefcase" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-      )}
 
       {/* Onboarding Tutorial */}
       {showTutorial && (
@@ -977,5 +1006,74 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  // Banner - Seja um Prestador (para novos usuários)
+  providerBanner: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 16,
+    backgroundColor: '#FF6B35',
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+    overflow: 'hidden',
+  },
+  providerBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  providerBannerIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  providerBannerText: {
+    flex: 1,
+  },
+  providerBannerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  providerBannerSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
+  },
+  // Banner - Dashboard (para prestadores existentes)
+  providerDashboardBanner: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    backgroundColor: '#1E3A5F',
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  providerDashboardIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#10B981',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  providerDashboardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  providerDashboardSubtitle: {
+    fontSize: 12,
+    color: '#9CA3AF',
   },
 });
