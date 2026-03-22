@@ -122,7 +122,19 @@ export default function ProviderDetailScreen() {
     const cleanPhone = provider.phone.replace(/\D/g, '');
     const message = encodeURIComponent(`Olá ${provider.name}! Encontrei seu perfil no AchaServiço e gostaria de solicitar um orçamento.`);
     const url = `https://wa.me/55${cleanPhone}?text=${message}`;
-    Linking.openURL(url);
+    
+    // Mostrar pop-up antes de abrir o WhatsApp
+    Alert.alert(
+      '📞 Abrindo WhatsApp',
+      `Após concluir o serviço com ${provider.name}, volte ao app para avaliar o profissional!\n\nSua avaliação ajuda outros usuários a encontrarem bons profissionais.`,
+      [
+        {
+          text: 'Entendi, abrir WhatsApp',
+          onPress: () => Linking.openURL(url),
+        },
+      ],
+      { cancelable: false }
+    );
   };
 
   const handleSubmitReview = async () => {

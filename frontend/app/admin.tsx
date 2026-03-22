@@ -106,6 +106,7 @@ export default function AdminScreen() {
   // Broadcast notification states
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastTarget, setBroadcastTarget] = useState<'providers' | 'users' | 'all'>('providers');
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
 
   // Modal states
@@ -144,9 +145,15 @@ export default function AdminScreen() {
       return;
     }
 
+    const targetLabels = {
+      providers: 'prestadores',
+      users: 'clientes',
+      all: 'todos (prestadores e clientes)'
+    };
+
     Alert.alert(
       'Confirmar Envio',
-      `Enviar notificação para TODOS os prestadores?\n\nTítulo: ${broadcastTitle}\nMensagem: ${broadcastMessage}`,
+      `Enviar notificação para ${targetLabels[broadcastTarget]}?\n\nTítulo: ${broadcastTitle}\nMensagem: ${broadcastMessage}`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -157,6 +164,7 @@ export default function AdminScreen() {
               const response = await api.post('/admin/broadcast-notification', {
                 title: broadcastTitle,
                 message: broadcastMessage,
+                target: broadcastTarget,
               });
               Alert.alert('Sucesso!', response.data.message);
               setBroadcastTitle('');
@@ -570,8 +578,66 @@ export default function AdminScreen() {
               <View style={styles.broadcastSection}>
                 <Text style={styles.sectionTitle}>Enviar Comunicado</Text>
                 <Text style={styles.broadcastSubtitle}>
-                  Envie uma notificação push para todos os prestadores
+                  Envie uma notificação push para seus usuários
                 </Text>
+
+                {/* Target Selector */}
+                <Text style={styles.targetLabel}>Enviar para:</Text>
+                <View style={styles.targetSelector}>
+                  <TouchableOpacity
+                    style={[
+                      styles.targetButton,
+                      broadcastTarget === 'providers' && styles.targetButtonActive
+                    ]}
+                    onPress={() => setBroadcastTarget('providers')}
+                  >
+                    <Ionicons 
+                      name="briefcase" 
+                      size={18} 
+                      color={broadcastTarget === 'providers' ? '#FFFFFF' : '#9CA3AF'} 
+                    />
+                    <Text style={[
+                      styles.targetButtonText,
+                      broadcastTarget === 'providers' && styles.targetButtonTextActive
+                    ]}>Prestadores</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[
+                      styles.targetButton,
+                      broadcastTarget === 'users' && styles.targetButtonActive
+                    ]}
+                    onPress={() => setBroadcastTarget('users')}
+                  >
+                    <Ionicons 
+                      name="people" 
+                      size={18} 
+                      color={broadcastTarget === 'users' ? '#FFFFFF' : '#9CA3AF'} 
+                    />
+                    <Text style={[
+                      styles.targetButtonText,
+                      broadcastTarget === 'users' && styles.targetButtonTextActive
+                    ]}>Clientes</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[
+                      styles.targetButton,
+                      broadcastTarget === 'all' && styles.targetButtonActive
+                    ]}
+                    onPress={() => setBroadcastTarget('all')}
+                  >
+                    <Ionicons 
+                      name="globe" 
+                      size={18} 
+                      color={broadcastTarget === 'all' ? '#FFFFFF' : '#9CA3AF'} 
+                    />
+                    <Text style={[
+                      styles.targetButtonText,
+                      broadcastTarget === 'all' && styles.targetButtonTextActive
+                    ]}>Todos</Text>
+                  </TouchableOpacity>
+                </View>
                 
                 <TextInput
                   style={styles.broadcastInput}
@@ -603,7 +669,9 @@ export default function AdminScreen() {
                   ) : (
                     <>
                       <Ionicons name="megaphone" size={20} color="#FFFFFF" />
-                      <Text style={styles.broadcastButtonText}>Enviar para Todos</Text>
+                      <Text style={styles.broadcastButtonText}>
+                        Enviar para {broadcastTarget === 'providers' ? 'Prestadores' : broadcastTarget === 'users' ? 'Clientes' : 'Todos'}
+                      </Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -1296,5 +1364,39 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Target selector styles
+  targetLabel: {
+    color: '#9CA3AF',
+    fontSize: 13,
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  targetSelector: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  targetButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#2D2D2D',
+    gap: 6,
+  },
+  targetButtonActive: {
+    backgroundColor: '#10B981',
+  },
+  targetButtonText: {
+    color: '#9CA3AF',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  targetButtonTextActive: {
+    color: '#FFFFFF',
   },
 });

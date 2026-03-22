@@ -2111,60 +2111,112 @@ async def admin_get_premium_providers():
 class BroadcastNotification(BaseModel):
     title: str
     message: str
+    target: str = "providers"  # "providers", "users", "all"
 
 @api_router.post("/admin/broadcast-notification")
 async def admin_broadcast_notification(notification: BroadcastNotification):
-    """Send push notification to all providers and save to notifications collection"""
-    # Get all providers
-    providers = await db.providers.find(
-        {},
-        {"_id": 0, "push_token": 1, "name": 1, "provider_id": 1, "user_id": 1}
-    ).to_list(1000)
-    
-    if not providers:
-        return {"success": False, "message": "Nenhum prestador cadastrado", "sent": 0}
+    """Send push notification to providers, users, or all - with target selection"""
     
     sent_count = 0
     failed_count = 0
+    total_recipients = 0
     
-    for provider in providers:
-        # Save notification to database for all providers
-        notif = Notification(
-            user_id=provider.get("user_id"),
-            title=notification.title,
-            message=notification.message,
-            notification_type="broadcast"
-        )
-        await db.notifications.insert_one(notif.model_dump())
+    # Get providers if target is "providers" or "all"
+    if notification.target in ["providers", "all"]:
+        providers = await db.providers.find(
+            {},
+            {"_id": 0, "push_token": 1, "name": 1, "provider_id": 1, "user_id": 1}
+        ).to_list(1000)
         
-        # Send push notification if token exists
-        push_token = provider.get("push_token")
-        if push_token:
-            try:
-                success = await send_push_notification(
-                    push_token=push_token,
-                    title=notification.title,
-                    body=notification.message,
-                    data={"type": "broadcast", "notification_id": notif.notification_id}
-                )
-                if success:
-                    sent_count += 1
-                else:
+        for provider in providers:
+            total_recipients += 1
+            # Save notification to database
+            notif = Notification(
+                user_id=provider.get("user_id"),
+                title=notification.title,
+                message=notification.message,
+                notification_type="broadcast"
+            )
+            await db.notifications.insert_one(notif.model_dump())
+            
+            # Send push notification if token exists
+            push_token = provider.get("push_token")
+            if push_token:
+                try:
+                    success = await send_push_notification(
+                        push_token=push_token,
+                        title=notification.title,
+                        body=notification.message,
+                        data={"type": "broadcast", "notification_id": notif.notification_id}
+                    )
+                    if success:
+                        sent_count += 1
+                    else:
+                        failed_count += 1
+                except Exception as e:
+                    logger.error(f"Failed to send notification to provider {provider.get('name')}: {e}")
                     failed_count += 1
-            except Exception as e:
-                logger.error(f"Failed to send notification to {provider.get('name')}: {e}")
-                failed_count += 1
-        else:
-            logger.warning(f"Provider {provider.get('name')} has no push token")
     
-    logger.info(f"Broadcast notification sent: {sent_count} success, {failed_count} failed")
+    # Get users (non-providers) if target is "users" or "all"
+    if notification.target in ["users", "all"]:
+        # Get users that are NOT providers
+        if notification.target == "users":
+            users = await db.users.find(
+                {"is_provider": {"$ne": True}},
+                {"_id": 0, "push_token": 1, "name": 1, "user_id": 1}
+            ).to_list(1000)
+        else:
+            # For "all", get users that are NOT already in providers list
+            provider_user_ids = [p.get("user_id") for p in providers] if notification.target == "all" else []
+            users = await db.users.find(
+                {"user_id": {"$nin": provider_user_ids}},
+                {"_id": 0, "push_token": 1, "name": 1, "user_id": 1}
+            ).to_list(1000)
+        
+        for user in users:
+            total_recipients += 1
+            # Save notification to database
+            notif = Notification(
+                user_id=user.get("user_id"),
+                title=notification.title,
+                message=notification.message,
+                notification_type="broadcast"
+            )
+            await db.notifications.insert_one(notif.model_dump())
+            
+            # Send push notification if token exists
+            push_token = user.get("push_token")
+            if push_token:
+                try:
+                    success = await send_push_notification(
+                        push_token=push_token,
+                        title=notification.title,
+                        body=notification.message,
+                        data={"type": "broadcast", "notification_id": notif.notification_id}
+                    )
+                    if success:
+                        sent_count += 1
+                    else:
+                        failed_count += 1
+                except Exception as e:
+                    logger.error(f"Failed to send notification to user {user.get('name')}: {e}")
+                    failed_count += 1
+    
+    target_label = {
+        "providers": "prestadores",
+        "users": "clientes",
+        "all": "todos"
+    }.get(notification.target, notification.target)
+    
+    logger.info(f"Broadcast notification ({target_label}) sent: {sent_count} success, {failed_count} failed")
     
     return {
         "success": True,
-        "message": f"Notificação salva para {len(providers)} prestadores, {sent_count} push enviados",
+        "message": f"Notificação enviada para {total_recipients} {target_label}, {sent_count} push enviados",
         "sent": sent_count,
         "failed": failed_count,
-        "total_providers": len(providers)
+        "total_recipients": total_recipients,
+        "target": notification.target
     }
 
 # ======================== NOTIFICATIONS ENDPOINTS ========================
@@ -2232,6 +2284,23 @@ async def register_push_token(request: Request):
     
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Prestador não encontrado")
+    
+    return {"success": True, "message": "Push token registrado"}
+
+@api_router.post("/users/register-push-token")
+async def register_user_push_token(request: Request):
+    """Register push notification token for a user (non-provider)"""
+    user = await require_auth(request)
+    body = await request.json()
+    push_token = body.get("push_token")
+    
+    if not push_token:
+        raise HTTPException(status_code=400, detail="Push token é obrigatório")
+    
+    await db.users.update_one(
+        {"user_id": user.user_id},
+        {"$set": {"push_token": push_token}}
+    )
     
     return {"success": True, "message": "Push token registrado"}
 

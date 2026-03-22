@@ -3,6 +3,9 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import api from '../services/api';
 
 // Warm up browser for faster auth on Android
@@ -50,6 +53,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [provider, setProvider] = useState<Provider | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Function to register push notification token
+  const registerPushToken = useCallback(async (isProvider: boolean) => {
+    try {
+      if (Platform.OS === 'web') return; // Skip on web
+      
+      if (!Device.isDevice) {
+        console.log('Push notifications require a physical device');
+        return;
+      }
+
+      // Request permission
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      
+      if (finalStatus !== 'granted') {
+        console.log('Push notification permission not granted');
+        return;
+      }
+
+      // Get the token
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+      const token = await Notifications.getExpoPushTokenAsync({
+        projectId: projectId,
+      });
+      
+      console.log('Push token:', token.data);
+
+      // Register token with the appropriate endpoint
+      const endpoint = isProvider ? '/providers/register-push-token' : '/users/register-push-token';
+      await api.post(endpoint, { push_token: token.data });
+      console.log('Push token registered successfully');
+    } catch (error) {
+      console.log('Error registering push token:', error);
+    }
+  }, []);
+
   const extractSessionId = (url: string): string | null => {
     try {
       // Try hash first
@@ -85,12 +129,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(userData);
       
       // Check if user has provider profile
+      let isProvider = false;
       try {
         const meResponse = await api.get('/auth/me', { timeout: 10000 });
         setProvider(meResponse.data.provider);
+        isProvider = !!meResponse.data.provider;
       } catch (e) {
         console.log('No provider profile');
       }
+
+      // Register push token after successful login
+      await registerPushToken(isProvider);
     } catch (error: any) {
       console.error('Error processing session:', error.message);
       
@@ -119,6 +168,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(response.data.user);
         setProvider(response.data.provider);
         console.log('Session restored');
+        
+        // Register push token on session restore
+        const isProvider = !!response.data.provider;
+        await registerPushToken(isProvider);
       } else {
         console.log('No existing session');
       }
@@ -140,7 +193,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [registerPushToken]);
 
   useEffect(() => {
     const init = async () => {
