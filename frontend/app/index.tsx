@@ -12,6 +12,8 @@ import {
   Image,
   Share,
   Alert,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +21,8 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../src/context/AuthContext';
 import api from '../src/services/api';
 import OnboardingTutorial, { checkTutorialCompleted } from '../src/components/OnboardingTutorial';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface Category {
   id: string;
@@ -346,77 +350,137 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* City Filter */}
-      <TouchableOpacity
-        style={styles.neighborhoodButton}
-        onPress={() => setShowCityPicker(!showCityPicker)}
-      >
-        <Ionicons name="business" size={18} color="#10B981" />
-        <Text style={styles.neighborhoodButtonText}>
-          {selectedCity ? cities.find(c => c.id === selectedCity)?.name + ' - ' + cities.find(c => c.id === selectedCity)?.state : 'Todas as cidades'}
-        </Text>
-        <Ionicons name="chevron-down" size={18} color="#10B981" />
-      </TouchableOpacity>
+      {/* Modern Filter Chips */}
+      <View style={styles.filterChipsContainer}>
+        <TouchableOpacity
+          style={[styles.filterChip, selectedCity && styles.filterChipActive]}
+          onPress={() => setShowCityPicker(true)}
+        >
+          <Ionicons name="location" size={16} color={selectedCity ? '#FFFFFF' : '#10B981'} />
+          <Text style={[styles.filterChipText, selectedCity && styles.filterChipTextActive]} numberOfLines={1}>
+            {selectedCity ? cities.find(c => c.id === selectedCity)?.name : 'Cidade'}
+          </Text>
+          <Ionicons name="chevron-down" size={14} color={selectedCity ? '#FFFFFF' : '#10B981'} />
+        </TouchableOpacity>
 
-      {showCityPicker && (
-        <ScrollView style={styles.neighborhoodPicker} horizontal showsHorizontalScrollIndicator={false}>
+        <TouchableOpacity
+          style={[styles.filterChip, selectedNeighborhood && styles.filterChipActive]}
+          onPress={() => setShowNeighborhoodPicker(true)}
+          disabled={!selectedCity}
+        >
+          <Ionicons name="map" size={16} color={selectedNeighborhood ? '#FFFFFF' : selectedCity ? '#10B981' : '#6B7280'} />
+          <Text style={[styles.filterChipText, selectedNeighborhood && styles.filterChipTextActive, !selectedCity && styles.filterChipTextDisabled]} numberOfLines={1}>
+            {selectedNeighborhood || 'Bairro'}
+          </Text>
+          <Ionicons name="chevron-down" size={14} color={selectedNeighborhood ? '#FFFFFF' : selectedCity ? '#10B981' : '#6B7280'} />
+        </TouchableOpacity>
+
+        {(selectedCity || selectedNeighborhood || selectedCategory) && (
           <TouchableOpacity
-            style={[styles.neighborhoodChip, !selectedCity && styles.neighborhoodChipActive]}
-            onPress={() => { setSelectedCity(null); setShowCityPicker(false); }}
+            style={styles.clearFiltersChip}
+            onPress={() => {
+              setSelectedCity(null);
+              setSelectedNeighborhood(null);
+              setSelectedCategory(null);
+            }}
           >
-            <Text style={[styles.neighborhoodChipText, !selectedCity && styles.neighborhoodChipTextActive]}>
-              Todas
-            </Text>
+            <Ionicons name="close-circle" size={16} color="#EF4444" />
+            <Text style={styles.clearFiltersText}>Limpar</Text>
           </TouchableOpacity>
-          {cities.map((city) => (
-            <TouchableOpacity
-              key={city.id}
-              style={[styles.neighborhoodChip, selectedCity === city.id && styles.neighborhoodChipActive]}
-              onPress={() => { setSelectedCity(city.id); setShowCityPicker(false); }}
-            >
-              <Text style={[styles.neighborhoodChipText, selectedCity === city.id && styles.neighborhoodChipTextActive]}>
-                {city.name} - {city.state}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
+        )}
+      </View>
 
-      {/* Neighborhood Filter */}
-      <TouchableOpacity
-        style={styles.neighborhoodButton}
-        onPress={() => setShowNeighborhoodPicker(!showNeighborhoodPicker)}
+      {/* City Bottom Sheet Modal */}
+      <Modal
+        visible={showCityPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCityPicker(false)}
       >
-        <Ionicons name="location" size={18} color="#10B981" />
-        <Text style={styles.neighborhoodButtonText}>
-          {selectedNeighborhood || 'Todos os bairros'}
-        </Text>
-        <Ionicons name="chevron-down" size={18} color="#10B981" />
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.bottomSheetOverlay}
+          activeOpacity={1}
+          onPress={() => setShowCityPicker(false)}
+        >
+          <View style={styles.bottomSheetContainer}>
+            <View style={styles.bottomSheetHandle} />
+            <Text style={styles.bottomSheetTitle}>📍 Selecione a Cidade</Text>
+            
+            <ScrollView style={styles.bottomSheetScroll} showsVerticalScrollIndicator={false}>
+              <TouchableOpacity
+                style={[styles.bottomSheetOption, !selectedCity && styles.bottomSheetOptionActive]}
+                onPress={() => { setSelectedCity(null); setSelectedNeighborhood(null); setShowCityPicker(false); }}
+              >
+                <Ionicons name="globe-outline" size={20} color={!selectedCity ? '#10B981' : '#9CA3AF'} />
+                <Text style={[styles.bottomSheetOptionText, !selectedCity && styles.bottomSheetOptionTextActive]}>
+                  Todas as cidades
+                </Text>
+                {!selectedCity && <Ionicons name="checkmark-circle" size={20} color="#10B981" />}
+              </TouchableOpacity>
+              
+              {cities.map((city) => (
+                <TouchableOpacity
+                  key={city.id}
+                  style={[styles.bottomSheetOption, selectedCity === city.id && styles.bottomSheetOptionActive]}
+                  onPress={() => { setSelectedCity(city.id); setSelectedNeighborhood(null); setShowCityPicker(false); }}
+                >
+                  <Ionicons name="business-outline" size={20} color={selectedCity === city.id ? '#10B981' : '#9CA3AF'} />
+                  <Text style={[styles.bottomSheetOptionText, selectedCity === city.id && styles.bottomSheetOptionTextActive]}>
+                    {city.name} - {city.state}
+                  </Text>
+                  {selectedCity === city.id && <Ionicons name="checkmark-circle" size={20} color="#10B981" />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
-      {showNeighborhoodPicker && (
-        <ScrollView style={styles.neighborhoodPicker} horizontal showsHorizontalScrollIndicator={false}>
-          <TouchableOpacity
-            style={[styles.neighborhoodChip, !selectedNeighborhood && styles.neighborhoodChipActive]}
-            onPress={() => { setSelectedNeighborhood(null); setShowNeighborhoodPicker(false); }}
-          >
-            <Text style={[styles.neighborhoodChipText, !selectedNeighborhood && styles.neighborhoodChipTextActive]}>
-              Todos
-            </Text>
-          </TouchableOpacity>
-          {neighborhoods.map((n) => (
-            <TouchableOpacity
-              key={n}
-              style={[styles.neighborhoodChip, selectedNeighborhood === n && styles.neighborhoodChipActive]}
-              onPress={() => { setSelectedNeighborhood(n); setShowNeighborhoodPicker(false); }}
-            >
-              <Text style={[styles.neighborhoodChipText, selectedNeighborhood === n && styles.neighborhoodChipTextActive]}>
-                {n}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
+      {/* Neighborhood Bottom Sheet Modal */}
+      <Modal
+        visible={showNeighborhoodPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowNeighborhoodPicker(false)}
+      >
+        <TouchableOpacity
+          style={styles.bottomSheetOverlay}
+          activeOpacity={1}
+          onPress={() => setShowNeighborhoodPicker(false)}
+        >
+          <View style={styles.bottomSheetContainer}>
+            <View style={styles.bottomSheetHandle} />
+            <Text style={styles.bottomSheetTitle}>🏘️ Selecione o Bairro</Text>
+            
+            <ScrollView style={styles.bottomSheetScroll} showsVerticalScrollIndicator={false}>
+              <TouchableOpacity
+                style={[styles.bottomSheetOption, !selectedNeighborhood && styles.bottomSheetOptionActive]}
+                onPress={() => { setSelectedNeighborhood(null); setShowNeighborhoodPicker(false); }}
+              >
+                <Ionicons name="layers-outline" size={20} color={!selectedNeighborhood ? '#10B981' : '#9CA3AF'} />
+                <Text style={[styles.bottomSheetOptionText, !selectedNeighborhood && styles.bottomSheetOptionTextActive]}>
+                  Todos os bairros
+                </Text>
+                {!selectedNeighborhood && <Ionicons name="checkmark-circle" size={20} color="#10B981" />}
+              </TouchableOpacity>
+              
+              {neighborhoods.map((n) => (
+                <TouchableOpacity
+                  key={n}
+                  style={[styles.bottomSheetOption, selectedNeighborhood === n && styles.bottomSheetOptionActive]}
+                  onPress={() => { setSelectedNeighborhood(n); setShowNeighborhoodPicker(false); }}
+                >
+                  <Ionicons name="navigate-outline" size={20} color={selectedNeighborhood === n ? '#10B981' : '#9CA3AF'} />
+                  <Text style={[styles.bottomSheetOptionText, selectedNeighborhood === n && styles.bottomSheetOptionTextActive]}>
+                    {n}
+                  </Text>
+                  {selectedNeighborhood === n && <Ionicons name="checkmark-circle" size={20} color="#10B981" />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       <ScrollView
         style={styles.content}
@@ -1075,5 +1139,109 @@ const styles = StyleSheet.create({
   providerDashboardSubtitle: {
     fontSize: 12,
     color: '#9CA3AF',
+  },
+  // Modern Filter Chips Styles
+  filterChipsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 10,
+    alignItems: 'center',
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#10B981',
+    maxWidth: 140,
+  },
+  filterChipActive: {
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
+  },
+  filterChipText: {
+    color: '#10B981',
+    fontSize: 13,
+    fontWeight: '500',
+    flexShrink: 1,
+  },
+  filterChipTextActive: {
+    color: '#FFFFFF',
+  },
+  filterChipTextDisabled: {
+    color: '#6B7280',
+  },
+  clearFiltersChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    gap: 4,
+  },
+  clearFiltersText: {
+    color: '#EF4444',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  // Bottom Sheet Styles
+  bottomSheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'flex-end',
+  },
+  bottomSheetContainer: {
+    backgroundColor: '#1F2937',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: SCREEN_HEIGHT * 0.6,
+    paddingBottom: 30,
+  },
+  bottomSheetHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#4B5563',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  bottomSheetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  bottomSheetScroll: {
+    paddingHorizontal: 16,
+  },
+  bottomSheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: '#111827',
+    gap: 12,
+  },
+  bottomSheetOptionActive: {
+    backgroundColor: '#10B98120',
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  bottomSheetOptionText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#D1D5DB',
+  },
+  bottomSheetOptionTextActive: {
+    color: '#10B981',
+    fontWeight: '600',
   },
 });
