@@ -4,7 +4,6 @@ import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from '../src/context/AuthContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 
 // Configure notification handler - THIS MUST BE AT THE TOP LEVEL
@@ -20,9 +19,9 @@ Notifications.setNotificationHandler({
 });
 
 export default function RootLayout() {
-  // Setup Android notification channel and request permissions on app start
+  // Setup Android notification channels only (permission will be requested after login)
   useEffect(() => {
-    async function setupNotifications() {
+    async function setupNotificationChannels() {
       // Setup Android notification channels
       if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('default', {
@@ -47,19 +46,10 @@ export default function RootLayout() {
           showBadge: true,
         });
       }
-
-      // Request notification permissions immediately on app start
-      if (Platform.OS !== 'web' && Device.isDevice) {
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        
-        if (existingStatus !== 'granted') {
-          // Request permission - this will show the system dialog
-          await Notifications.requestPermissionsAsync();
-        }
-      }
+      // Note: Permission request moved to AuthContext after successful login
     }
     
-    setupNotifications();
+    setupNotificationChannels();
   }, []);
 
   return (

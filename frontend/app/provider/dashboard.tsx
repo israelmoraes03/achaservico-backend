@@ -235,6 +235,14 @@ export default function ProviderDashboardScreen() {
     });
   };
 
+  const toggleNeighborhood = (neighborhood: string) => {
+    setEditNeighborhoods(prev => {
+      return prev.includes(neighborhood) 
+        ? prev.filter(n => n !== neighborhood)
+        : [...prev, neighborhood];
+    });
+  };
+
   const getCityName = (cityId: string) => {
     const city = cities.find(c => c.id === cityId);
     return city ? `${city.name} - ${city.state}` : cityId;
