@@ -27,7 +27,7 @@ const ADMIN_PASSWORD = 'Rael9661#';
 // Backend URL for direct downloads
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://achaservico-backend.onrender.com';
 
-type TabType = 'dashboard' | 'providers' | 'users' | 'subscriptions' | 'reviews';
+type TabType = 'dashboard' | 'providers' | 'users' | 'subscriptions' | 'reviews' | 'reports';
 
 interface Stats {
   total_users: number;
@@ -36,6 +36,7 @@ interface Stats {
   pending_subscriptions: number;
   expired_subscriptions: number;
   total_reviews: number;
+  pending_reports: number;
 }
 
 interface Provider {
@@ -81,6 +82,18 @@ interface Review {
   created_at: string;
 }
 
+interface AdminReport {
+  report_id: string;
+  provider_id: string;
+  provider_name: string;
+  reporter_email?: string;
+  reason: string;
+  description?: string;
+  status: string;
+  created_at: string;
+  resolved_at?: string;
+}
+
 export default function AdminScreen() {
   const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
@@ -98,6 +111,7 @@ export default function AdminScreen() {
   const [users, setUsers] = useState<User[]>([]);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [reports, setReports] = useState<AdminReport[]>([]);
   const [isExporting, setIsExporting] = useState(false);
 
   // Search/Filter states
@@ -238,6 +252,52 @@ export default function AdminScreen() {
     }
   };
 
+  const fetchReports = async () => {
+    try {
+      const response = await api.get('/admin/reports');
+      setReports(response.data);
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+    }
+  };
+
+  const handleAcceptReport = async (report: AdminReport) => {
+    try {
+      await api.put(`/admin/reports/${report.report_id}/accept`);
+      fetchReports();
+      fetchStats();
+      setActionMessage('Denúncia aceita!');
+      setTimeout(() => setActionMessage(''), 3000);
+    } catch (error) {
+      setActionMessage('Erro ao aceitar denúncia');
+      setTimeout(() => setActionMessage(''), 3000);
+    }
+  };
+
+  const handleDiscardReport = async (report: AdminReport) => {
+    try {
+      await api.put(`/admin/reports/${report.report_id}/discard`);
+      fetchReports();
+      fetchStats();
+      setActionMessage('Denúncia descartada');
+      setTimeout(() => setActionMessage(''), 3000);
+    } catch (error) {
+      setActionMessage('Erro ao descartar denúncia');
+      setTimeout(() => setActionMessage(''), 3000);
+    }
+  };
+
+  const getReasonLabel = (reason: string) => {
+    const labels: Record<string, string> = {
+      inappropriate_content: 'Conteúdo inadequado',
+      false_info: 'Informações falsas',
+      bad_behavior: 'Comportamento impróprio',
+      spam: 'Spam ou propaganda',
+      other: 'Outro motivo',
+    };
+    return labels[reason] || reason;
+  };
+
   const fetchAllData = useCallback(async () => {
     setIsLoading(true);
     await Promise.all([
@@ -246,6 +306,7 @@ export default function AdminScreen() {
       fetchUsers(),
       fetchSubscriptions(),
       fetchReviews(),
+      fetchReports(),
     ]);
     setIsLoading(false);
   }, []);
@@ -485,6 +546,7 @@ export default function AdminScreen() {
           { id: 'users', label: 'Usuários', icon: 'people' },
           { id: 'subscriptions', label: 'Assinaturas', icon: 'card' },
           { id: 'reviews', label: 'Avaliações', icon: 'star' },
+          { id: 'reports', label: 'Denúncias', icon: 'flag' },
         ].map((tab) => (
           <TouchableOpacity
             key={tab.id}
@@ -552,6 +614,11 @@ export default function AdminScreen() {
                     <Ionicons name="star" size={28} color="#FFD700" />
                     <Text style={styles.statValue}>{stats?.total_reviews || 0}</Text>
                     <Text style={styles.statLabel}>Avaliações</Text>
+                  </View>
+                  <View style={styles.statCard}>
+                    <Ionicons name="flag" size={28} color="#EF4444" />
+                    <Text style={[styles.statValue, { color: (stats?.pending_reports || 0) > 0 ? '#EF4444' : '#FFFFFF' }]}>{stats?.pending_reports || 0}</Text>
+                    <Text style={styles.statLabel}>Denúncias</Text>
                   </View>
                 </View>
 
@@ -991,6 +1058,122 @@ export default function AdminScreen() {
                 )}
               </View>
             )}
+
+            {/* Reports Tab */}
+            {activeTab === 'reports' && (
+              <View>
+                <Text style={styles.sectionTitle}>
+                  Denúncias ({reports.filter(r => r.status === 'pending').length} pendentes)
+                </Text>
+                {reports.length === 0 ? (
+                  <Text style={styles.emptyText}>Nenhuma denúncia registrada</Text>
+                ) : (
+                  reports.map((report) => (
+                    <View key={report.report_id} style={[styles.card, report.status === 'pending' && styles.reportCardPending]}>
+                      <View style={styles.cardHeader}>
+                        <View style={styles.cardInfo}>
+                          <Text style={styles.cardTitle}>{report.provider_name || 'Prestador'}</Text>
+                          <View style={styles.reportReasonBadge}>
+                            <Ionicons name="flag" size={12} color="#EF4444" />
+                            <Text style={styles.reportReasonText}>{getReasonLabel(report.reason)}</Text>
+                          </View>
+                          {report.description && (
+                            <Text style={styles.cardDetail}>"{report.description}"</Text>
+                          )}
+                          <Text style={styles.cardDetail}>
+                            Denunciado em: {formatDate(report.created_at)}
+                          </Text>
+                          {report.reporter_email && (
+                            <Text style={styles.cardDetail}>
+                              Por: {report.reporter_email}
+                            </Text>
+                          )}
+                        </View>
+                        <View style={[
+                          styles.statusBadge,
+                          {
+                            backgroundColor: report.status === 'pending'
+                              ? '#F59E0B20'
+                              : report.status === 'accepted'
+                                ? '#EF444420'
+                                : '#6B728020'
+                          }
+                        ]}>
+                          <Text style={[
+                            styles.statusText,
+                            {
+                              color: report.status === 'pending'
+                                ? '#F59E0B'
+                                : report.status === 'accepted'
+                                  ? '#EF4444'
+                                  : '#6B7280'
+                            }
+                          ]}>
+                            {report.status === 'pending' ? 'Pendente' :
+                              report.status === 'accepted' ? 'Aceita' : 'Descartada'}
+                          </Text>
+                        </View>
+                      </View>
+                      {report.status === 'pending' && (
+                        <View style={styles.cardActions}>
+                          <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: '#EF444420' }]}
+                            onPress={() => {
+                              Alert.alert(
+                                'Aceitar Denúncia',
+                                `Deseja aceitar esta denúncia contra "${report.provider_name}"?\n\nVocê poderá desativar o prestador na aba Prestadores.`,
+                                [
+                                  { text: 'Cancelar', style: 'cancel' },
+                                  { text: 'Aceitar', onPress: () => handleAcceptReport(report), style: 'destructive' },
+                                ]
+                              );
+                            }}
+                          >
+                            <Ionicons name="checkmark-circle" size={16} color="#EF4444" />
+                            <Text style={[styles.actionText, { color: '#EF4444' }]}>Aceitar</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: '#6B728020' }]}
+                            onPress={() => handleDiscardReport(report)}
+                          >
+                            <Ionicons name="close-circle" size={16} color="#6B7280" />
+                            <Text style={[styles.actionText, { color: '#6B7280' }]}>Descartar</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: '#F59E0B20' }]}
+                            onPress={() => {
+                              const provider = providers.find(p => p.provider_id === report.provider_id);
+                              if (provider) {
+                                Alert.alert(
+                                  'Desativar Prestador',
+                                  `Deseja desativar o prestador "${report.provider_name}"?`,
+                                  [
+                                    { text: 'Cancelar', style: 'cancel' },
+                                    { 
+                                      text: 'Desativar', 
+                                      onPress: async () => {
+                                        await handleToggleProviderStatus(provider);
+                                        await handleAcceptReport(report);
+                                      },
+                                      style: 'destructive'
+                                    },
+                                  ]
+                                );
+                              } else {
+                                Alert.alert('Erro', 'Prestador não encontrado');
+                              }
+                            }}
+                          >
+                            <Ionicons name="ban" size={16} color="#F59E0B" />
+                            <Text style={[styles.actionText, { color: '#F59E0B' }]}>Desativar</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  ))
+                )}
+              </View>
+            )}
           </>
         )}
 
@@ -1162,6 +1345,11 @@ const styles = StyleSheet.create({
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 20,
+  },
+  statsRow: {
+    flexDirection: 'row',
     gap: 12,
     marginBottom: 20,
   },
@@ -1398,5 +1586,27 @@ const styles = StyleSheet.create({
   },
   targetButtonTextActive: {
     color: '#FFFFFF',
+  },
+  // Report styles
+  reportCardPending: {
+    borderLeftWidth: 3,
+    borderLeftColor: '#F59E0B',
+  },
+  reportReasonBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EF444415',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  reportReasonText: {
+    color: '#EF4444',
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

@@ -246,6 +246,18 @@ backend:
         agent: "testing"
         comment: "All notification endpoints tested successfully. GET /api/notifications, GET /api/notifications/unread-count, and POST /api/notifications/mark-read correctly require authentication (401). POST /api/admin/broadcast-notification working correctly - successfully broadcasts notifications to 4 providers. Push notification structure in place. Complete notification flow verified."
 
+  - task: "Reports/Denunciation System"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "All report endpoints tested successfully. POST /api/reports correctly creates reports for existing providers and returns 404 for non-existent providers. GET /api/admin/reports returns array of reports. GET /api/admin/stats includes pending_reports field. PUT /api/admin/reports/{id}/accept successfully accepts reports. PUT /api/admin/reports/{id}/discard correctly returns 404 for non-existent reports. Complete report/denunciation system functional."
+
 frontend:
   - task: "Home Screen with Provider List"
     implemented: true
@@ -354,6 +366,8 @@ agent_communication:
   - agent: "testing"
     message: "Stripe endpoints testing completed successfully. All 3 new Stripe endpoints tested and working correctly: 1) POST /api/stripe/create-checkout-session properly requires authentication (401), 2) POST /api/stripe/webhook accepts requests and returns 200 OK, 3) GET /api/stripe/payment-status/{session_id} correctly returns 404 for invalid session_id. Total backend tests: 26/26 passed (100% success rate). All Stripe payment integration endpoints are functional and ready for production use."
   - agent: "testing"
-    message: "Category and city editing functionality tested on mobile viewport. App loads correctly at https://servico-staging-1.preview.emergentagent.com with proper authentication protection. Code review of provider dashboard shows correct implementation of toggleCategory() and toggleCity() functions with proper state management to prevent auto-reset issues. Authentication required to test full edit functionality - cannot proceed without real Google OAuth login. Application is functioning correctly with no UI errors or routing issues detected."
+    message: "Category and city editing functionality tested on mobile viewport. App loads correctly at https://service-finder-416.preview.emergentagent.com with proper authentication protection. Code review of provider dashboard shows correct implementation of toggleCategory() and toggleCity() functions with proper state management to prevent auto-reset issues. Authentication required to test full edit functionality - cannot proceed without real Google OAuth login. Application is functioning correctly with no UI errors or routing issues detected."
   - agent: "testing"
     message: "Notification system testing completed successfully. All 4 notification endpoints tested and working correctly: 1) GET /api/notifications properly requires auth (401), 2) GET /api/notifications/unread-count properly requires auth (401), 3) POST /api/notifications/mark-read properly requires auth (401), 4) POST /api/admin/broadcast-notification successfully broadcasts to 4 providers with proper response structure. Notification center feature is fully functional. Total backend tests: 30/30 passed (100% success rate)."
+  - agent: "testing"
+    message: "Report/Denunciation system testing completed successfully. All 5 report endpoints tested and working correctly: 1) POST /api/reports correctly creates reports for existing providers and returns 404 for non-existent providers, 2) GET /api/admin/reports returns array of reports, 3) GET /api/admin/stats includes pending_reports field, 4) PUT /api/admin/reports/{id}/accept successfully accepts reports, 5) PUT /api/admin/reports/{id}/discard correctly returns 404 for non-existent reports. Complete report/denunciation system is fully functional. Total backend tests: 35/35 passed (100% success rate)."

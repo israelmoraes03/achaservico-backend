@@ -67,6 +67,10 @@ export default function ProviderDetailScreen() {
   const [canReview, setCanReview] = useState(false);
   const [reviewStatus, setReviewStatus] = useState<string>('');
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
+  const [isReporting, setIsReporting] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -169,6 +173,41 @@ export default function ProviderDetailScreen() {
     } catch (error: any) {
       const message = error.response?.data?.detail || 'Erro ao enviar avaliação';
       Alert.alert('Erro', message);
+
+  const handleReport = async () => {
+    if (!reportReason) {
+      Alert.alert('Erro', 'Selecione um motivo para a denúncia');
+      return;
+    }
+    
+    try {
+      setIsReporting(true);
+      await api.post('/reports', {
+        provider_id: id,
+        reason: reportReason,
+        description: reportDescription || null,
+      });
+      
+      Alert.alert('Denúncia Enviada', 'Obrigado por nos informar. Iremos analisar sua denúncia.');
+      setShowReportModal(false);
+      setReportReason('');
+      setReportDescription('');
+    } catch (error: any) {
+      const message = error.response?.data?.detail || 'Erro ao enviar denúncia';
+      Alert.alert('Erro', message);
+    } finally {
+      setIsReporting(false);
+    }
+  };
+
+  const REPORT_REASONS = [
+    { id: 'inappropriate_content', label: 'Conteúdo inadequado' },
+    { id: 'false_info', label: 'Informações falsas' },
+    { id: 'bad_behavior', label: 'Comportamento impróprio' },
+    { id: 'spam', label: 'Spam ou propaganda' },
+    { id: 'other', label: 'Outro motivo' },
+  ];
+
     } finally {
       setIsSubmitting(false);
     }
@@ -233,7 +272,12 @@ export default function ProviderDetailScreen() {
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Detalhes</Text>
-          <View style={styles.backButton} />
+          <TouchableOpacity 
+            onPress={() => setShowReportModal(true)} 
+            style={styles.reportHeaderButton}
+          >
+            <Ionicons name="flag-outline" size={20} color="#6B7280" />
+          </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -427,6 +471,73 @@ export default function ProviderDetailScreen() {
           <View style={styles.bottomSpacer} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Report Modal */}
+      <Modal
+        visible={showReportModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowReportModal(false)}
+      >
+        <View style={styles.reportModalOverlay}>
+          <View style={styles.reportModalContent}>
+            <View style={styles.reportModalHeader}>
+              <Text style={styles.reportModalTitle}>Denunciar Prestador</Text>
+              <TouchableOpacity onPress={() => { setShowReportModal(false); setReportReason(''); setReportDescription(''); }}>
+                <Ionicons name="close" size={24} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.reportModalSubtitle}>Selecione o motivo da denúncia:</Text>
+            
+            {REPORT_REASONS.map((reason) => (
+              <TouchableOpacity
+                key={reason.id}
+                style={[
+                  styles.reportReasonItem,
+                  reportReason === reason.id && styles.reportReasonItemSelected
+                ]}
+                onPress={() => setReportReason(reason.id)}
+              >
+                <View style={[
+                  styles.reportRadio,
+                  reportReason === reason.id && styles.reportRadioSelected
+                ]}>
+                  {reportReason === reason.id && (
+                    <View style={styles.reportRadioInner} />
+                  )}
+                </View>
+                <Text style={[
+                  styles.reportReasonText,
+                  reportReason === reason.id && styles.reportReasonTextSelected
+                ]}>{reason.label}</Text>
+              </TouchableOpacity>
+            ))}
+            
+            <TextInput
+              style={styles.reportDescriptionInput}
+              placeholder="Descreva o problema (opcional)"
+              placeholderTextColor="#6B7280"
+              value={reportDescription}
+              onChangeText={setReportDescription}
+              multiline
+              numberOfLines={3}
+            />
+            
+            <TouchableOpacity
+              style={[styles.reportSubmitButton, !reportReason && styles.reportSubmitButtonDisabled]}
+              onPress={handleReport}
+              disabled={!reportReason || isReporting}
+            >
+              {isReporting ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.reportSubmitText}>Enviar Denúncia</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Full Screen Image Modal */}
       <Modal
@@ -805,6 +916,105 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 32,
+  },
+  // Report button styles
+  reportHeaderButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // Report Modal styles
+  reportModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  reportModalContent: {
+    backgroundColor: '#1A1A1A',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  reportModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  reportModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  reportModalSubtitle: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    marginBottom: 16,
+  },
+  reportReasonItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 6,
+    gap: 12,
+  },
+  reportReasonItemSelected: {
+    backgroundColor: '#EF444415',
+  },
+  reportRadio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#6B7280',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reportRadioSelected: {
+    borderColor: '#EF4444',
+  },
+  reportRadioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#EF4444',
+  },
+  reportReasonText: {
+    fontSize: 15,
+    color: '#D1D5DB',
+  },
+  reportReasonTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '500',
+  },
+  reportDescriptionInput: {
+    backgroundColor: '#2D2D2D',
+    borderRadius: 10,
+    padding: 12,
+    color: '#FFFFFF',
+    fontSize: 14,
+    minHeight: 70,
+    textAlignVertical: 'top',
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  reportSubmitButton: {
+    backgroundColor: '#EF4444',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  reportSubmitButtonDisabled: {
+    opacity: 0.4,
+  },
+  reportSubmitText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   // Full Screen Image Modal Styles
   imageModalContainer: {

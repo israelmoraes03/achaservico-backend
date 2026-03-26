@@ -686,6 +686,23 @@ class Subscription(BaseModel):
     expires_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+class Report(BaseModel):
+    report_id: str = Field(default_factory=lambda: f"rep_{uuid.uuid4().hex[:12]}")
+    provider_id: str
+    provider_name: Optional[str] = None
+    reporter_user_id: Optional[str] = None
+    reporter_email: Optional[str] = None
+    reason: str  # inappropriate_content, false_info, bad_behavior, other
+    description: Optional[str] = None
+    status: str = "pending"  # pending, accepted, discarded
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    resolved_at: Optional[datetime] = None
+
+class ReportCreate(BaseModel):
+    provider_id: str
+    reason: str
+    description: Optional[str] = None
+
 class SessionDataResponse(BaseModel):
     id: str
     email: str
@@ -1643,6 +1660,7 @@ async def get_admin_stats():
     
     expired_subscriptions = await db.providers.count_documents({"subscription_status": "expired"})
     total_reviews = await db.reviews.count_documents({})
+    pending_reports = await db.reports.count_documents({"status": "pending"})
     
     return {
         "total_users": total_users,
@@ -1650,7 +1668,8 @@ async def get_admin_stats():
         "active_subscriptions": active_subscriptions,
         "pending_subscriptions": pending_subscriptions,
         "expired_subscriptions": expired_subscriptions,
-        "total_reviews": total_reviews
+        "total_reviews": total_reviews,
+        "pending_reports": pending_reports
     }
 
 @api_router.get("/admin/export-excel")
@@ -2173,6 +2192,88 @@ async def admin_delete_review(review_id: str):
             )
     
     return {"success": True, "message": "Avaliação excluída"}
+
+# ======================== REPORTS / DENÚNCIAS ========================
+
+@api_router.post("/reports")
+async def create_report(report_data: ReportCreate, request: Request):
+    """Create a report against a provider"""
+    # Get current user if authenticated
+    user = await get_current_user(request)
+    
+    # Check if provider exists
+    provider = await db.providers.find_one({"provider_id": report_data.provider_id})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Prestador não encontrado")
+    
+    # Check if user already reported this provider (prevent spam)
+    if user:
+        existing = await db.reports.find_one({
+            "provider_id": report_data.provider_id,
+            "reporter_user_id": user.user_id,
+            "status": "pending"
+        })
+        if existing:
+            raise HTTPException(status_code=400, detail="Você já denunciou este prestador. Aguarde a análise.")
+    
+    report = Report(
+        provider_id=report_data.provider_id,
+        provider_name=provider.get("name", ""),
+        reporter_user_id=user.user_id if user else None,
+        reporter_email=user.email if user else None,
+        reason=report_data.reason,
+        description=report_data.description,
+    )
+    
+    await db.reports.insert_one(report.dict())
+    
+    logger.info(f"New report created: {report.report_id} for provider {report_data.provider_id}")
+    return {"success": True, "message": "Denúncia enviada com sucesso. Iremos analisar."}
+
+@api_router.get("/admin/reports")
+async def get_admin_reports():
+    """Get all reports for admin"""
+    reports = await db.reports.find(
+        {},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(500)
+    return reports
+
+@api_router.put("/admin/reports/{report_id}/accept")
+async def admin_accept_report(report_id: str):
+    """Accept a report - marks as accepted"""
+    report = await db.reports.find_one({"report_id": report_id})
+    if not report:
+        raise HTTPException(status_code=404, detail="Denúncia não encontrada")
+    
+    await db.reports.update_one(
+        {"report_id": report_id},
+        {"$set": {
+            "status": "accepted",
+            "resolved_at": datetime.now(timezone.utc)
+        }}
+    )
+    
+    logger.info(f"Report {report_id} accepted")
+    return {"success": True, "message": "Denúncia aceita"}
+
+@api_router.put("/admin/reports/{report_id}/discard")
+async def admin_discard_report(report_id: str):
+    """Discard a report"""
+    report = await db.reports.find_one({"report_id": report_id})
+    if not report:
+        raise HTTPException(status_code=404, detail="Denúncia não encontrada")
+    
+    await db.reports.update_one(
+        {"report_id": report_id},
+        {"$set": {
+            "status": "discarded",
+            "resolved_at": datetime.now(timezone.utc)
+        }}
+    )
+    
+    logger.info(f"Report {report_id} discarded")
+    return {"success": True, "message": "Denúncia descartada"}
 
 # ======================== ADMIN PREMIUM & NOTIFICATIONS ========================
 
