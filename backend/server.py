@@ -3626,17 +3626,34 @@ TERMS_OF_USE_HTML = """
             <li>Prejudiquem outros usuários ou a plataforma</li>
         </ul>
         
-        <h2>10. Planos e Preços</h2>
+        <h2>10. Cancelamento de Conta</h2>
+        <p>Você pode solicitar o cancelamento da sua conta a qualquer momento. Para isso:</p>
+        <ul>
+            <li>Acesse o aplicativo AchaServiço</li>
+            <li>Vá até <strong>Perfil → Ajuda / Suporte → Cancelar Conta</strong></li>
+            <li>Ao clicar, será aberto seu aplicativo de e-mail com uma solicitação pré-preenchida</li>
+            <li>Envie o e-mail para <strong>contato.achaservico@gmail.com</strong></li>
+            <li>Nossa equipe processará sua solicitação em até <strong>5 dias úteis</strong></li>
+        </ul>
+        <p>Ao cancelar sua conta:</p>
+        <ul>
+            <li>Seus dados pessoais serão removidos permanentemente</li>
+            <li>Caso seja prestador, seu perfil será desativado e removido das buscas</li>
+            <li>Suas avaliações feitas em outros prestadores serão anonimizadas</li>
+            <li>Esta ação é <strong>irreversível</strong></li>
+        </ul>
+        
+        <h2>11. Planos e Preços</h2>
         <p>O AchaServiço é atualmente gratuito para todos os usuários. Reservamo-nos o direito de, no futuro, introduzir planos pagos com recursos adicionais para prestadores de serviços.</p>
         <p>Qualquer alteração nos preços ou introdução de cobranças será comunicada com antecedência mínima de 30 dias através do aplicativo e/ou e-mail cadastrado. O uso continuado após as alterações implica aceitação dos novos termos.</p>
         
-        <h2>11. Alterações nos Termos</h2>
+        <h2>12. Alterações nos Termos</h2>
         <p>Podemos modificar estes termos a qualquer momento. Mudanças significativas serão comunicadas pelo aplicativo.</p>
         
-        <h2>12. Lei Aplicável</h2>
+        <h2>13. Lei Aplicável</h2>
         <p>Estes termos são regidos pelas leis da República Federativa do Brasil.</p>
         
-        <h2>13. Contato</h2>
+        <h2>14. Contato</h2>
         <p>Para dúvidas sobre estes termos:</p>
         <ul>
             <li><strong>E-mail:</strong> contato.achaservico@gmail.com</li>

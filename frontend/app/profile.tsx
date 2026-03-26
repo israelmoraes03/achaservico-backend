@@ -9,6 +9,7 @@ import {
   Linking,
   Modal,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -61,6 +62,26 @@ export default function ProfileScreen() {
 
   const openEmail = () => {
     Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=Ajuda - AchaServiço&body=Olá, preciso de ajuda com dúvidas no app AchaServiço.`);
+    setShowHelpModal(false);
+  };
+
+  const openCancelAccount = () => {
+    const userName = user?.name || 'Não informado';
+    const userEmail = user?.email || 'Não informado';
+    const subject = encodeURIComponent('Solicitação de Cancelamento de Conta - AchaServiço');
+    const body = encodeURIComponent(
+      `Olá,\n\nSolicito o cancelamento da minha conta no aplicativo AchaServiço.\n\n` +
+      `Dados da conta:\n` +
+      `- Nome: ${userName}\n` +
+      `- E-mail: ${userEmail}\n\n` +
+      `Estou ciente de que:\n` +
+      `- Meus dados pessoais serão removidos permanentemente\n` +
+      `- Caso seja prestador, meu perfil será desativado\n` +
+      `- Esta ação é irreversível\n\n` +
+      `Confirmo que desejo cancelar minha conta.\n\n` +
+      `Atenciosamente,\n${userName}`
+    );
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`);
     setShowHelpModal(false);
   };
 
@@ -278,6 +299,28 @@ export default function ProfileScreen() {
                 <View style={styles.helpOptionText}>
                   <Text style={styles.helpOptionTitle}>E-mail</Text>
                   <Text style={styles.helpOptionDescription}>{SUPPORT_EMAIL}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+              </TouchableOpacity>
+              
+              <View style={styles.helpDivider} />
+              
+              <TouchableOpacity style={styles.helpOption} onPress={() => {
+                Alert.alert(
+                  'Cancelar Conta',
+                  'Tem certeza que deseja solicitar o cancelamento da sua conta? Seus dados serão removidos permanentemente.',
+                  [
+                    { text: 'Não', style: 'cancel' },
+                    { text: 'Sim, cancelar', onPress: openCancelAccount, style: 'destructive' },
+                  ]
+                );
+              }}>
+                <View style={[styles.helpOptionIcon, { backgroundColor: '#EF444415' }]}>
+                  <Ionicons name="person-remove" size={28} color="#EF4444" />
+                </View>
+                <View style={styles.helpOptionText}>
+                  <Text style={[styles.helpOptionTitle, { color: '#EF4444' }]}>Cancelar Conta</Text>
+                  <Text style={styles.helpOptionDescription}>Solicitar exclusão dos seus dados</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#6B7280" />
               </TouchableOpacity>
@@ -562,6 +605,11 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 8,
+  },
+  helpDivider: {
+    height: 1,
+    backgroundColor: '#2D2D2D',
+    marginVertical: 8,
   },
   helpCloseButtonText: {
     color: '#FFFFFF',
