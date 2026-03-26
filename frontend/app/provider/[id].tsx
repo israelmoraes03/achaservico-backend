@@ -478,7 +478,15 @@ export default function ProviderDetailScreen() {
         animationType="slide"
         onRequestClose={() => setShowReportModal(false)}
       >
-        <View style={styles.reportModalOverlay}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.reportModalOverlay}
+        >
+          <TouchableOpacity 
+            activeOpacity={1} 
+            onPress={() => { setShowReportModal(false); setReportReason(''); setReportDescription(''); }}
+            style={{ flex: 1 }}
+          />
           <View style={styles.reportModalContent}>
             <View style={styles.reportModalHeader}>
               <Text style={styles.reportModalTitle}>Denunciar Prestador</Text>
@@ -487,55 +495,59 @@ export default function ProviderDetailScreen() {
               </TouchableOpacity>
             </View>
             
-            <Text style={styles.reportModalSubtitle}>Selecione o motivo da denúncia:</Text>
-            
-            {REPORT_REASONS.map((reason) => (
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <Text style={styles.reportModalSubtitle}>Selecione o motivo da denúncia:</Text>
+              
+              {REPORT_REASONS.map((reason) => (
+                <TouchableOpacity
+                  key={reason.id}
+                  style={[
+                    styles.reportReasonItem,
+                    reportReason === reason.id && styles.reportReasonItemSelected
+                  ]}
+                  onPress={() => setReportReason(reason.id)}
+                >
+                  <View style={[
+                    styles.reportRadio,
+                    reportReason === reason.id && styles.reportRadioSelected
+                  ]}>
+                    {reportReason === reason.id && (
+                      <View style={styles.reportRadioInner} />
+                    )}
+                  </View>
+                  <Text style={[
+                    styles.reportReasonText,
+                    reportReason === reason.id && styles.reportReasonTextSelected
+                  ]}>{reason.label}</Text>
+                </TouchableOpacity>
+              ))}
+              
+              <TextInput
+                style={styles.reportDescriptionInput}
+                placeholder="Descreva o problema (opcional)"
+                placeholderTextColor="#6B7280"
+                value={reportDescription}
+                onChangeText={setReportDescription}
+                multiline
+                numberOfLines={3}
+              />
+              
               <TouchableOpacity
-                key={reason.id}
-                style={[
-                  styles.reportReasonItem,
-                  reportReason === reason.id && styles.reportReasonItemSelected
-                ]}
-                onPress={() => setReportReason(reason.id)}
+                style={[styles.reportSubmitButton, !reportReason && styles.reportSubmitButtonDisabled]}
+                onPress={handleReport}
+                disabled={!reportReason || isReporting}
               >
-                <View style={[
-                  styles.reportRadio,
-                  reportReason === reason.id && styles.reportRadioSelected
-                ]}>
-                  {reportReason === reason.id && (
-                    <View style={styles.reportRadioInner} />
-                  )}
-                </View>
-                <Text style={[
-                  styles.reportReasonText,
-                  reportReason === reason.id && styles.reportReasonTextSelected
-                ]}>{reason.label}</Text>
+                {isReporting ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.reportSubmitText}>Enviar Denúncia</Text>
+                )}
               </TouchableOpacity>
-            ))}
-            
-            <TextInput
-              style={styles.reportDescriptionInput}
-              placeholder="Descreva o problema (opcional)"
-              placeholderTextColor="#6B7280"
-              value={reportDescription}
-              onChangeText={setReportDescription}
-              multiline
-              numberOfLines={3}
-            />
-            
-            <TouchableOpacity
-              style={[styles.reportSubmitButton, !reportReason && styles.reportSubmitButtonDisabled]}
-              onPress={handleReport}
-              disabled={!reportReason || isReporting}
-            >
-              {isReporting ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.reportSubmitText}>Enviar Denúncia</Text>
-              )}
-            </TouchableOpacity>
+              
+              <View style={{ height: 20 }} />
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Full Screen Image Modal */}

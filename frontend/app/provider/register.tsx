@@ -54,6 +54,8 @@ export default function ProviderRegisterScreen() {
   const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<string[]>([]);
   const [description, setDescription] = useState('');
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [servicePhotos, setServicePhotos] = useState<string[]>([]);
+  const MAX_SERVICE_PHOTOS = 6;
   
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showCityPicker, setShowCityPicker] = useState(false);
@@ -198,6 +200,45 @@ export default function ProviderRegisterScreen() {
     }
   };
 
+  const pickServicePhotos = async () => {
+    if (servicePhotos.length >= MAX_SERVICE_PHOTOS) {
+      Alert.alert('Limite Atingido', `Você pode adicionar no máximo ${MAX_SERVICE_PHOTOS} fotos.`);
+      return;
+    }
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permissão Negada', 'Precisamos de permissão para acessar suas fotos.');
+      return;
+    }
+
+    const remainingSlots = MAX_SERVICE_PHOTOS - servicePhotos.length;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      selectionLimit: remainingSlots,
+      quality: 0.6,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      const newPhotos: string[] = [];
+      for (const asset of result.assets) {
+        if (asset.base64) {
+          newPhotos.push(`data:image/jpeg;base64,${asset.base64}`);
+        }
+      }
+      if (newPhotos.length > 0) {
+        setServicePhotos(prev => [...prev, ...newPhotos]);
+      }
+    }
+  };
+
+  const removeServicePhoto = (index: number) => {
+    setServicePhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
   const formatPhone = (text: string) => {
     const cleaned = text.replace(/\D/g, '');
     let formatted = cleaned;
@@ -250,6 +291,7 @@ export default function ProviderRegisterScreen() {
         neighborhoods: selectedNeighborhoods,
         description: description.trim(),
         profile_image: profileImage,
+        service_photos: servicePhotos,
       });
 
       // Provider created successfully - try to refresh user but don't fail if it errors
@@ -649,6 +691,34 @@ export default function ProviderRegisterScreen() {
               />
               <Text style={styles.charCount}>{description.length}/500</Text>
             </View>
+
+            {/* Service Photos */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Fotos dos Serviços (opcional)</Text>
+              <Text style={styles.photoSubLabel}>Adicione fotos dos seus trabalhos para atrair mais clientes</Text>
+              
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.servicePhotosScroll}>
+                {servicePhotos.map((photo, index) => (
+                  <View key={index} style={styles.servicePhotoWrapper}>
+                    <Image source={{ uri: photo }} style={styles.servicePhotoThumb} />
+                    <TouchableOpacity
+                      style={styles.removePhotoButton}
+                      onPress={() => removeServicePhoto(index)}
+                    >
+                      <Ionicons name="close-circle" size={22} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                
+                {servicePhotos.length < MAX_SERVICE_PHOTOS && (
+                  <TouchableOpacity style={styles.addServicePhotoButton} onPress={pickServicePhotos}>
+                    <Ionicons name="camera-outline" size={28} color="#10B981" />
+                    <Text style={styles.addServicePhotoText}>Adicionar</Text>
+                    <Text style={styles.addServicePhotoCount}>{servicePhotos.length}/{MAX_SERVICE_PHOTOS}</Text>
+                  </TouchableOpacity>
+                )}
+              </ScrollView>
+            </View>
           </View>
 
           {/* Info - Perfil gratuito */}
@@ -936,6 +1006,51 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 32,
+  },
+  // Service Photos styles
+  photoSubLabel: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    marginBottom: 10,
+  },
+  servicePhotosScroll: {
+    flexDirection: 'row',
+  },
+  servicePhotoWrapper: {
+    marginRight: 10,
+    position: 'relative',
+  },
+  servicePhotoThumb: {
+    width: 90,
+    height: 90,
+    borderRadius: 10,
+  },
+  removePhotoButton: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#0A0A0A',
+    borderRadius: 11,
+  },
+  addServicePhotoButton: {
+    width: 90,
+    height: 90,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#2D2D2D',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 2,
+  },
+  addServicePhotoText: {
+    color: '#10B981',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  addServicePhotoCount: {
+    color: '#6B7280',
+    fontSize: 10,
   },
   // Modern select button styles
   modernSelectButton: {

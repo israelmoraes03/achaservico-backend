@@ -2228,6 +2228,80 @@ async def create_report(report_data: ReportCreate, request: Request):
     await db.reports.insert_one(report.dict())
     
     logger.info(f"New report created: {report.report_id} for provider {report_data.provider_id}")
+    
+    # Send notification to admin
+    try:
+        # Send push notification to admin
+        admin_user = await db.users.find_one({"email": "israel.moraes03@gmail.com"})
+        if admin_user and admin_user.get("push_token"):
+            reason_labels = {
+                "inappropriate_content": "Conteúdo inadequado",
+                "false_info": "Informações falsas",
+                "bad_behavior": "Comportamento impróprio",
+                "spam": "Spam ou propaganda",
+                "other": "Outro motivo",
+            }
+            reason_text = reason_labels.get(report_data.reason, report_data.reason)
+            await send_push_notification(
+                admin_user["push_token"],
+                "🚨 Nova Denúncia Recebida",
+                f"Prestador: {provider.get('name', 'Desconhecido')}\nMotivo: {reason_text}",
+                {"type": "report", "report_id": report.report_id}
+            )
+        
+        # Send email to admin
+        if RESEND_API_KEY:
+            reason_labels = {
+                "inappropriate_content": "Conteúdo inadequado",
+                "false_info": "Informações falsas",
+                "bad_behavior": "Comportamento impróprio",
+                "spam": "Spam ou propaganda",
+                "other": "Outro motivo",
+            }
+            reason_text = reason_labels.get(report_data.reason, report_data.reason)
+            html_content = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background: linear-gradient(135deg, #EF4444, #DC2626); padding: 20px; border-radius: 10px 10px 0 0;">
+                    <h1 style="color: white; margin: 0; font-size: 24px;">🚨 Nova Denúncia Recebida!</h1>
+                </div>
+                <div style="background: #f9f9f9; padding: 20px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 10px 10px;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0; font-weight: bold; color: #666;">Prestador:</td>
+                            <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0; color: #333;">{provider.get('name', 'Desconhecido')}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0; font-weight: bold; color: #666;">Motivo:</td>
+                            <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0; color: #EF4444; font-weight: bold;">{reason_text}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0; font-weight: bold; color: #666;">Descrição:</td>
+                            <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0; color: #333;">{report_data.description or 'Sem descrição'}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px 0; font-weight: bold; color: #666;">Denunciado por:</td>
+                            <td style="padding: 10px 0; color: #333;">{user.email if user else 'Anônimo'}</td>
+                        </tr>
+                    </table>
+                    <div style="margin-top: 20px; padding: 15px; background: #fef2f2; border-radius: 5px; border-left: 4px solid #EF4444;">
+                        <p style="margin: 0; color: #991b1b;">
+                            <strong>⚠️ Ação necessária:</strong> Acesse o painel admin do AchaServiço para analisar esta denúncia.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            """
+            params = {
+                "from": SENDER_EMAIL,
+                "to": [ADMIN_NOTIFICATION_EMAIL],
+                "subject": f"🚨 Denúncia: {provider.get('name', 'Desconhecido')} - {reason_text}",
+                "html": html_content
+            }
+            await asyncio.to_thread(resend.Emails.send, params)
+            logger.info(f"Admin notification email sent for report {report.report_id}")
+    except Exception as e:
+        logger.error(f"Failed to send admin notification for report: {str(e)}")
+    
     return {"success": True, "message": "Denúncia enviada com sucesso. Iremos analisar."}
 
 @api_router.get("/admin/reports")
