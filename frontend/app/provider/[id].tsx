@@ -173,6 +173,10 @@ export default function ProviderDetailScreen() {
     } catch (error: any) {
       const message = error.response?.data?.detail || 'Erro ao enviar avaliação';
       Alert.alert('Erro', message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleReport = async () => {
     if (!reportReason) {
@@ -207,11 +211,6 @@ export default function ProviderDetailScreen() {
     { id: 'spam', label: 'Spam ou propaganda' },
     { id: 'other', label: 'Outro motivo' },
   ];
-
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const renderStars = (rating: number, size: number = 18, interactive: boolean = false) => {
     const stars = [];
