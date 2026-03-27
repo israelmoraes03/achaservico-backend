@@ -1645,7 +1645,7 @@ async def activate_subscription_manual(request: Request):
 
 @api_router.get("/admin/stats")
 async def get_admin_stats():
-    """Get dashboard statistics"""
+    """Get comprehensive dashboard statistics"""
     # Check for expired subscriptions first
     await check_and_expire_subscriptions()
     
@@ -1661,6 +1661,74 @@ async def get_admin_stats():
     expired_subscriptions = await db.providers.count_documents({"subscription_status": "expired"})
     total_reviews = await db.reviews.count_documents({})
     pending_reports = await db.reports.count_documents({"status": "pending"})
+    total_reports = await db.reports.count_documents({})
+    
+    # Advanced stats
+    total_contacts = await db.whatsapp_contacts.count_documents({})
+    total_favorites = 0
+    users_with_favs = await db.users.find({"favorites": {"$exists": True, "$ne": []}}).to_list(1000)
+    for u in users_with_favs:
+        total_favorites += len(u.get("favorites", []))
+    
+    # Active providers (is_active=True)
+    active_providers = await db.providers.count_documents({"is_active": True})
+    inactive_provider_count = await db.providers.count_documents({"is_active": False})
+    
+    # Average rating across all providers
+    pipeline = [
+        {"$match": {"average_rating": {"$gt": 0}}},
+        {"$group": {"_id": None, "avg": {"$avg": "$average_rating"}}}
+    ]
+    avg_result = await db.providers.aggregate(pipeline).to_list(1)
+    avg_rating = round(avg_result[0]["avg"], 1) if avg_result else 0
+    
+    # Top 5 providers by rating
+    top_providers = await db.providers.find(
+        {"total_reviews": {"$gte": 1}},
+        {"_id": 0, "name": 1, "average_rating": 1, "total_reviews": 1, "categories": 1}
+    ).sort("average_rating", -1).limit(5).to_list(5)
+    
+    # Recent activity (last 5 providers registered)
+    recent_providers = await db.providers.find(
+        {},
+        {"_id": 0, "name": 1, "created_at": 1, "categories": 1, "cities": 1}
+    ).sort("created_at", -1).limit(5).to_list(5)
+    
+    # Recent reviews (last 5)
+    recent_reviews = await db.reviews.find(
+        {},
+        {"_id": 0, "user_name": 1, "rating": 1, "comment": 1, "created_at": 1, "provider_id": 1}
+    ).sort("created_at", -1).limit(5).to_list(5)
+    
+    # Enrich recent reviews with provider names
+    for review in recent_reviews:
+        provider = await db.providers.find_one(
+            {"provider_id": review.get("provider_id")},
+            {"_id": 0, "name": 1}
+        )
+        review["provider_name"] = provider.get("name", "Desconhecido") if provider else "Desconhecido"
+    
+    # Category distribution
+    cat_pipeline = [
+        {"$unwind": "$categories"},
+        {"$group": {"_id": "$categories", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 8}
+    ]
+    category_dist = await db.providers.aggregate(cat_pipeline).to_list(8)
+    
+    # City distribution
+    city_pipeline = [
+        {"$unwind": "$cities"},
+        {"$group": {"_id": "$cities", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 5}
+    ]
+    city_dist = await db.providers.aggregate(city_pipeline).to_list(5)
+    
+    # Users with push tokens (notification reach)
+    users_with_tokens = await db.users.count_documents({"push_token": {"$exists": True, "$ne": None}})
+    providers_with_tokens = await db.providers.count_documents({"push_token": {"$exists": True, "$ne": None}})
     
     return {
         "total_users": total_users,
@@ -1669,7 +1737,22 @@ async def get_admin_stats():
         "pending_subscriptions": pending_subscriptions,
         "expired_subscriptions": expired_subscriptions,
         "total_reviews": total_reviews,
-        "pending_reports": pending_reports
+        "pending_reports": pending_reports,
+        "total_reports": total_reports,
+        "total_contacts": total_contacts,
+        "total_favorites": total_favorites,
+        "active_providers": active_providers,
+        "inactive_providers": inactive_provider_count,
+        "avg_rating": avg_rating,
+        "top_providers": top_providers,
+        "recent_providers": recent_providers,
+        "recent_reviews": recent_reviews,
+        "category_distribution": [{"name": c["_id"], "count": c["count"]} for c in category_dist],
+        "city_distribution": [{"name": c["_id"], "count": c["count"]} for c in city_dist],
+        "notification_reach": {
+            "users": users_with_tokens,
+            "providers": providers_with_tokens
+        }
     }
 
 @api_router.get("/admin/export-excel")
@@ -2348,6 +2431,16 @@ async def admin_discard_report(report_id: str):
     
     logger.info(f"Report {report_id} discarded")
     return {"success": True, "message": "Denúncia descartada"}
+
+@api_router.delete("/admin/reports/{report_id}")
+async def admin_delete_report(report_id: str):
+    """Permanently delete a report"""
+    result = await db.reports.delete_one({"report_id": report_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Denúncia não encontrada")
+    
+    logger.info(f"Report {report_id} permanently deleted")
+    return {"success": True, "message": "Denúncia excluída permanentemente"}
 
 # ======================== ADMIN PREMIUM & NOTIFICATIONS ========================
 

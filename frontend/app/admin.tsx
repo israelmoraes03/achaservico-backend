@@ -287,6 +287,32 @@ export default function AdminScreen() {
     }
   };
 
+  const handleDeleteReport = async (report: AdminReport) => {
+    Alert.alert(
+      'Excluir Denúncia',
+      `Deseja excluir permanentemente esta denúncia?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/admin/reports/${report.report_id}`);
+              fetchReports();
+              fetchStats();
+              setActionMessage('Denúncia excluída!');
+              setTimeout(() => setActionMessage(''), 3000);
+            } catch (error) {
+              setActionMessage('Erro ao excluir denúncia');
+              setTimeout(() => setActionMessage(''), 3000);
+            }
+          }
+        },
+      ]
+    );
+  };
+
   const getReasonLabel = (reason: string) => {
     const labels: Record<string, string> = {
       inappropriate_content: 'Conteúdo inadequado',
@@ -580,7 +606,8 @@ export default function AdminScreen() {
             {/* Dashboard Tab */}
             {activeTab === 'dashboard' && (
               <View>
-                <Text style={styles.sectionTitle}>Estatísticas Gerais</Text>
+                {/* Main Stats Grid */}
+                <Text style={styles.sectionTitle}>Visão Geral</Text>
                 <View style={styles.statsGrid}>
                   <View style={styles.statCard}>
                     <Ionicons name="people" size={28} color="#3B82F6" />
@@ -593,34 +620,165 @@ export default function AdminScreen() {
                     <Text style={styles.statLabel}>Prestadores</Text>
                   </View>
                   <View style={styles.statCard}>
-                    <Ionicons name="checkmark-circle" size={28} color="#10B981" />
-                    <Text style={styles.statValue}>{stats?.active_subscriptions || 0}</Text>
+                    <Ionicons name="checkmark-circle" size={28} color="#22C55E" />
+                    <Text style={styles.statValue}>{stats?.active_providers || 0}</Text>
                     <Text style={styles.statLabel}>Ativos</Text>
                   </View>
                   <View style={styles.statCard}>
-                    <Ionicons name="time" size={28} color="#F59E0B" />
-                    <Text style={styles.statValue}>{stats?.pending_subscriptions || 0}</Text>
-                    <Text style={styles.statLabel}>Pendentes</Text>
-                  </View>
-                  <View style={styles.statCard}>
-                    <Ionicons name="alert-circle" size={28} color="#EF4444" />
-                    <Text style={[styles.statValue, { color: '#EF4444' }]}>{stats?.expired_subscriptions || 0}</Text>
-                    <Text style={styles.statLabel}>Expiradas</Text>
+                    <Ionicons name="close-circle" size={28} color="#EF4444" />
+                    <Text style={[styles.statValue, { color: '#EF4444' }]}>{stats?.inactive_providers || 0}</Text>
+                    <Text style={styles.statLabel}>Inativos</Text>
                   </View>
                 </View>
-                
-                <View style={styles.statsRow}>
+
+                {/* Engagement Stats */}
+                <Text style={styles.sectionTitle}>Engajamento</Text>
+                <View style={styles.statsGrid}>
+                  <View style={styles.statCard}>
+                    <Ionicons name="logo-whatsapp" size={28} color="#25D366" />
+                    <Text style={styles.statValue}>{stats?.total_contacts || 0}</Text>
+                    <Text style={styles.statLabel}>Contatos</Text>
+                  </View>
+                  <View style={styles.statCard}>
+                    <Ionicons name="heart" size={28} color="#EC4899" />
+                    <Text style={styles.statValue}>{stats?.total_favorites || 0}</Text>
+                    <Text style={styles.statLabel}>Favoritos</Text>
+                  </View>
                   <View style={styles.statCard}>
                     <Ionicons name="star" size={28} color="#FFD700" />
                     <Text style={styles.statValue}>{stats?.total_reviews || 0}</Text>
                     <Text style={styles.statLabel}>Avaliações</Text>
                   </View>
                   <View style={styles.statCard}>
+                    <Ionicons name="trending-up" size={28} color="#8B5CF6" />
+                    <Text style={styles.statValue}>{stats?.avg_rating || 0}</Text>
+                    <Text style={styles.statLabel}>Nota Média</Text>
+                  </View>
+                </View>
+
+                {/* Alerts */}
+                <View style={styles.statsGrid}>
+                  <View style={styles.statCard}>
                     <Ionicons name="flag" size={28} color="#EF4444" />
                     <Text style={[styles.statValue, { color: (stats?.pending_reports || 0) > 0 ? '#EF4444' : '#FFFFFF' }]}>{stats?.pending_reports || 0}</Text>
                     <Text style={styles.statLabel}>Denúncias</Text>
                   </View>
+                  <View style={styles.statCard}>
+                    <Ionicons name="notifications" size={28} color="#3B82F6" />
+                    <Text style={styles.statValue}>{(stats?.notification_reach?.users || 0) + (stats?.notification_reach?.providers || 0)}</Text>
+                    <Text style={styles.statLabel}>Alcance Push</Text>
+                  </View>
                 </View>
+
+                {/* Top Rated Providers */}
+                {stats?.top_providers && stats.top_providers.length > 0 && (
+                  <View style={styles.dashSection}>
+                    <Text style={styles.sectionTitle}>Top Prestadores</Text>
+                    {stats.top_providers.map((p: any, i: number) => (
+                      <View key={i} style={styles.dashListItem}>
+                        <View style={styles.dashRankBadge}>
+                          <Text style={styles.dashRankText}>{i + 1}º</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.dashListName}>{p.name}</Text>
+                          <Text style={styles.dashListSub}>
+                            {(p.categories || []).slice(0, 2).join(', ')}
+                          </Text>
+                        </View>
+                        <View style={styles.dashRatingBox}>
+                          <Ionicons name="star" size={14} color="#FFD700" />
+                          <Text style={styles.dashRatingText}>{p.average_rating?.toFixed(1)}</Text>
+                          <Text style={styles.dashRatingCount}>({p.total_reviews})</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Category Distribution */}
+                {stats?.category_distribution && stats.category_distribution.length > 0 && (
+                  <View style={styles.dashSection}>
+                    <Text style={styles.sectionTitle}>Categorias Populares</Text>
+                    {stats.category_distribution.map((cat: any, i: number) => (
+                      <View key={i} style={styles.dashBarItem}>
+                        <View style={styles.dashBarLabel}>
+                          <Text style={styles.dashBarName} numberOfLines={1}>{cat.name}</Text>
+                          <Text style={styles.dashBarCount}>{cat.count}</Text>
+                        </View>
+                        <View style={styles.dashBarTrack}>
+                          <View style={[styles.dashBarFill, { 
+                            width: `${Math.max(5, (cat.count / (stats.category_distribution[0]?.count || 1)) * 100)}%`,
+                            backgroundColor: ['#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#EF4444', '#06B6D4', '#84CC16'][i % 8]
+                          }]} />
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* City Distribution */}
+                {stats?.city_distribution && stats.city_distribution.length > 0 && (
+                  <View style={styles.dashSection}>
+                    <Text style={styles.sectionTitle}>Cidades</Text>
+                    {stats.city_distribution.map((city: any, i: number) => (
+                      <View key={i} style={styles.dashBarItem}>
+                        <View style={styles.dashBarLabel}>
+                          <Text style={styles.dashBarName}>{city.name?.replace(/_/g, ' ')}</Text>
+                          <Text style={styles.dashBarCount}>{city.count} prestadores</Text>
+                        </View>
+                        <View style={styles.dashBarTrack}>
+                          <View style={[styles.dashBarFill, { 
+                            width: `${Math.max(5, (city.count / (stats.city_distribution[0]?.count || 1)) * 100)}%`,
+                            backgroundColor: '#3B82F6'
+                          }]} />
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Recent Activity */}
+                {stats?.recent_providers && stats.recent_providers.length > 0 && (
+                  <View style={styles.dashSection}>
+                    <Text style={styles.sectionTitle}>Últimos Cadastros</Text>
+                    {stats.recent_providers.map((p: any, i: number) => (
+                      <View key={i} style={styles.dashListItem}>
+                        <View style={[styles.dashDot, { backgroundColor: '#10B981' }]} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.dashListName}>{p.name}</Text>
+                          <Text style={styles.dashListSub}>
+                            {(p.categories || []).slice(0, 2).join(', ')} • {(p.cities || []).slice(0, 1).join('')?.replace(/_/g, ' ')}
+                          </Text>
+                        </View>
+                        <Text style={styles.dashTimeText}>
+                          {p.created_at ? new Date(p.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : ''}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Recent Reviews */}
+                {stats?.recent_reviews && stats.recent_reviews.length > 0 && (
+                  <View style={styles.dashSection}>
+                    <Text style={styles.sectionTitle}>Últimas Avaliações</Text>
+                    {stats.recent_reviews.map((r: any, i: number) => (
+                      <View key={i} style={styles.dashListItem}>
+                        <View style={styles.dashStarsSmall}>
+                          {[1, 2, 3, 4, 5].map(s => (
+                            <Ionicons key={s} name={s <= r.rating ? 'star' : 'star-outline'} size={12} color="#FFD700" />
+                          ))}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.dashListName}>{r.provider_name}</Text>
+                          <Text style={styles.dashListSub} numberOfLines={1}>
+                            {r.comment || 'Sem comentário'} — por {r.user_name}
+                          </Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
 
                 {/* Export Excel Button */}
                 <TouchableOpacity 
@@ -1158,14 +1316,23 @@ export default function AdminScreen() {
                         </View>
                       )}
                       
-                      {/* View profile link */}
-                      <TouchableOpacity 
-                        style={styles.reportViewProfileLink}
-                        onPress={() => router.push(`/provider/${report.provider_id}`)}
-                      >
-                        <Ionicons name="eye-outline" size={14} color="#10B981" />
-                        <Text style={styles.reportViewProfileText}>Ver perfil completo</Text>
-                      </TouchableOpacity>
+                      {/* Bottom actions: View profile + Delete */}
+                      <View style={styles.reportBottomActions}>
+                        <TouchableOpacity 
+                          style={styles.reportViewProfileLink}
+                          onPress={() => router.push(`/provider/${report.provider_id}`)}
+                        >
+                          <Ionicons name="eye-outline" size={14} color="#10B981" />
+                          <Text style={styles.reportViewProfileText}>Ver perfil completo</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={styles.reportDeleteLink}
+                          onPress={() => handleDeleteReport(report)}
+                        >
+                          <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                          <Text style={styles.reportDeleteText}>Excluir</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   ))
                 )}
@@ -1610,14 +1777,126 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 8,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#2D2D2D',
   },
   reportViewProfileText: {
     color: '#10B981',
     fontSize: 13,
     fontWeight: '500',
+  },
+  reportBottomActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#2D2D2D',
+  },
+  reportDeleteLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  reportDeleteText: {
+    color: '#EF4444',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  // Dashboard Section styles
+  dashSection: {
+    marginTop: 20,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    padding: 16,
+  },
+  dashListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2D2D2D',
+    gap: 10,
+  },
+  dashRankBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#10B98115',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dashRankText: {
+    color: '#10B981',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  dashListName: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  dashListSub: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  dashRatingBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FFD70015',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  dashRatingText: {
+    color: '#FFD700',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  dashRatingCount: {
+    color: '#9CA3AF',
+    fontSize: 11,
+  },
+  dashBarItem: {
+    marginBottom: 12,
+  },
+  dashBarLabel: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  dashBarName: {
+    color: '#D1D5DB',
+    fontSize: 13,
+    flex: 1,
+  },
+  dashBarCount: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  dashBarTrack: {
+    height: 6,
+    backgroundColor: '#2D2D2D',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  dashBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  dashDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  dashTimeText: {
+    color: '#6B7280',
+    fontSize: 12,
+  },
+  dashStarsSmall: {
+    flexDirection: 'row',
+    gap: 1,
   },
 });
