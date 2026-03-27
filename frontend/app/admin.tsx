@@ -1072,7 +1072,11 @@ export default function AdminScreen() {
                     <View key={report.report_id} style={[styles.card, report.status === 'pending' && styles.reportCardPending]}>
                       <View style={styles.cardHeader}>
                         <View style={styles.cardInfo}>
-                          <Text style={styles.cardTitle}>{report.provider_name || 'Prestador'}</Text>
+                          <TouchableOpacity onPress={() => router.push(`/provider/${report.provider_id}`)}>
+                            <Text style={[styles.cardTitle, { color: '#10B981', textDecorationLine: 'underline' }]}>
+                              {report.provider_name || 'Prestador'} →
+                            </Text>
+                          </TouchableOpacity>
                           <View style={styles.reportReasonBadge}>
                             <Ionicons name="flag" size={12} color="#EF4444" />
                             <Text style={styles.reportReasonText}>{getReasonLabel(report.reason)}</Text>
@@ -1114,61 +1118,54 @@ export default function AdminScreen() {
                           </Text>
                         </View>
                       </View>
+                      
+                      {/* Action buttons for pending reports */}
                       {report.status === 'pending' && (
                         <View style={styles.cardActions}>
                           <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: '#EF444420' }]}
+                            style={[styles.actionButton, { backgroundColor: '#EF444420', flex: 1 }]}
                             onPress={() => {
                               Alert.alert(
-                                'Aceitar Denúncia',
-                                `Deseja aceitar esta denúncia contra "${report.provider_name}"?\n\nVocê poderá desativar o prestador na aba Prestadores.`,
+                                'Aceitar e Bloquear',
+                                `Deseja aceitar esta denúncia e BLOQUEAR o prestador "${report.provider_name}"?\n\nO perfil será desativado imediatamente.`,
                                 [
                                   { text: 'Cancelar', style: 'cancel' },
-                                  { text: 'Aceitar', onPress: () => handleAcceptReport(report), style: 'destructive' },
+                                  { 
+                                    text: 'Bloquear', 
+                                    onPress: async () => {
+                                      const provider = providers.find(p => p.provider_id === report.provider_id);
+                                      if (provider && provider.is_active !== false) {
+                                        await handleToggleProviderStatus(provider);
+                                      }
+                                      await handleAcceptReport(report);
+                                    },
+                                    style: 'destructive'
+                                  },
                                 ]
                               );
                             }}
                           >
-                            <Ionicons name="checkmark-circle" size={16} color="#EF4444" />
-                            <Text style={[styles.actionText, { color: '#EF4444' }]}>Aceitar</Text>
+                            <Ionicons name="ban" size={16} color="#EF4444" />
+                            <Text style={[styles.actionText, { color: '#EF4444' }]}>Aceitar e Bloquear</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: '#6B728020' }]}
+                            style={[styles.actionButton, { backgroundColor: '#6B728020', flex: 1 }]}
                             onPress={() => handleDiscardReport(report)}
                           >
                             <Ionicons name="close-circle" size={16} color="#6B7280" />
                             <Text style={[styles.actionText, { color: '#6B7280' }]}>Descartar</Text>
                           </TouchableOpacity>
-                          <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: '#F59E0B20' }]}
-                            onPress={() => {
-                              const provider = providers.find(p => p.provider_id === report.provider_id);
-                              if (provider) {
-                                Alert.alert(
-                                  'Desativar Prestador',
-                                  `Deseja desativar o prestador "${report.provider_name}"?`,
-                                  [
-                                    { text: 'Cancelar', style: 'cancel' },
-                                    { 
-                                      text: 'Desativar', 
-                                      onPress: async () => {
-                                        await handleToggleProviderStatus(provider);
-                                        await handleAcceptReport(report);
-                                      },
-                                      style: 'destructive'
-                                    },
-                                  ]
-                                );
-                              } else {
-                                Alert.alert('Erro', 'Prestador não encontrado');
-                              }
-                            }}
-                          >
-                            <Ionicons name="ban" size={16} color="#F59E0B" />
-                            <Text style={[styles.actionText, { color: '#F59E0B' }]}>Desativar</Text>
-                          </TouchableOpacity>
                         </View>
                       )}
+                      
+                      {/* View profile link */}
+                      <TouchableOpacity 
+                        style={styles.reportViewProfileLink}
+                        onPress={() => router.push(`/provider/${report.provider_id}`)}
+                      >
+                        <Ionicons name="eye-outline" size={14} color="#10B981" />
+                        <Text style={styles.reportViewProfileText}>Ver perfil completo</Text>
+                      </TouchableOpacity>
                     </View>
                   ))
                 )}
@@ -1608,5 +1605,19 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontSize: 11,
     fontWeight: '600',
+  },
+  reportViewProfileLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#2D2D2D',
+  },
+  reportViewProfileText: {
+    color: '#10B981',
+    fontSize: 13,
+    fontWeight: '500',
   },
 });
