@@ -58,6 +58,8 @@ export default function HomeScreen() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [categorySearchText, setCategorySearchText] = useState('');
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -537,7 +539,7 @@ export default function HomeScreen() {
             <Ionicons name="apps" size={16} color={!selectedCategory ? '#0A0A0A' : '#10B981'} />
             <Text style={[styles.categoryChipText, !selectedCategory && styles.categoryChipTextActive]}>Todos</Text>
           </TouchableOpacity>
-          {categories.map((cat) => (
+          {categories.slice(0, 8).map((cat) => (
             <TouchableOpacity
               key={cat.id}
               style={[styles.categoryChip, selectedCategory === cat.id && styles.categoryChipActive]}
@@ -553,7 +555,94 @@ export default function HomeScreen() {
               </Text>
             </TouchableOpacity>
           ))}
+          {selectedCategory && !categories.slice(0, 8).find(c => c.id === selectedCategory) && (
+            <TouchableOpacity
+              style={[styles.categoryChip, styles.categoryChipActive]}
+              onPress={() => setSelectedCategory(null)}
+            >
+              <Ionicons
+                name={(categories.find(c => c.id === selectedCategory)?.icon || 'briefcase') as any}
+                size={16}
+                color="#0A0A0A"
+              />
+              <Text style={[styles.categoryChipText, styles.categoryChipTextActive]}>
+                {categories.find(c => c.id === selectedCategory)?.name}
+              </Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={styles.categoryChipMore}
+            onPress={() => { setCategorySearchText(''); setShowCategoryModal(true); }}
+          >
+            <Ionicons name="ellipsis-horizontal" size={16} color="#10B981" />
+            <Text style={styles.categoryChipMoreText}>Mais ({categories.length})</Text>
+          </TouchableOpacity>
         </ScrollView>
+
+        {/* Category Modal */}
+        <Modal
+          visible={showCategoryModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowCategoryModal(false)}
+        >
+          <View style={styles.catModalOverlay}>
+            <TouchableOpacity style={{ flex: 0.2 }} activeOpacity={1} onPress={() => setShowCategoryModal(false)} />
+            <View style={styles.catModalContent}>
+              <View style={styles.catModalHeader}>
+                <Text style={styles.catModalTitle}>Todas as Categorias</Text>
+                <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
+                  <Ionicons name="close" size={24} color="#9CA3AF" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.catModalSearchBox}>
+                <Ionicons name="search" size={18} color="#6B7280" />
+                <TextInput
+                  style={styles.catModalSearchInput}
+                  placeholder="Buscar categoria..."
+                  placeholderTextColor="#6B7280"
+                  value={categorySearchText}
+                  onChangeText={setCategorySearchText}
+                  autoFocus
+                />
+                {categorySearchText.length > 0 && (
+                  <TouchableOpacity onPress={() => setCategorySearchText('')}>
+                    <Ionicons name="close-circle" size={18} color="#6B7280" />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <ScrollView style={styles.catModalList} keyboardShouldPersistTaps="handled">
+                <TouchableOpacity
+                  style={[styles.catModalItem, !selectedCategory && styles.catModalItemActive]}
+                  onPress={() => { setSelectedCategory(null); setShowCategoryModal(false); }}
+                >
+                  <Ionicons name="apps" size={22} color={!selectedCategory ? '#0A0A0A' : '#10B981'} />
+                  <Text style={[styles.catModalItemText, !selectedCategory && styles.catModalItemTextActive]}>Todas as Categorias</Text>
+                  {!selectedCategory && <Ionicons name="checkmark" size={20} color="#0A0A0A" />}
+                </TouchableOpacity>
+                {categories
+                  .filter(cat => cat.name.toLowerCase().includes(categorySearchText.toLowerCase()))
+                  .map((cat) => (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[styles.catModalItem, selectedCategory === cat.id && styles.catModalItemActive]}
+                    onPress={() => { setSelectedCategory(cat.id); setShowCategoryModal(false); }}
+                  >
+                    <Ionicons name={cat.icon as any} size={22} color={selectedCategory === cat.id ? '#0A0A0A' : '#10B981'} />
+                    <Text style={[styles.catModalItemText, selectedCategory === cat.id && styles.catModalItemTextActive]}>
+                      {cat.name}
+                    </Text>
+                    {selectedCategory === cat.id && <Ionicons name="checkmark" size={20} color="#0A0A0A" />}
+                  </TouchableOpacity>
+                ))}
+                {categories.filter(cat => cat.name.toLowerCase().includes(categorySearchText.toLowerCase())).length === 0 && (
+                  <Text style={styles.catModalEmpty}>Nenhuma categoria encontrada</Text>
+                )}
+                <View style={{ height: 40 }} />
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
 
         {/* Providers List */}
         <Text style={styles.sectionTitle}>
@@ -834,6 +923,93 @@ const styles = StyleSheet.create({
   categoriesContainer: {
     paddingHorizontal: 16,
     marginBottom: 8,
+  },
+  categoryChipMore: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#10B981',
+    borderStyle: 'dashed',
+    marginRight: 8,
+  },
+  categoryChipMoreText: {
+    color: '#10B981',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  catModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  catModalContent: {
+    flex: 1,
+    backgroundColor: '#1A1A1A',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+  },
+  catModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  catModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  catModalSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2D2D2D',
+    marginHorizontal: 20,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+    gap: 8,
+  },
+  catModalSearchInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 15,
+  },
+  catModalList: {
+    flex: 1,
+    paddingHorizontal: 12,
+  },
+  catModalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 2,
+    gap: 12,
+  },
+  catModalItemActive: {
+    backgroundColor: '#10B981',
+  },
+  catModalItemText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#D1D5DB',
+  },
+  catModalItemTextActive: {
+    color: '#0A0A0A',
+    fontWeight: '600',
+  },
+  catModalEmpty: {
+    color: '#6B7280',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 20,
   },
   categoryChip: {
     flexDirection: 'row',
