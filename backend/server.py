@@ -587,6 +587,7 @@ class User(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     is_provider: bool = False
     favorite_providers: List[str] = []  # List of provider_ids
+    blocked: bool = False
 
 class UserSession(BaseModel):
     user_id: str

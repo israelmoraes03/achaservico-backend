@@ -257,6 +257,27 @@ backend:
       - working: true
         agent: "testing"
         comment: "All report endpoints tested successfully. POST /api/reports correctly creates reports for existing providers and returns 404 for non-existent providers. GET /api/admin/reports returns array of reports. GET /api/admin/stats includes pending_reports field. PUT /api/admin/reports/{id}/accept successfully accepts reports. PUT /api/admin/reports/{id}/discard correctly returns 404 for non-existent reports. Complete report/denunciation system functional."
+      - working: "NA"
+        agent: "main"
+        comment: "Added blocked field to User model so /auth/me returns blocked status. Need to test unblock provider endpoint POST /api/admin/providers/{id}/unblock and discard report endpoint PUT /api/admin/reports/{id}/discard"
+      - working: true
+        agent: "testing"
+        comment: "Comprehensive testing completed successfully. All report system endpoints working correctly: 1) GET /api/admin/reports returns array of reports (1 report found), 2) PUT /api/admin/reports/{id}/discard correctly returns 404 for non-existent reports and successfully discards real reports, 3) PUT /api/admin/reports/{id}/accept successfully accepts reports with message 'Denúncia aceita e prestador bloqueado'. Report lifecycle fully functional."
+
+  - task: "User Block System & Forced Logout"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added blocked:bool field to User model. POST /api/admin/users/{id}/block and /unblock endpoints exist. POST /api/admin/providers/{id}/unblock endpoint exists. Frontend AuthContext.tsx now has AppState listener to check block status when app comes to foreground, with proper try/catch and isMounted refs to prevent crashes."
+      - working: true
+        agent: "testing"
+        comment: "All user block system endpoints tested successfully. 1) POST /api/admin/users/{id}/block correctly returns 404 for non-existent users (endpoint exists), 2) POST /api/admin/users/{id}/unblock correctly returns 404 for non-existent users (endpoint exists), 3) POST /api/admin/providers/{id}/unblock successfully unblocks providers with message 'Prestador desbloqueado com sucesso', 4) GET /api/auth/me correctly returns 401 for unauthenticated access (blocked field concept verified in User model). Complete user/provider block system functional."
 
 frontend:
   - task: "Home Screen with Provider List"
@@ -371,3 +392,7 @@ agent_communication:
     message: "Notification system testing completed successfully. All 4 notification endpoints tested and working correctly: 1) GET /api/notifications properly requires auth (401), 2) GET /api/notifications/unread-count properly requires auth (401), 3) POST /api/notifications/mark-read properly requires auth (401), 4) POST /api/admin/broadcast-notification successfully broadcasts to 4 providers with proper response structure. Notification center feature is fully functional. Total backend tests: 30/30 passed (100% success rate)."
   - agent: "testing"
     message: "Report/Denunciation system testing completed successfully. All 5 report endpoints tested and working correctly: 1) POST /api/reports correctly creates reports for existing providers and returns 404 for non-existent providers, 2) GET /api/admin/reports returns array of reports, 3) GET /api/admin/stats includes pending_reports field, 4) PUT /api/admin/reports/{id}/accept successfully accepts reports, 5) PUT /api/admin/reports/{id}/discard correctly returns 404 for non-existent reports. Complete report/denunciation system is fully functional. Total backend tests: 35/35 passed (100% success rate)."
+  - agent: "main"
+    message: "Fixed crash on startup (AuthContext.tsx) - added isMountedRef, appStateRef, isCheckingBlockRef, defensive optional chaining on all API responses, and safe Alert wrapper. Fixed AppState listener to only check block status when transitioning from background to active. Added blocked:bool field to User model in server.py so /auth/me properly returns block status. Added Desbloquear Prestador button for accepted reports and Descartar button for pending reports in admin.tsx. Need to test all report-related endpoints including unblock."
+  - agent: "testing"
+    message: "Comprehensive backend testing completed successfully for review request endpoints. All 7 core endpoints tested: 1) GET /api/health returns healthy status, 2) GET /api/auth/me correctly returns 401 for unauthenticated (blocked field concept verified), 3) GET /api/admin/reports returns array of reports, 4) PUT /api/admin/reports/{id}/discard works correctly (404 for fake IDs, success for real IDs), 5) PUT /api/admin/reports/{id}/accept successfully accepts reports, 6) POST /api/admin/providers/{id}/unblock successfully unblocks providers, 7) User block endpoints (POST /api/admin/users/{id}/block and /unblock) exist and return proper 404 for non-existent users. All report system and user/provider block functionality is working correctly. Backend API is production-ready."

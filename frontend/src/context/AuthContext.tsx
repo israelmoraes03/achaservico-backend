@@ -1,8 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform, Alert } from 'react-native';
+import { Platform, Alert, AppState, AppStateStatus } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
@@ -52,6 +52,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [provider, setProvider] = useState<Provider | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isMountedRef = useRef(true);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const isCheckingBlockRef = useRef(false);
 
   // Function to register push notification token
   const registerPushToken = useCallback(async (isProvider: boolean) => {
@@ -109,11 +112,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return null;
   };
 
+  // Helper to safely show blocked alert
+  const showBlockedAlert = useCallback(() => {
+    try {
+      if (Platform.OS !== 'web') {
+        Alert.alert(
+          'Conta Bloqueada',
+          'Sua conta foi bloqueada por violação das políticas do AchaServiço. Entre em contato com o suporte: contato.achaservico@gmail.com',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (e) {
+      console.log('Could not show blocked alert:', e);
+    }
+  }, []);
+
   const processSessionId = useCallback(async (sessionId: string, retryCount = 0) => {
     const maxRetries = 3;
     const retryDelay = 2000;
     
     try {
+      if (!isMountedRef.current) return;
       setIsLoading(true);
       console.log(`Processing session ID... (attempt ${retryCount + 1})`);
       
@@ -122,29 +141,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         timeout: 15000
       });
       
-      const { user: userData, session_token } = response.data;
+      if (!isMountedRef.current) return;
       
-      // Check if user is blocked
-      if (userData.blocked) {
-        Alert.alert(
-          'Conta Bloqueada',
-          'Sua conta foi bloqueada por violação das políticas do AchaServiço. Entre em contato com o suporte: contato.achaservico@gmail.com',
-          [{ text: 'OK' }]
-        );
+      const userData = response?.data?.user;
+      const sessionToken = response?.data?.session_token;
+      
+      if (!userData || !sessionToken) {
+        console.log('Invalid session response - missing user or token');
         setIsLoading(false);
         return;
       }
       
-      await AsyncStorage.setItem('session_token', session_token);
-      api.defaults.headers.common['Authorization'] = `Bearer ${session_token}`;
-      setUser(userData);
+      // Check if user is blocked
+      if (userData.blocked || userData.is_blocked) {
+        showBlockedAlert();
+        setIsLoading(false);
+        return;
+      }
+      
+      await AsyncStorage.setItem('session_token', sessionToken);
+      api.defaults.headers.common['Authorization'] = `Bearer ${sessionToken}`;
+      if (isMountedRef.current) setUser(userData);
       
       // Check if user has provider profile
       let isProvider = false;
       try {
         const meResponse = await api.get('/auth/me', { timeout: 10000 });
-        setProvider(meResponse.data.provider);
-        isProvider = !!meResponse.data.provider;
+        if (isMountedRef.current && meResponse?.data?.provider) {
+          setProvider(meResponse.data.provider);
+          isProvider = true;
+        }
       } catch (e) {
         console.log('No provider profile');
       }
@@ -152,72 +178,85 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Register push token after successful login
       await registerPushToken(isProvider);
     } catch (error: any) {
-      console.error('Error processing session:', error.message);
+      console.error('Error processing session:', error?.message || 'Unknown error');
       
       // Retry if server is waking up
-      if (retryCount < maxRetries && (error.code === 'ECONNABORTED' || error.message?.includes('timeout') || error.message?.includes('Network'))) {
+      if (retryCount < maxRetries && (error?.code === 'ECONNABORTED' || error?.message?.includes('timeout') || error?.message?.includes('Network'))) {
         console.log(`Server may be waking up, retrying in ${retryDelay/1000}s...`);
         await new Promise(resolve => setTimeout(resolve, retryDelay));
-        return processSessionId(sessionId, retryCount + 1);
+        if (isMountedRef.current) {
+          return processSessionId(sessionId, retryCount + 1);
+        }
       }
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) setIsLoading(false);
     }
-  }, []);
+  }, [showBlockedAlert, registerPushToken]);
 
   const checkExistingSession = useCallback(async (retryCount = 0) => {
     const maxRetries = 3;
-    const retryDelay = 2000; // 2 seconds
+    const retryDelay = 2000;
     
     try {
+      if (!isMountedRef.current) return;
       console.log(`Checking existing session... (attempt ${retryCount + 1})`);
       const token = await AsyncStorage.getItem('session_token');
       
       if (token) {
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        const response = await api.get('/auth/me', { timeout: 15000 }); // 15 second timeout
+        const response = await api.get('/auth/me', { timeout: 15000 });
+        
+        if (!isMountedRef.current) return;
+        
+        const userData = response?.data?.user;
+        const providerData = response?.data?.provider;
         
         // Check if user is blocked
-        if (response.data.user?.blocked) {
-          Alert.alert(
-            'Conta Bloqueada',
-            'Sua conta foi bloqueada por violação das políticas do AchaServiço. Entre em contato com o suporte: contato.achaservico@gmail.com',
-            [{ text: 'OK' }]
-          );
+        if (userData?.blocked || userData?.is_blocked) {
+          showBlockedAlert();
           await AsyncStorage.removeItem('session_token');
           delete api.defaults.headers.common['Authorization'];
           return;
         }
         
-        setUser(response.data.user);
-        setProvider(response.data.provider);
-        console.log('Session restored');
-        
-        // Register push token on session restore
-        const isProvider = !!response.data.provider;
-        await registerPushToken(isProvider);
+        if (userData) {
+          setUser(userData);
+          setProvider(providerData || null);
+          console.log('Session restored');
+          
+          // Register push token on session restore
+          const isProvider = !!providerData;
+          await registerPushToken(isProvider);
+        } else {
+          console.log('Session response missing user data');
+        }
       } else {
         console.log('No existing session');
       }
     } catch (error: any) {
-      console.log('Session check failed:', error.message);
+      console.log('Session check failed:', error?.message || 'Unknown error');
+      
+      if (!isMountedRef.current) return;
       
       // If server is waking up (timeout or network error), retry
-      if (retryCount < maxRetries && (error.code === 'ECONNABORTED' || error.message?.includes('timeout') || error.message?.includes('Network'))) {
+      if (retryCount < maxRetries && (error?.code === 'ECONNABORTED' || error?.message?.includes('timeout') || error?.message?.includes('Network'))) {
         console.log(`Server may be waking up, retrying in ${retryDelay/1000}s...`);
         await new Promise(resolve => setTimeout(resolve, retryDelay));
-        return checkExistingSession(retryCount + 1);
+        if (isMountedRef.current) {
+          return checkExistingSession(retryCount + 1);
+        }
+        return;
       }
       
       // Clear token only if it's an auth error (401), not a network error
-      if (error.response?.status === 401) {
+      if (error?.response?.status === 401) {
         await AsyncStorage.removeItem('session_token');
         delete api.defaults.headers.common['Authorization'];
       }
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) setIsLoading(false);
     }
-  }, [registerPushToken]);
+  }, [registerPushToken, showBlockedAlert]);
 
   useEffect(() => {
     const init = async () => {
@@ -267,6 +306,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     return () => clearTimeout(timer);
   }, [processSessionId, checkExistingSession]);
+
+  // Check block status when app comes to foreground
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      try {
+        // Only check when coming FROM background/inactive TO active
+        if (
+          (appStateRef.current === 'background' || appStateRef.current === 'inactive') &&
+          nextAppState === 'active' &&
+          user &&
+          !isCheckingBlockRef.current
+        ) {
+          isCheckingBlockRef.current = true;
+          console.log('App returned to foreground, checking block status...');
+          
+          const token = await AsyncStorage.getItem('session_token');
+          if (token && isMountedRef.current) {
+            try {
+              const response = await api.get('/auth/me', { timeout: 10000 });
+              const userData = response?.data?.user;
+              
+              if (isMountedRef.current && (userData?.blocked || userData?.is_blocked)) {
+                console.log('User is blocked, forcing logout...');
+                showBlockedAlert();
+                await AsyncStorage.removeItem('session_token');
+                delete api.defaults.headers.common['Authorization'];
+                setUser(null);
+                setProvider(null);
+              }
+            } catch (apiError) {
+              console.log('Block check API error (ignored):', (apiError as any)?.message);
+            }
+          }
+          isCheckingBlockRef.current = false;
+        }
+      } catch (e) {
+        console.log('AppState handler error (ignored):', e);
+        isCheckingBlockRef.current = false;
+      }
+      appStateRef.current = nextAppState;
+    };
+    
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, [user, showBlockedAlert]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const login = async () => {
     try {

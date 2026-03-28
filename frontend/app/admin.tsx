@@ -397,6 +397,38 @@ export default function AdminScreen() {
     );
   };
 
+  const handleUnblockFromReport = async (report: AdminReport) => {
+    Alert.alert(
+      'Desbloquear Prestador',
+      `Deseja desbloquear o prestador "${report.provider_name}"?\n\nO perfil será reativado e o prestador poderá voltar a aparecer nas buscas.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Desbloquear',
+          onPress: async () => {
+            try {
+              await api.post(`/admin/providers/${report.provider_id}/unblock`);
+              // Also discard the report since the provider is being unblocked
+              try {
+                await api.put(`/admin/reports/${report.report_id}/discard`);
+              } catch (e) {
+                console.log('Report status update failed:', e);
+              }
+              fetchReports();
+              fetchProviders();
+              fetchStats();
+              setActionMessage('Prestador desbloqueado com sucesso!');
+              setTimeout(() => setActionMessage(''), 3000);
+            } catch (error) {
+              setActionMessage('Erro ao desbloquear prestador');
+              setTimeout(() => setActionMessage(''), 3000);
+            }
+          }
+        },
+      ]
+    );
+  };
+
   const getReasonLabel = (reason: string) => {
     const labels: Record<string, string> = {
       inappropriate_content: 'Conteúdo inadequado',
@@ -1552,6 +1584,19 @@ export default function AdminScreen() {
                           >
                             <Ionicons name="close-circle" size={16} color="#6B7280" />
                             <Text style={[styles.actionText, { color: '#6B7280' }]}>Descartar</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                      
+                      {/* Action buttons for accepted reports (provider is blocked) */}
+                      {report.status === 'accepted' && (
+                        <View style={styles.cardActions}>
+                          <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: '#10B98120', flex: 1 }]}
+                            onPress={() => handleUnblockFromReport(report)}
+                          >
+                            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                            <Text style={[styles.actionText, { color: '#10B981' }]}>Desbloquear Prestador</Text>
                           </TouchableOpacity>
                         </View>
                       )}
