@@ -10,6 +10,7 @@ import {
   Modal,
   ActivityIndicator,
   Alert,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +27,9 @@ interface FavoriteProvider {
   phone: string;
   categories: string[];
   neighborhood: string;
+  profile_image?: string;
+  average_rating?: number;
+  total_reviews?: number;
 }
 
 export default function ProfileScreen() {
@@ -35,6 +39,7 @@ export default function ProfileScreen() {
   const [showHelpModal, setShowHelpModal] = React.useState(false);
   const [favorites, setFavorites] = useState<FavoriteProvider[]>([]);
   const [loadingFavorites, setLoadingFavorites] = useState(true);
+  const [favSearchText, setFavSearchText] = useState('');
 
   // Load favorites
   const loadFavorites = useCallback(async () => {
@@ -188,47 +193,78 @@ export default function ProfileScreen() {
               </Text>
             </View>
           ) : (
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false} 
-              contentContainerStyle={styles.favScrollContent}
-            >
-              {favorites.map((fav) => (
-                <TouchableOpacity 
-                  key={fav.provider_id} 
-                  style={styles.favCard}
-                  onPress={() => router.push(`/provider/${fav.provider_id}`)}
-                >
-                  <View style={styles.favCardTop}>
-                    <View style={styles.favAvatar}>
-                      <Text style={styles.favAvatarText}>
-                        {fav.name?.charAt(0)?.toUpperCase() || 'P'}
+            <View>
+              {/* Search */}
+              {favorites.length > 2 && (
+                <View style={styles.favSearchBox}>
+                  <Ionicons name="search" size={16} color="#6B7280" />
+                  <TextInput
+                    style={styles.favSearchInput}
+                    placeholder="Buscar por nome..."
+                    placeholderTextColor="#6B7280"
+                    value={favSearchText}
+                    onChangeText={setFavSearchText}
+                  />
+                  {favSearchText.length > 0 && (
+                    <TouchableOpacity onPress={() => setFavSearchText('')}>
+                      <Ionicons name="close-circle" size={16} color="#6B7280" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+              
+              {/* List with max height */}
+              <ScrollView 
+                style={styles.favListContainer} 
+                nestedScrollEnabled
+                showsVerticalScrollIndicator={true}
+              >
+                {favorites
+                  .filter(fav => fav.name?.toLowerCase().includes(favSearchText.toLowerCase()))
+                  .map((fav, index) => (
+                  <TouchableOpacity 
+                    key={fav.provider_id} 
+                    style={[styles.favRow, index > 0 && styles.favRowBorder]}
+                    onPress={() => router.push(`/provider/${fav.provider_id}`)}
+                    activeOpacity={0.7}
+                  >
+                    {/* Photo */}
+                    {fav.profile_image ? (
+                      <Image source={{ uri: fav.profile_image }} style={styles.favPhoto} />
+                    ) : (
+                      <View style={[styles.favPhoto, styles.favPhotoPlaceholder]}>
+                        <Text style={styles.favPhotoText}>
+                          {fav.name?.charAt(0)?.toUpperCase() || 'P'}
+                        </Text>
+                      </View>
+                    )}
+                    
+                    {/* Info */}
+                    <View style={styles.favInfo}>
+                      <Text style={styles.favName} numberOfLines={1}>{fav.name}</Text>
+                      <Text style={styles.favCategory} numberOfLines={1}>
+                        {fav.categories?.[0] || 'Prestador'}
                       </Text>
                     </View>
+                    
+                    {/* WhatsApp button */}
                     <TouchableOpacity
-                      style={styles.favWhatsApp}
-                      onPress={(e) => {
-                        e.stopPropagation();
+                      style={styles.favWhatsBtn}
+                      onPress={() => {
                         const phone = fav.phone?.replace(/\D/g, '');
                         const message = encodeURIComponent(`Olá ${fav.name}, encontrei seu perfil no AchaServiço e gostaria de um orçamento.`);
                         Linking.openURL(`https://wa.me/55${phone}?text=${message}`);
                       }}
                     >
-                      <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+                      <Ionicons name="logo-whatsapp" size={22} color="#25D366" />
                     </TouchableOpacity>
-                  </View>
-                  <Text style={styles.favCardName} numberOfLines={1}>{fav.name}</Text>
-                  <Text style={styles.favCardCategory} numberOfLines={1}>
-                    {fav.categories?.[0] || 'Prestador'}
-                  </Text>
-                  {fav.neighborhood && (
-                    <Text style={styles.favCardLocation} numberOfLines={1}>
-                      {fav.neighborhood}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+                  </TouchableOpacity>
+                ))}
+                {favorites.filter(fav => fav.name?.toLowerCase().includes(favSearchText.toLowerCase())).length === 0 && (
+                  <Text style={styles.favNoResults}>Nenhum favorito encontrado</Text>
+                )}
+              </ScrollView>
+            </View>
           )}
         </View>
 
@@ -675,56 +711,77 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: 'hidden',
   },
-  favScrollContent: {
+  favSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2D2D2D',
+    borderRadius: 8,
+    paddingHorizontal: 10,
     paddingVertical: 8,
-    gap: 10,
-  },
-  favCard: {
-    width: 130,
-    backgroundColor: '#1F1F1F',
-    borderRadius: 12,
-    padding: 12,
+    marginTop: 10,
+    marginBottom: 4,
     gap: 6,
   },
-  favCardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
+  favSearchInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 14,
+    paddingVertical: 0,
   },
-  favAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  favListContainer: {
+    maxHeight: 140,
+    marginTop: 8,
+  },
+  favRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    gap: 12,
+  },
+  favRowBorder: {
+    borderTopWidth: 1,
+    borderTopColor: '#2D2D2D',
+  },
+  favPhoto: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  favPhotoPlaceholder: {
     backgroundColor: '#10B98120',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  favAvatarText: {
+  favPhotoText: {
     color: '#10B981',
     fontSize: 16,
     fontWeight: '700',
   },
-  favWhatsApp: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  favInfo: {
+    flex: 1,
+  },
+  favName: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  favCategory: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  favWhatsBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#25D36615',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  favCardName: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  favCardCategory: {
-    color: '#10B981',
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  favCardLocation: {
+  favNoResults: {
     color: '#6B7280',
-    fontSize: 11,
+    fontSize: 13,
+    textAlign: 'center',
+    paddingVertical: 16,
   },
 });
