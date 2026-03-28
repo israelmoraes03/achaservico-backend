@@ -766,6 +766,8 @@ CATEGORIES = [
     {"id": "tec_geladeira", "name": "Técnico de Geladeira/Freezer", "icon": "snow"},
     {"id": "tec_energia_solar", "name": "Técnico em Energia Solar", "icon": "sunny"},
     {"id": "bartender", "name": "Bartender", "icon": "wine"},
+    {"id": "taxi_dog", "name": "Taxi-Dog", "icon": "paw"},
+    {"id": "transporte_escolar", "name": "Transporte Escolar", "icon": "bus"},
 ]
 
 # Bairros organizados por cidade
