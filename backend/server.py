@@ -2493,6 +2493,18 @@ async def admin_accept_report(report_id: str):
             }}
         )
         
+        # Log to block history
+        await db.block_history.insert_one({
+            "target_type": "provider",
+            "target_id": report.get("provider_id"),
+            "target_name": provider.get("name", ""),
+            "action": "block",
+            "reason": report.get("reason", ""),
+            "report_id": report_id,
+            "admin_action": True,
+            "created_at": datetime.now(timezone.utc)
+        })
+        
         # Send push notification to blocked provider
         push_token = provider.get("push_token")
         if push_token:
@@ -2544,6 +2556,104 @@ async def admin_delete_report(report_id: str):
     
     logger.info(f"Report {report_id} permanently deleted")
     return {"success": True, "message": "Denúncia excluída permanentemente"}
+
+@api_router.post("/admin/providers/{provider_id}/unblock")
+async def admin_unblock_provider(provider_id: str):
+    """Unblock a provider"""
+    provider = await db.providers.find_one({"provider_id": provider_id})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Prestador não encontrado")
+    
+    await db.providers.update_one(
+        {"provider_id": provider_id},
+        {"$set": {
+            "blocked": False,
+            "is_active": True,
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+    
+    # Log to block history
+    await db.block_history.insert_one({
+        "target_type": "provider",
+        "target_id": provider_id,
+        "target_name": provider.get("name", ""),
+        "action": "unblock",
+        "admin_action": True,
+        "created_at": datetime.now(timezone.utc)
+    })
+    
+    # Notify provider
+    push_token = provider.get("push_token")
+    if push_token:
+        try:
+            await send_push_notification(
+                push_token,
+                "✅ Perfil Desbloqueado",
+                "Seu perfil foi desbloqueado e está visível novamente na plataforma.",
+                {"type": "unblocked"}
+            )
+        except Exception as e:
+            logger.error(f"Failed to send unblock notification: {str(e)}")
+    
+    return {"success": True, "message": "Prestador desbloqueado com sucesso"}
+
+@api_router.post("/admin/users/{user_id}/block")
+async def admin_block_user(user_id: str):
+    """Block a user from accessing the app"""
+    user = await db.users.find_one({"user_id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    await db.users.update_one(
+        {"user_id": user_id},
+        {"$set": {"blocked": True, "updated_at": datetime.now(timezone.utc)}}
+    )
+    
+    # Log to block history
+    await db.block_history.insert_one({
+        "target_type": "user",
+        "target_id": user_id,
+        "target_name": user.get("name", ""),
+        "target_email": user.get("email", ""),
+        "action": "block",
+        "admin_action": True,
+        "created_at": datetime.now(timezone.utc)
+    })
+    
+    return {"success": True, "message": "Usuário bloqueado"}
+
+@api_router.post("/admin/users/{user_id}/unblock")
+async def admin_unblock_user(user_id: str):
+    """Unblock a user"""
+    user = await db.users.find_one({"user_id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    await db.users.update_one(
+        {"user_id": user_id},
+        {"$set": {"blocked": False, "updated_at": datetime.now(timezone.utc)}}
+    )
+    
+    await db.block_history.insert_one({
+        "target_type": "user",
+        "target_id": user_id,
+        "target_name": user.get("name", ""),
+        "target_email": user.get("email", ""),
+        "action": "unblock",
+        "admin_action": True,
+        "created_at": datetime.now(timezone.utc)
+    })
+    
+    return {"success": True, "message": "Usuário desbloqueado"}
+
+@api_router.get("/admin/block-history")
+async def get_block_history():
+    """Get block/unblock history"""
+    history = await db.block_history.find(
+        {}, {"_id": 0}
+    ).sort("created_at", -1).limit(50).to_list(50)
+    return history
 
 # ======================== ADMIN PREMIUM & NOTIFICATIONS ========================
 

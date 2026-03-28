@@ -53,6 +53,7 @@ interface Provider {
   total_reviews: number;
   is_active: boolean;
   is_premium: boolean;
+  blocked?: boolean;
   subscription_status: string;
   created_at: string;
 }
@@ -62,6 +63,7 @@ interface User {
   email: string;
   name: string;
   is_provider: boolean;
+  blocked?: boolean;
   created_at: string;
 }
 
@@ -1129,7 +1131,12 @@ export default function AdminScreen() {
                           </View>
                           {provider.is_premium && (
                             <View style={[styles.statusBadge, { backgroundColor: '#FFD70030' }]}>
-                              <Text style={[styles.statusText, { color: '#FFD700' }]}>👑 Premium</Text>
+                              <Text style={[styles.statusText, { color: '#FFD700' }]}>Premium</Text>
+                            </View>
+                          )}
+                          {provider.blocked && (
+                            <View style={[styles.statusBadge, { backgroundColor: '#EF444430' }]}>
+                              <Text style={[styles.statusText, { color: '#EF4444' }]}>Bloqueado</Text>
                             </View>
                           )}
                         </View>
@@ -1169,6 +1176,37 @@ export default function AdminScreen() {
                           <Ionicons name="trash" size={16} color="#EF4444" />
                           <Text style={[styles.actionText, { color: '#EF4444' }]}>Excluir</Text>
                         </TouchableOpacity>
+                        {provider.blocked && (
+                          <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: '#22C55E20' }]}
+                            onPress={() => {
+                              Alert.alert(
+                                'Desbloquear Prestador',
+                                `Deseja desbloquear "${provider.name}"? O perfil voltará a ser visível.`,
+                                [
+                                  { text: 'Cancelar', style: 'cancel' },
+                                  {
+                                    text: 'Desbloquear',
+                                    onPress: async () => {
+                                      try {
+                                        await api.post(`/admin/providers/${provider.provider_id}/unblock`);
+                                        fetchProviders();
+                                        setActionMessage('Prestador desbloqueado!');
+                                        setTimeout(() => setActionMessage(''), 3000);
+                                      } catch (error) {
+                                        setActionMessage('Erro ao desbloquear');
+                                        setTimeout(() => setActionMessage(''), 3000);
+                                      }
+                                    }
+                                  },
+                                ]
+                              );
+                            }}
+                          >
+                            <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
+                            <Text style={[styles.actionText, { color: '#22C55E' }]}>Desbloquear</Text>
+                          </TouchableOpacity>
+                        )}
                       </View>
                     </View>
                   ))
@@ -1225,8 +1263,61 @@ export default function AdminScreen() {
                             <Text style={[styles.statusText, { color: '#10B981' }]}>Prestador</Text>
                           </View>
                         )}
+                        {user.blocked && (
+                          <View style={[styles.statusBadge, { backgroundColor: '#EF444430' }]}>
+                            <Text style={[styles.statusText, { color: '#EF4444' }]}>Bloqueado</Text>
+                          </View>
+                        )}
                       </View>
                       <View style={styles.cardActions}>
+                        <TouchableOpacity
+                          style={[styles.actionButton, user.blocked ? { backgroundColor: '#22C55E20' } : { backgroundColor: '#EF444420' }]}
+                          onPress={() => {
+                            if (user.blocked) {
+                              Alert.alert('Desbloquear Usuário', `Deseja desbloquear "${user.name}"?`, [
+                                { text: 'Cancelar', style: 'cancel' },
+                                {
+                                  text: 'Desbloquear',
+                                  onPress: async () => {
+                                    try {
+                                      await api.post(`/admin/users/${user.user_id}/unblock`);
+                                      fetchUsers();
+                                      setActionMessage('Usuário desbloqueado!');
+                                      setTimeout(() => setActionMessage(''), 3000);
+                                    } catch (error) {
+                                      setActionMessage('Erro ao desbloquear');
+                                      setTimeout(() => setActionMessage(''), 3000);
+                                    }
+                                  }
+                                },
+                              ]);
+                            } else {
+                              Alert.alert('Bloquear Usuário', `Deseja bloquear "${user.name}"?\n\nO usuário não conseguirá acessar o app.`, [
+                                { text: 'Cancelar', style: 'cancel' },
+                                {
+                                  text: 'Bloquear',
+                                  style: 'destructive',
+                                  onPress: async () => {
+                                    try {
+                                      await api.post(`/admin/users/${user.user_id}/block`);
+                                      fetchUsers();
+                                      setActionMessage('Usuário bloqueado!');
+                                      setTimeout(() => setActionMessage(''), 3000);
+                                    } catch (error) {
+                                      setActionMessage('Erro ao bloquear');
+                                      setTimeout(() => setActionMessage(''), 3000);
+                                    }
+                                  }
+                                },
+                              ]);
+                            }
+                          }}
+                        >
+                          <Ionicons name={user.blocked ? "checkmark-circle" : "ban"} size={16} color={user.blocked ? "#22C55E" : "#EF4444"} />
+                          <Text style={[styles.actionText, { color: user.blocked ? '#22C55E' : '#EF4444' }]}>
+                            {user.blocked ? 'Desbloquear' : 'Bloquear'}
+                          </Text>
+                        </TouchableOpacity>
                         <TouchableOpacity
                           style={[styles.actionButton, styles.actionDelete]}
                           onPress={() => handleDeleteUser(user)}

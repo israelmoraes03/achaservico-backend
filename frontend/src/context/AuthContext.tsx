@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
@@ -124,6 +124,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       const { user: userData, session_token } = response.data;
       
+      // Check if user is blocked
+      if (userData.blocked) {
+        Alert.alert(
+          'Conta Bloqueada',
+          'Sua conta foi bloqueada por violação das políticas do AchaServiço. Entre em contato com o suporte: contato.achaservico@gmail.com',
+          [{ text: 'OK' }]
+        );
+        setIsLoading(false);
+        return;
+      }
+      
       await AsyncStorage.setItem('session_token', session_token);
       api.defaults.headers.common['Authorization'] = `Bearer ${session_token}`;
       setUser(userData);
@@ -165,6 +176,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (token) {
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         const response = await api.get('/auth/me', { timeout: 15000 }); // 15 second timeout
+        
+        // Check if user is blocked
+        if (response.data.user?.blocked) {
+          Alert.alert(
+            'Conta Bloqueada',
+            'Sua conta foi bloqueada por violação das políticas do AchaServiço. Entre em contato com o suporte: contato.achaservico@gmail.com',
+            [{ text: 'OK' }]
+          );
+          await AsyncStorage.removeItem('session_token');
+          delete api.defaults.headers.common['Authorization'];
+          return;
+        }
+        
         setUser(response.data.user);
         setProvider(response.data.provider);
         console.log('Session restored');

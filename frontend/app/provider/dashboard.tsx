@@ -759,36 +759,20 @@ export default function ProviderDashboardScreen() {
           </View>
         )}
 
-        {/* Status do Perfil - Simplificado */}
-        {!provider.is_premium && (
-        <View style={[
-          styles.subscriptionCard,
-          styles.subscriptionActive
-        ]}>
-          <View style={styles.subscriptionHeader}>
-            <View style={styles.subscriptionStatus}>
-              <View style={[styles.statusDot, { backgroundColor: '#10B981' }]} />
-              <Text style={styles.subscriptionStatusText}>Perfil Ativo</Text>
-            </View>
-            <View style={styles.freeBadge}>
-              <Text style={styles.freeBadgeText}>Gratuito</Text>
-            </View>
-          </View>
-          <Text style={styles.freeInfoText}>
-            Seu perfil está visível para todos os clientes!
-          </Text>
-        </View>
-        )}
-
-        {/* Blocked Warning OR Visibilidade Toggle */}
+        {/* Status do Perfil */}
         {provider.blocked ? (
-          <View style={styles.blockedCard}>
-            <View style={styles.blockedIconRow}>
-              <Ionicons name="ban" size={28} color="#EF4444" />
-              <Text style={styles.blockedTitle}>Perfil Bloqueado</Text>
+          <View style={[styles.subscriptionCard, { borderColor: '#EF444440' }]}>
+            <View style={styles.subscriptionHeader}>
+              <View style={styles.subscriptionStatus}>
+                <View style={[styles.statusDot, { backgroundColor: '#EF4444' }]} />
+                <Text style={[styles.subscriptionStatusText, { color: '#EF4444' }]}>Conta Bloqueada</Text>
+              </View>
+              <View style={[styles.freeBadge, { backgroundColor: '#EF444420' }]}>
+                <Text style={[styles.freeBadgeText, { color: '#EF4444' }]}>Bloqueado</Text>
+              </View>
             </View>
-            <Text style={styles.blockedText}>
-              Seu perfil foi bloqueado devido a uma denúncia. Você não aparece mais nas buscas e não pode ativar a visibilidade.
+            <Text style={[styles.freeInfoText, { color: '#9CA3AF' }]}>
+              Sua conta foi bloqueada por má conduta dentro do App. Entre em contato com o suporte para mais informações.
             </Text>
             <TouchableOpacity 
               style={styles.blockedContactBtn}
@@ -804,7 +788,25 @@ export default function ProviderDashboardScreen() {
               <Text style={styles.blockedContactText}>Entrar em Contato com Suporte</Text>
             </TouchableOpacity>
           </View>
-        ) : (
+        ) : !provider.is_premium && (
+          <View style={[styles.subscriptionCard, styles.subscriptionActive]}>
+            <View style={styles.subscriptionHeader}>
+              <View style={styles.subscriptionStatus}>
+                <View style={[styles.statusDot, { backgroundColor: '#10B981' }]} />
+                <Text style={styles.subscriptionStatusText}>Perfil Ativo</Text>
+              </View>
+              <View style={styles.freeBadge}>
+                <Text style={styles.freeBadgeText}>Gratuito</Text>
+              </View>
+            </View>
+            <Text style={styles.freeInfoText}>
+              Seu perfil está visível para todos os clientes!
+            </Text>
+          </View>
+        )}
+
+        {/* Visibilidade Toggle (only if not blocked) */}
+        {!provider.blocked && (
           <View style={styles.availabilityCard}>
             <View style={styles.availabilityHeader}>
               <View style={styles.availabilityInfo}>
