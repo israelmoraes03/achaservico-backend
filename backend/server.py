@@ -2312,7 +2312,7 @@ async def update_banner(request: Request):
     # Upload to Cloudinary if base64
     image_url = image
     if image.startswith("data:image"):
-        image_url = await upload_image_to_cloudinary(image)
+        image_url = await upload_to_cloudinary(image, "achaservico/banners")
         if not image_url:
             raise HTTPException(status_code=500, detail="Erro ao fazer upload da imagem")
     
