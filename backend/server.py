@@ -1245,6 +1245,10 @@ async def toggle_provider_availability(provider_id: str, request: Request):
         raise HTTPException(status_code=403, detail="Você não tem permissão para alterar este perfil")
     
     # Toggle visibility (is_active controls if provider appears in search)
+    # Blocked providers cannot toggle visibility
+    if provider.get("blocked"):
+        raise HTTPException(status_code=403, detail="Seu perfil está bloqueado. Entre em contato com o suporte.")
+    
     new_status = not provider.get("is_active", True)
     
     await db.providers.update_one(
@@ -2472,10 +2476,35 @@ async def get_admin_reports():
 
 @api_router.put("/admin/reports/{report_id}/accept")
 async def admin_accept_report(report_id: str):
-    """Accept a report - marks as accepted"""
+    """Accept a report - marks as accepted and blocks the provider"""
     report = await db.reports.find_one({"report_id": report_id})
     if not report:
         raise HTTPException(status_code=404, detail="Denúncia não encontrada")
+    
+    # Block the provider
+    provider = await db.providers.find_one({"provider_id": report.get("provider_id")})
+    if provider:
+        await db.providers.update_one(
+            {"provider_id": report.get("provider_id")},
+            {"$set": {
+                "blocked": True,
+                "is_active": False,
+                "updated_at": datetime.now(timezone.utc)
+            }}
+        )
+        
+        # Send push notification to blocked provider
+        push_token = provider.get("push_token")
+        if push_token:
+            try:
+                await send_push_notification(
+                    push_token,
+                    "⚠️ Perfil Bloqueado",
+                    "Seu perfil foi bloqueado devido a uma denúncia. Entre em contato com o suporte para mais informações.",
+                    {"type": "blocked"}
+                )
+            except Exception as e:
+                logger.error(f"Failed to send block notification: {str(e)}")
     
     await db.reports.update_one(
         {"report_id": report_id},
@@ -2485,8 +2514,8 @@ async def admin_accept_report(report_id: str):
         }}
     )
     
-    logger.info(f"Report {report_id} accepted")
-    return {"success": True, "message": "Denúncia aceita"}
+    logger.info(f"Report {report_id} accepted, provider {report.get('provider_id')} blocked")
+    return {"success": True, "message": "Denúncia aceita e prestador bloqueado"}
 
 @api_router.put("/admin/reports/{report_id}/discard")
 async def admin_discard_report(report_id: str):

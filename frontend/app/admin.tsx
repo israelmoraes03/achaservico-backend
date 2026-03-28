@@ -1437,17 +1437,14 @@ export default function AdminScreen() {
                             onPress={() => {
                               Alert.alert(
                                 'Aceitar e Bloquear',
-                                `Deseja aceitar esta denúncia e BLOQUEAR o prestador "${report.provider_name}"?\n\nO perfil será desativado imediatamente.`,
+                                `Deseja aceitar esta denúncia e BLOQUEAR o prestador "${report.provider_name}"?\n\nO perfil será desativado e o prestador receberá uma notificação.`,
                                 [
                                   { text: 'Cancelar', style: 'cancel' },
                                   { 
                                     text: 'Bloquear', 
                                     onPress: async () => {
-                                      const provider = providers.find(p => p.provider_id === report.provider_id);
-                                      if (provider && provider.is_active !== false) {
-                                        await handleToggleProviderStatus(provider);
-                                      }
                                       await handleAcceptReport(report);
+                                      fetchProviders();
                                     },
                                     style: 'destructive'
                                   },

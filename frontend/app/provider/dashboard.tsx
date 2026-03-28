@@ -62,6 +62,7 @@ interface Provider {
   average_rating: number;
   total_reviews: number;
   is_active: boolean;
+  blocked?: boolean;
   is_premium?: boolean;
   subscription_status: string;
   subscription_expires_at?: string;
@@ -779,49 +780,59 @@ export default function ProviderDashboardScreen() {
         </View>
         )}
 
-        {/* Visibilidade Toggle */}
-        <View style={styles.availabilityCard}>
-          <View style={styles.availabilityHeader}>
-            <View style={styles.availabilityInfo}>
-              <Ionicons 
-                name={provider.is_active ? "eye" : "eye-off"} 
-                size={24} 
-                color={provider.is_active ? "#22C55E" : "#EF4444"} 
-              />
-              <View style={styles.availabilityTextContainer}>
-                <Text style={styles.availabilityTitle}>
-                  {provider.is_active ? "Visível na Plataforma" : "Invisível na Plataforma"}
-                </Text>
-                <Text style={styles.availabilitySubtitle}>
-                  {provider.is_active 
-                    ? "Clientes podem encontrar seu perfil" 
-                    : "Seu perfil não aparece nas buscas"}
-                </Text>
-              </View>
+        {/* Blocked Warning OR Visibilidade Toggle */}
+        {provider.blocked ? (
+          <View style={styles.blockedCard}>
+            <View style={styles.blockedIconRow}>
+              <Ionicons name="ban" size={28} color="#EF4444" />
+              <Text style={styles.blockedTitle}>Perfil Bloqueado</Text>
             </View>
-            <TouchableOpacity
-              style={[
-                styles.availabilityToggle,
-                provider.is_active && styles.availabilityToggleActive
-              ]}
-              onPress={async () => {
-                try {
-                  const response = await api.post(`/providers/${provider.provider_id}/toggle-availability`);
-                  const newStatus = response.data?.is_active ?? !provider.is_active;
-                  setProvider({...provider, is_active: newStatus});
-                  Alert.alert(
-                    'Sucesso!', 
-                    newStatus 
-                      ? 'Seu perfil agora está visível para os clientes!' 
-                      : 'Seu perfil está oculto. Clientes não vão encontrá-lo nas buscas.'
-                  );
-                } catch (error: any) {
-                  // Only show error if status is not 200
-                  if (error?.response?.status && error.response.status !== 200) {
-                    Alert.alert('Erro', 'Não foi possível alterar a visibilidade. Tente novamente.');
-                  } else {
-                    // If we got here but no clear error, toggle worked
-                    const newStatus = !provider.is_active;
+            <Text style={styles.blockedText}>
+              Seu perfil foi bloqueado devido a uma denúncia. Você não aparece mais nas buscas e não pode ativar a visibilidade.
+            </Text>
+            <TouchableOpacity 
+              style={styles.blockedContactBtn}
+              onPress={() => {
+                const subject = encodeURIComponent('Perfil Bloqueado - Solicitação de Revisão');
+                const body = encodeURIComponent(
+                  `Olá,\n\nMeu perfil de prestador no AchaServiço foi bloqueado e gostaria de solicitar uma revisão.\n\nNome: ${provider.name}\nE-mail: ${user?.email || ''}\n\nAguardo retorno.\n\nAtenciosamente,\n${provider.name}`
+                );
+                Linking.openURL(`mailto:contato.achaservico@gmail.com?subject=${subject}&body=${body}`);
+              }}
+            >
+              <Ionicons name="mail-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.blockedContactText}>Entrar em Contato com Suporte</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.availabilityCard}>
+            <View style={styles.availabilityHeader}>
+              <View style={styles.availabilityInfo}>
+                <Ionicons 
+                  name={provider.is_active ? "eye" : "eye-off"} 
+                  size={24} 
+                  color={provider.is_active ? "#22C55E" : "#EF4444"} 
+                />
+                <View style={styles.availabilityTextContainer}>
+                  <Text style={styles.availabilityTitle}>
+                    {provider.is_active ? "Visível na Plataforma" : "Invisível na Plataforma"}
+                  </Text>
+                  <Text style={styles.availabilitySubtitle}>
+                    {provider.is_active 
+                      ? "Clientes podem encontrar seu perfil" 
+                      : "Seu perfil não aparece nas buscas"}
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.availabilityToggle,
+                  provider.is_active && styles.availabilityToggleActive
+                ]}
+                onPress={async () => {
+                  try {
+                    const response = await api.post(`/providers/${provider.provider_id}/toggle-availability`);
+                    const newStatus = response.data?.is_active ?? !provider.is_active;
                     setProvider({...provider, is_active: newStatus});
                     Alert.alert(
                       'Sucesso!', 
@@ -829,17 +840,31 @@ export default function ProviderDashboardScreen() {
                         ? 'Seu perfil agora está visível para os clientes!' 
                         : 'Seu perfil está oculto. Clientes não vão encontrá-lo nas buscas.'
                     );
+                  } catch (error: any) {
+                    const detail = error?.response?.data?.detail;
+                    if (detail) {
+                      Alert.alert('Erro', detail);
+                    } else {
+                      const newStatus = !provider.is_active;
+                      setProvider({...provider, is_active: newStatus});
+                      Alert.alert(
+                        'Sucesso!', 
+                        newStatus 
+                          ? 'Seu perfil agora está visível para os clientes!' 
+                          : 'Seu perfil está oculto. Clientes não vão encontrá-lo nas buscas.'
+                      );
+                    }
                   }
-                }
-              }}
-            >
-              <View style={[
-                styles.toggleCircle,
-                provider.is_active && styles.toggleCircleActive
-              ]} />
-            </TouchableOpacity>
+                }}
+              >
+                <View style={[
+                  styles.toggleCircle,
+                  provider.is_active && styles.toggleCircleActive
+                ]} />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Stats */}
         <View style={styles.statsContainer}>
@@ -1684,6 +1709,45 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#2A2A2A',
+  },
+  blockedCard: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#EF444440',
+  },
+  blockedIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  blockedTitle: {
+    color: '#EF4444',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  blockedText: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+  blockedContactBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#EF4444',
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  blockedContactText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   availabilityHeader: {
     flexDirection: 'row',
