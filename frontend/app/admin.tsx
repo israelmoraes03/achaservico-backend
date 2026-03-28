@@ -14,10 +14,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import api from '../src/services/api';
 
 // Admin credentials
@@ -113,6 +115,10 @@ export default function AdminScreen() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reports, setReports] = useState<AdminReport[]>([]);
   const [isExporting, setIsExporting] = useState(false);
+  const [bannerImage, setBannerImage] = useState<string | null>(null);
+  const [bannerLink, setBannerLink] = useState('');
+  const [currentBanner, setCurrentBanner] = useState<any>(null);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
 
   // Search/Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -261,6 +267,82 @@ export default function AdminScreen() {
     }
   };
 
+  const fetchBanner = async () => {
+    try {
+      const response = await api.get('/banner');
+      if (response.data && response.data.active) {
+        setCurrentBanner(response.data);
+      } else {
+        setCurrentBanner(null);
+      }
+    } catch (error) {
+      console.error('Error fetching banner:', error);
+    }
+  };
+
+  const pickBannerImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permissão Negada', 'Precisamos de permissão para acessar suas fotos.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+      base64: true,
+    });
+    if (!result.canceled && result.assets[0].base64) {
+      setBannerImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+    }
+  };
+
+  const handleSaveBanner = async () => {
+    if (!bannerImage && !currentBanner?.image) {
+      Alert.alert('Erro', 'Selecione uma imagem para o banner');
+      return;
+    }
+    try {
+      setUploadingBanner(true);
+      await api.post('/admin/banner', {
+        image: bannerImage || currentBanner?.image,
+        link: bannerLink,
+      });
+      setBannerImage(null);
+      setBannerLink('');
+      fetchBanner();
+      setActionMessage('Banner atualizado!');
+      setTimeout(() => setActionMessage(''), 3000);
+    } catch (error) {
+      setActionMessage('Erro ao salvar banner');
+      setTimeout(() => setActionMessage(''), 3000);
+    } finally {
+      setUploadingBanner(false);
+    }
+  };
+
+  const handleRemoveBanner = async () => {
+    Alert.alert('Remover Banner', 'Deseja remover o banner? Ele não aparecerá mais para os usuários.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Remover',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await api.delete('/admin/banner');
+            setCurrentBanner(null);
+            setBannerImage(null);
+            setBannerLink('');
+            setActionMessage('Banner removido!');
+            setTimeout(() => setActionMessage(''), 3000);
+          } catch (error) {
+            setActionMessage('Erro ao remover banner');
+            setTimeout(() => setActionMessage(''), 3000);
+          }
+        }
+      },
+    ]);
+  };
+
   const handleAcceptReport = async (report: AdminReport) => {
     try {
       await api.put(`/admin/reports/${report.report_id}/accept`);
@@ -333,6 +415,7 @@ export default function AdminScreen() {
       fetchSubscriptions(),
       fetchReviews(),
       fetchReports(),
+      fetchBanner(),
     ]);
     setIsLoading(false);
   }, []);
@@ -779,6 +862,75 @@ export default function AdminScreen() {
                     ))}
                   </View>
                 )}
+
+                {/* Banner Management */}
+                <View style={styles.dashSection}>
+                  <Text style={styles.sectionTitle}>📢 Banner / Propaganda</Text>
+                  <Text style={{ color: '#9CA3AF', fontSize: 12, marginBottom: 12 }}>
+                    {currentBanner ? 'Banner ativo — aparece para todos os usuários ao abrir o app' : 'Nenhum banner ativo — adicione uma imagem para exibir ao abrir o app'}
+                  </Text>
+                  
+                  {/* Current banner preview */}
+                  {currentBanner?.image && !bannerImage && (
+                    <View style={styles.bannerPreviewBox}>
+                      <Image source={{ uri: currentBanner.image }} style={styles.bannerPreviewImg} resizeMode="cover" />
+                      <View style={styles.bannerActiveBadge}>
+                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#22C55E' }} />
+                        <Text style={{ color: '#22C55E', fontSize: 11, fontWeight: '600' }}>Ativo</Text>
+                      </View>
+                    </View>
+                  )}
+                  
+                  {/* New banner preview */}
+                  {bannerImage && (
+                    <View style={styles.bannerPreviewBox}>
+                      <Image source={{ uri: bannerImage }} style={styles.bannerPreviewImg} resizeMode="cover" />
+                      <View style={styles.bannerActiveBadge}>
+                        <Text style={{ color: '#F59E0B', fontSize: 11, fontWeight: '600' }}>Nova imagem</Text>
+                      </View>
+                    </View>
+                  )}
+                  
+                  {/* Actions */}
+                  <TouchableOpacity style={styles.bannerPickBtn} onPress={pickBannerImage}>
+                    <Ionicons name="image-outline" size={20} color="#10B981" />
+                    <Text style={styles.bannerPickText}>
+                      {currentBanner?.image || bannerImage ? 'Trocar Imagem' : 'Selecionar Imagem'}
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  <TextInput
+                    style={styles.bannerLinkInput}
+                    placeholder="Link ao clicar no banner (opcional)"
+                    placeholderTextColor="#6B7280"
+                    value={bannerLink}
+                    onChangeText={setBannerLink}
+                  />
+                  
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TouchableOpacity 
+                      style={[styles.bannerSaveBtn, (!bannerImage && !currentBanner) && { opacity: 0.4 }]}
+                      onPress={handleSaveBanner}
+                      disabled={(!bannerImage && !currentBanner) || uploadingBanner}
+                    >
+                      {uploadingBanner ? (
+                        <ActivityIndicator color="#FFFFFF" size="small" />
+                      ) : (
+                        <>
+                          <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+                          <Text style={styles.bannerSaveText}>Salvar Banner</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                    
+                    {currentBanner && (
+                      <TouchableOpacity style={styles.bannerRemoveBtn} onPress={handleRemoveBanner}>
+                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                        <Text style={styles.bannerRemoveText}>Remover</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
 
                 {/* Export Excel Button */}
                 <TouchableOpacity 
@@ -1898,5 +2050,81 @@ const styles = StyleSheet.create({
   dashStarsSmall: {
     flexDirection: 'row',
     gap: 1,
+  },
+  // Banner admin styles
+  bannerPreviewBox: {
+    marginBottom: 12,
+    borderRadius: 10,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  bannerPreviewImg: {
+    width: '100%',
+    height: 160,
+    borderRadius: 10,
+  },
+  bannerActiveBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  bannerPickBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#2D2D2D',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  bannerPickText: {
+    color: '#10B981',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  bannerLinkInput: {
+    backgroundColor: '#2D2D2D',
+    borderRadius: 10,
+    padding: 12,
+    color: '#FFFFFF',
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  bannerSaveBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#10B981',
+    padding: 12,
+    borderRadius: 10,
+  },
+  bannerSaveText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  bannerRemoveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#EF444420',
+    padding: 12,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+  },
+  bannerRemoveText: {
+    color: '#EF4444',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

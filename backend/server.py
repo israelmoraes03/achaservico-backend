@@ -2297,6 +2297,59 @@ async def admin_delete_review(review_id: str):
     
     return {"success": True, "message": "Avaliação excluída"}
 
+# ======================== ADMIN BANNER ========================
+
+@api_router.post("/admin/banner")
+async def update_banner(request: Request):
+    """Update the app banner (admin only)"""
+    data = await request.json()
+    image = data.get("image")
+    link = data.get("link", "")
+    
+    if not image:
+        raise HTTPException(status_code=400, detail="Imagem é obrigatória")
+    
+    # Upload to Cloudinary if base64
+    image_url = image
+    if image.startswith("data:image"):
+        image_url = await upload_image_to_cloudinary(image)
+        if not image_url:
+            raise HTTPException(status_code=500, detail="Erro ao fazer upload da imagem")
+    
+    await db.settings.update_one(
+        {"key": "app_banner"},
+        {"$set": {
+            "key": "app_banner",
+            "image": image_url,
+            "link": link,
+            "active": True,
+            "updated_at": datetime.now(timezone.utc)
+        }},
+        upsert=True
+    )
+    
+    return {"success": True, "message": "Banner atualizado com sucesso"}
+
+@api_router.get("/banner")
+async def get_banner():
+    """Get current active banner (public)"""
+    banner = await db.settings.find_one(
+        {"key": "app_banner", "active": True},
+        {"_id": 0}
+    )
+    if not banner:
+        return {"active": False}
+    return banner
+
+@api_router.delete("/admin/banner")
+async def delete_banner():
+    """Remove the app banner"""
+    await db.settings.update_one(
+        {"key": "app_banner"},
+        {"$set": {"active": False}}
+    )
+    return {"success": True, "message": "Banner removido"}
+
 # ======================== REPORTS / DENÚNCIAS ========================
 
 @api_router.post("/reports")

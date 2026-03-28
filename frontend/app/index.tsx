@@ -70,6 +70,8 @@ export default function HomeScreen() {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [bannerData, setBannerData] = useState<{image: string; link?: string; active: boolean} | null>(null);
+  const [showBanner, setShowBanner] = useState(false);
 
   // Check if tutorial should be shown
   useEffect(() => {
@@ -225,6 +227,13 @@ export default function HomeScreen() {
     fetchData();
     loadFavorites();
     loadUnreadCount();
+    // Check for active banner
+    api.get('/banner').then(res => {
+      if (res.data && res.data.active && res.data.image) {
+        setBannerData(res.data);
+        setShowBanner(true);
+      }
+    }).catch(() => {});
   }, [fetchData, loadFavorites, loadUnreadCount]);
 
   // Refresh unread count when screen comes into focus (after returning from notifications)
@@ -578,6 +587,42 @@ export default function HomeScreen() {
             <Text style={styles.categoryChipMoreText}>Mais ({categories.length})</Text>
           </TouchableOpacity>
         </ScrollView>
+
+        {/* Banner Popup */}
+        <Modal
+          visible={showBanner}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowBanner(false)}
+        >
+          <View style={styles.bannerOverlay}>
+            <View style={styles.bannerContainer}>
+              <TouchableOpacity 
+                style={styles.bannerCloseBtn}
+                onPress={() => setShowBanner(false)}
+              >
+                <Ionicons name="close" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+              {bannerData?.image && (
+                <TouchableOpacity 
+                  activeOpacity={bannerData.link ? 0.8 : 1}
+                  onPress={() => {
+                    if (bannerData.link) {
+                      Linking.openURL(bannerData.link);
+                    }
+                    setShowBanner(false);
+                  }}
+                >
+                  <Image 
+                    source={{ uri: bannerData.image }} 
+                    style={styles.bannerImage}
+                    resizeMode="contain"
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </Modal>
 
         {/* Category Modal */}
         <Modal
@@ -1010,6 +1055,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginTop: 20,
+  },
+  // Banner styles
+  bannerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  bannerContainer: {
+    width: '100%',
+    maxHeight: '80%',
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  bannerCloseBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    zIndex: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bannerImage: {
+    width: '100%',
+    height: undefined,
+    aspectRatio: 0.65,
+    borderRadius: 16,
   },
   categoryChip: {
     flexDirection: 'row',
