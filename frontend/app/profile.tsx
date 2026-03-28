@@ -170,7 +170,12 @@ export default function ProfileScreen() {
 
         {/* Favorites Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Meus Favoritos</Text>
+          <View style={styles.favHeader}>
+            <Text style={styles.sectionTitle}>Meus Favoritos</Text>
+            {favorites.length > 0 && (
+              <Text style={styles.favCount}>{favorites.length}</Text>
+            )}
+          </View>
           
           {loadingFavorites ? (
             <ActivityIndicator size="small" color="#10B981" style={{ marginVertical: 20 }} />
@@ -183,25 +188,47 @@ export default function ProfileScreen() {
               </Text>
             </View>
           ) : (
-            favorites.map((fav) => (
-              <TouchableOpacity 
-                key={fav.provider_id} 
-                style={styles.favoriteItem}
-                onPress={() => {
-                  const phone = fav.phone?.replace(/\D/g, '');
-                  const message = encodeURIComponent(`Olá ${fav.name}, encontrei seu perfil no AchaServiço e gostaria de um orçamento.`);
-                  Linking.openURL(`https://wa.me/55${phone}?text=${message}`);
-                }}
-              >
-                <View style={styles.favoriteInfo}>
-                  <Text style={styles.favoriteName}>{fav.name}</Text>
-                  <Text style={styles.favoriteCategory}>
-                    {fav.categories?.join(', ') || 'Prestador'} • {fav.neighborhood}
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false} 
+              contentContainerStyle={styles.favScrollContent}
+            >
+              {favorites.map((fav) => (
+                <TouchableOpacity 
+                  key={fav.provider_id} 
+                  style={styles.favCard}
+                  onPress={() => router.push(`/provider/${fav.provider_id}`)}
+                >
+                  <View style={styles.favCardTop}>
+                    <View style={styles.favAvatar}>
+                      <Text style={styles.favAvatarText}>
+                        {fav.name?.charAt(0)?.toUpperCase() || 'P'}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.favWhatsApp}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        const phone = fav.phone?.replace(/\D/g, '');
+                        const message = encodeURIComponent(`Olá ${fav.name}, encontrei seu perfil no AchaServiço e gostaria de um orçamento.`);
+                        Linking.openURL(`https://wa.me/55${phone}?text=${message}`);
+                      }}
+                    >
+                      <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.favCardName} numberOfLines={1}>{fav.name}</Text>
+                  <Text style={styles.favCardCategory} numberOfLines={1}>
+                    {fav.categories?.[0] || 'Prestador'}
                   </Text>
-                </View>
-                <Ionicons name="logo-whatsapp" size={24} color="#25D366" />
-              </TouchableOpacity>
-            ))
+                  {fav.neighborhood && (
+                    <Text style={styles.favCardLocation} numberOfLines={1}>
+                      {fav.neighborhood}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           )}
         </View>
 
@@ -619,39 +646,85 @@ const styles = StyleSheet.create({
   // Favorites styles
   emptyFavorites: {
     alignItems: 'center',
-    paddingVertical: 30,
+    paddingVertical: 24,
+    gap: 8,
   },
   emptyFavoritesText: {
     color: '#9CA3AF',
     fontSize: 16,
-    marginTop: 12,
+    fontWeight: '500',
+    marginTop: 8,
   },
   emptyFavoritesSubtext: {
     color: '#6B7280',
     fontSize: 13,
-    marginTop: 4,
     textAlign: 'center',
   },
-  favoriteItem: {
+  favHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#2D2D2D',
+    gap: 8,
+  },
+  favCount: {
+    backgroundColor: '#10B981',
+    color: '#0A0A0A',
+    fontSize: 12,
+    fontWeight: '700',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  favScrollContent: {
+    paddingVertical: 8,
+    gap: 10,
+  },
+  favCard: {
+    width: 130,
+    backgroundColor: '#1F1F1F',
     borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
+    padding: 12,
+    gap: 6,
   },
-  favoriteInfo: {
-    flex: 1,
+  favCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
   },
-  favoriteName: {
-    color: '#FFFFFF',
+  favAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#10B98120',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  favAvatarText: {
+    color: '#10B981',
     fontSize: 16,
+    fontWeight: '700',
+  },
+  favWhatsApp: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#25D36615',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  favCardName: {
+    color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: '600',
   },
-  favoriteCategory: {
+  favCardCategory: {
+    color: '#10B981',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  favCardLocation: {
     color: '#6B7280',
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 11,
   },
 });
