@@ -1667,6 +1667,82 @@ async def activate_subscription_manual(request: Request):
     
     return {"success": True, "message": "Assinatura ativada com sucesso!", "expires_at": expires_at.isoformat()}
 
+# ======================== HEARTBEAT & ONLINE TRACKING ========================
+
+ONLINE_THRESHOLD_MINUTES = 5  # User is "online" if heartbeat within last 5 minutes
+
+@api_router.post("/heartbeat")
+async def user_heartbeat(request: Request):
+    """Track user presence and log access"""
+    user = await get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Não autenticado")
+    
+    now = datetime.now(timezone.utc)
+    today_str = now.strftime("%Y-%m-%d")
+    
+    # Determine if user is a provider or client
+    provider = await db.providers.find_one({"user_id": user.user_id, "is_active": True})
+    user_type = "provider" if provider else "client"
+    
+    # 1. Log this access (every call counts as 1 access)
+    await db.access_logs.insert_one({
+        "user_id": user.user_id,
+        "user_type": user_type,
+        "date": today_str,
+        "timestamp": now
+    })
+    
+    # 2. Update presence (upsert - marks user as online)
+    await db.user_presence.update_one(
+        {"user_id": user.user_id},
+        {"$set": {
+            "user_id": user.user_id,
+            "user_type": user_type,
+            "user_name": user.name,
+            "last_seen": now
+        }},
+        upsert=True
+    )
+    
+    return {"status": "ok"}
+
+@api_router.get("/admin/online-stats")
+async def get_online_stats():
+    """Get real-time online users and daily access counts"""
+    now = datetime.now(timezone.utc)
+    today_str = now.strftime("%Y-%m-%d")
+    threshold = now - timedelta(minutes=ONLINE_THRESHOLD_MINUTES)
+    
+    # --- Online NOW (heartbeat within last 5 minutes) ---
+    online_providers = await db.user_presence.count_documents({
+        "user_type": "provider",
+        "last_seen": {"$gte": threshold}
+    })
+    online_clients = await db.user_presence.count_documents({
+        "user_type": "client",
+        "last_seen": {"$gte": threshold}
+    })
+    online_total = online_providers + online_clients
+    
+    # --- Daily accesses (total visits today, including duplicates) ---
+    daily_total = await db.access_logs.count_documents({"date": today_str})
+    daily_providers = await db.access_logs.count_documents({"date": today_str, "user_type": "provider"})
+    daily_clients = await db.access_logs.count_documents({"date": today_str, "user_type": "client"})
+    
+    return {
+        "online_now": {
+            "total": online_total,
+            "providers": online_providers,
+            "clients": online_clients
+        },
+        "daily_accesses": {
+            "total": daily_total,
+            "providers": daily_providers,
+            "clients": daily_clients
+        }
+    }
+
 # ======================== ADMIN ENDPOINTS ========================
 
 @api_router.get("/admin/stats")

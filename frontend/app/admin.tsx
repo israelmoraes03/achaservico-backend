@@ -122,6 +122,12 @@ export default function AdminScreen() {
   const [currentBanner, setCurrentBanner] = useState<any>(null);
   const [uploadingBanner, setUploadingBanner] = useState(false);
 
+  // Online stats
+  const [onlineStats, setOnlineStats] = useState<{
+    online_now: { total: number; providers: number; clients: number };
+    daily_accesses: { total: number; providers: number; clients: number };
+  } | null>(null);
+
   // Search/Filter states
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -221,6 +227,15 @@ export default function AdminScreen() {
       setStats(response.data);
     } catch (error) {
       console.error('Error fetching stats:', error);
+    }
+  };
+
+  const fetchOnlineStats = async () => {
+    try {
+      const response = await api.get('/admin/online-stats');
+      setOnlineStats(response.data);
+    } catch (error) {
+      console.error('Error fetching online stats:', error);
     }
   };
 
@@ -444,6 +459,7 @@ export default function AdminScreen() {
     setIsLoading(true);
     await Promise.all([
       fetchStats(),
+      fetchOnlineStats(),
       fetchProviders(),
       fetchUsers(),
       fetchSubscriptions(),
@@ -745,6 +761,46 @@ export default function AdminScreen() {
                     <Ionicons name="close-circle" size={28} color="#EF4444" />
                     <Text style={[styles.statValue, { color: '#EF4444' }]}>{stats?.inactive_providers || 0}</Text>
                     <Text style={styles.statLabel}>Inativos</Text>
+                  </View>
+                </View>
+
+                {/* Online Now Section */}
+                <Text style={styles.sectionTitle}>🟢 Online Agora</Text>
+                <View style={styles.statsGrid}>
+                  <View style={[styles.statCard, { borderColor: '#10B981', borderWidth: 1 }]}>
+                    <Ionicons name="radio" size={28} color="#10B981" />
+                    <Text style={[styles.statValue, { color: '#10B981' }]}>{onlineStats?.online_now?.total || 0}</Text>
+                    <Text style={styles.statLabel}>Total Online</Text>
+                  </View>
+                  <View style={styles.statCard}>
+                    <Ionicons name="briefcase" size={28} color="#F59E0B" />
+                    <Text style={[styles.statValue, { color: '#F59E0B' }]}>{onlineStats?.online_now?.providers || 0}</Text>
+                    <Text style={styles.statLabel}>Prestadores</Text>
+                  </View>
+                  <View style={styles.statCard}>
+                    <Ionicons name="person" size={28} color="#3B82F6" />
+                    <Text style={[styles.statValue, { color: '#3B82F6' }]}>{onlineStats?.online_now?.clients || 0}</Text>
+                    <Text style={styles.statLabel}>Clientes</Text>
+                  </View>
+                </View>
+
+                {/* Daily Accesses Section */}
+                <Text style={styles.sectionTitle}>📊 Acessos Hoje</Text>
+                <View style={styles.statsGrid}>
+                  <View style={[styles.statCard, { borderColor: '#8B5CF6', borderWidth: 1 }]}>
+                    <Ionicons name="eye" size={28} color="#8B5CF6" />
+                    <Text style={[styles.statValue, { color: '#8B5CF6' }]}>{onlineStats?.daily_accesses?.total || 0}</Text>
+                    <Text style={styles.statLabel}>Total Acessos</Text>
+                  </View>
+                  <View style={styles.statCard}>
+                    <Ionicons name="briefcase-outline" size={28} color="#F59E0B" />
+                    <Text style={styles.statValue}>{onlineStats?.daily_accesses?.providers || 0}</Text>
+                    <Text style={styles.statLabel}>Prestadores</Text>
+                  </View>
+                  <View style={styles.statCard}>
+                    <Ionicons name="person-outline" size={28} color="#3B82F6" />
+                    <Text style={styles.statValue}>{onlineStats?.daily_accesses?.clients || 0}</Text>
+                    <Text style={styles.statLabel}>Clientes</Text>
                   </View>
                 </View>
 

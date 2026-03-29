@@ -359,6 +359,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Heartbeat: ping backend every 2 minutes to track presence & access
+  useEffect(() => {
+    if (!user) return;
+    
+    const sendHeartbeat = async () => {
+      try {
+        await api.post('/heartbeat', {}, { timeout: 10000 });
+      } catch (e) {
+        // Silently ignore heartbeat failures
+      }
+    };
+
+    // Send immediately on login/session restore
+    sendHeartbeat();
+
+    // Then every 2 minutes
+    const interval = setInterval(sendHeartbeat, 2 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [user]);
+
   const login = async () => {
     try {
       setIsLoading(true);
