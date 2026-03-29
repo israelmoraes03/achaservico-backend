@@ -128,6 +128,11 @@ export default function AdminScreen() {
     daily_accesses: { total: number; providers: number; clients: number };
   } | null>(null);
 
+  // Maintenance mode
+  const [maintenanceActive, setMaintenanceActive] = useState(false);
+  const [maintenanceMessage, setMaintenanceMessage] = useState('Estamos realizando uma manutenção programada. Voltamos em breve!');
+  const [togglingMaintenance, setTogglingMaintenance] = useState(false);
+
   // Search/Filter states
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -237,6 +242,56 @@ export default function AdminScreen() {
     } catch (error) {
       console.error('Error fetching online stats:', error);
     }
+  };
+
+  const fetchMaintenanceStatus = async () => {
+    try {
+      const response = await api.get('/maintenance/status');
+      if (response?.data) {
+        setMaintenanceActive(response.data.active || false);
+        if (response.data.message) {
+          setMaintenanceMessage(response.data.message);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching maintenance status:', error);
+    }
+  };
+
+  const handleToggleMaintenance = async () => {
+    const newState = !maintenanceActive;
+    const action = newState ? 'ATIVAR' : 'DESATIVAR';
+    
+    Alert.alert(
+      `${action} Manutenção`,
+      newState 
+        ? `Deseja ATIVAR o modo manutenção?\n\nTodos os usuários (exceto admin) verão uma tela de manutenção com a mensagem:\n\n"${maintenanceMessage}"`
+        : 'Deseja DESATIVAR o modo manutenção?\n\nTodos os usuários voltarão a acessar o app normalmente.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: action,
+          style: newState ? 'destructive' : 'default',
+          onPress: async () => {
+            try {
+              setTogglingMaintenance(true);
+              await api.post('/admin/maintenance/toggle', {
+                active: newState,
+                message: maintenanceMessage
+              });
+              setMaintenanceActive(newState);
+              setActionMessage(newState ? '🔧 Manutenção ATIVADA' : '✅ Manutenção DESATIVADA');
+              setTimeout(() => setActionMessage(''), 3000);
+            } catch (error) {
+              setActionMessage('Erro ao alterar modo manutenção');
+              setTimeout(() => setActionMessage(''), 3000);
+            } finally {
+              setTogglingMaintenance(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const fetchProviders = async () => {
@@ -460,6 +515,7 @@ export default function AdminScreen() {
     await Promise.all([
       fetchStats(),
       fetchOnlineStats(),
+      fetchMaintenanceStatus(),
       fetchProviders(),
       fetchUsers(),
       fetchSubscriptions(),
@@ -739,6 +795,81 @@ export default function AdminScreen() {
             {/* Dashboard Tab */}
             {activeTab === 'dashboard' && (
               <View>
+                {/* Maintenance Mode Control */}
+                <View style={{
+                  backgroundColor: maintenanceActive ? '#F59E0B15' : '#1F2937',
+                  borderRadius: 16,
+                  padding: 16,
+                  marginBottom: 20,
+                  borderWidth: maintenanceActive ? 1 : 0,
+                  borderColor: '#F59E0B40',
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Ionicons name="construct" size={22} color={maintenanceActive ? '#F59E0B' : '#6B7280'} />
+                      <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' }}>Modo Manutenção</Text>
+                    </View>
+                    <View style={{
+                      backgroundColor: maintenanceActive ? '#EF444430' : '#10B98130',
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 8,
+                    }}>
+                      <Text style={{ color: maintenanceActive ? '#EF4444' : '#10B981', fontSize: 12, fontWeight: 'bold' }}>
+                        {maintenanceActive ? 'ATIVO' : 'INATIVO'}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <TextInput
+                    style={{
+                      backgroundColor: '#0A0A0A',
+                      color: '#FFFFFF',
+                      borderRadius: 10,
+                      padding: 12,
+                      fontSize: 14,
+                      marginBottom: 12,
+                      borderWidth: 1,
+                      borderColor: '#374151',
+                    }}
+                    placeholder="Mensagem de manutenção..."
+                    placeholderTextColor="#6B7280"
+                    value={maintenanceMessage}
+                    onChangeText={setMaintenanceMessage}
+                    multiline
+                    numberOfLines={2}
+                  />
+                  
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: maintenanceActive ? '#10B981' : '#F59E0B',
+                      borderRadius: 10,
+                      paddingVertical: 12,
+                      alignItems: 'center',
+                      flexDirection: 'row',
+                      justifyContent: 'center',
+                      gap: 8,
+                    }}
+                    onPress={handleToggleMaintenance}
+                    disabled={togglingMaintenance}
+                  >
+                    {togglingMaintenance ? (
+                      <ActivityIndicator size="small" color="#0A0A0A" />
+                    ) : (
+                      <>
+                        <Ionicons 
+                          name={maintenanceActive ? 'checkmark-circle' : 'warning'} 
+                          size={18} 
+                          color="#0A0A0A" 
+                        />
+                        <Text style={{ color: '#0A0A0A', fontWeight: 'bold', fontSize: 15 }}>
+                          {maintenanceActive ? 'Desativar Manutenção' : 'Ativar Manutenção'}
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
                 {/* Main Stats Grid */}
                 <Text style={styles.sectionTitle}>Visão Geral</Text>
                 <View style={styles.statsGrid}>

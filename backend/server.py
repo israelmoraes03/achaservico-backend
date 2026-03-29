@@ -1667,6 +1667,41 @@ async def activate_subscription_manual(request: Request):
     
     return {"success": True, "message": "Assinatura ativada com sucesso!", "expires_at": expires_at.isoformat()}
 
+# ======================== MAINTENANCE MODE ========================
+
+@api_router.get("/maintenance/status")
+async def get_maintenance_status():
+    """Public endpoint - check if app is in maintenance mode"""
+    maintenance = await db.app_settings.find_one({"key": "maintenance"})
+    if maintenance and maintenance.get("active"):
+        return {
+            "active": True,
+            "message": maintenance.get("message", "Estamos em manutenção. Voltamos em breve!")
+        }
+    return {"active": False, "message": ""}
+
+@api_router.post("/admin/maintenance/toggle")
+async def toggle_maintenance(request: Request):
+    """Admin: Toggle maintenance mode on/off"""
+    body = await request.json()
+    active = body.get("active", False)
+    message = body.get("message", "Estamos realizando uma manutenção programada. Voltamos em breve!")
+    
+    await db.app_settings.update_one(
+        {"key": "maintenance"},
+        {"$set": {
+            "key": "maintenance",
+            "active": active,
+            "message": message,
+            "updated_at": datetime.now(timezone.utc)
+        }},
+        upsert=True
+    )
+    
+    status_text = "ativada" if active else "desativada"
+    logger.info(f"Maintenance mode {status_text}")
+    return {"success": True, "active": active, "message": f"Manutenção {status_text}"}
+
 # ======================== HEARTBEAT & ONLINE TRACKING ========================
 
 ONLINE_THRESHOLD_MINUTES = 5  # User is "online" if heartbeat within last 5 minutes
