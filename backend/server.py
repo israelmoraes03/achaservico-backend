@@ -2068,6 +2068,12 @@ async def send_scheduled_notifications():
 @api_router.get("/maintenance/status")
 async def get_maintenance_status():
     """Public endpoint - check if app is in maintenance mode"""
+    # Piggyback: trigger scheduled notifications check (non-blocking)
+    try:
+        asyncio.create_task(check_and_send_scheduled_notifications())
+    except Exception:
+        pass
+    
     maintenance = await db.app_settings.find_one({"key": "maintenance"})
     if maintenance and maintenance.get("active"):
         return {
@@ -2155,6 +2161,17 @@ async def check_and_send_scheduled_notifications():
         current_minute = now.minute
         today_str = now.strftime("%Y-%m-%d")
         
+        # Rate-limit: only check once per 5-minute window
+        lock_key = f"notif_lock_{today_str}_{current_hour}_{current_minute // 5}"
+        lock = await db.app_settings.find_one({"key": lock_key})
+        if lock:
+            return  # Already checked this window
+        await db.app_settings.update_one(
+            {"key": lock_key},
+            {"$set": {"key": lock_key, "ts": now}},
+            upsert=True
+        )
+        
         notifications = await db.scheduled_notifications.find({
             "is_active": True,
             "last_sent_date": {"$ne": today_str}
@@ -2170,9 +2187,10 @@ async def check_and_send_scheduled_notifications():
                 current_total_min = current_hour * 60 + current_minute
                 diff = current_total_min - notif_total_min
                 
-                # Send if we're 0-10 minutes AFTER the scheduled time (wider window)
+                # Send if we're 0-10 minutes AFTER the scheduled time
                 if diff >= 0 and diff <= 10:
                     await send_scheduled_push(notif, today_str)
+                    logger.info(f"🔔 Auto-sent: '{notif['title']}' at {notif['time']}")
             except Exception as e:
                 logger.error(f"Error checking notification: {e}")
     except Exception as e:
