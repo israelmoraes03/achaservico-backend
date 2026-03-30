@@ -79,13 +79,6 @@ function MaintenanceGate({ children }: { children: React.ReactNode }) {
           <Ionicons name="refresh" size={20} color="#10B981" />
           <Text style={maintenanceStyles.retryText}>Tentar novamente</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={maintenanceStyles.adminLink}
-          onPress={() => router.push('/admin')}
-        >
-          <Ionicons name="shield-checkmark" size={14} color="#6B7280" />
-          <Text style={maintenanceStyles.adminText}>Área administrativa</Text>
-        </TouchableOpacity>
       </View>
     );
   }
@@ -143,16 +136,6 @@ const maintenanceStyles = StyleSheet.create({
     color: '#10B981',
     fontSize: 16,
     fontWeight: '600',
-  },
-  adminLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 16,
-  },
-  adminText: {
-    color: '#6B7280',
-    fontSize: 13,
   },
 });
 

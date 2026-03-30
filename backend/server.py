@@ -3,6 +3,9 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 import os
 import logging
 import asyncio
@@ -80,8 +83,16 @@ APP_SCHEME = os.environ.get('APP_SCHEME', 'achaservico')
 # Create the main app
 app = FastAPI(title="AchaServiço API", description="API para conectar clientes a prestadores de serviços locais")
 
+# ======================== RATE LIMITING ========================
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
+
+# Admin email constant
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'israel.moraes03@gmail.com')
 
 # Configure logging
 logging.basicConfig(
@@ -946,9 +957,79 @@ async def require_auth(request: Request) -> User:
         raise HTTPException(status_code=401, detail="Não autenticado")
     return user
 
+async def require_admin(request: Request) -> User:
+    """Require admin authentication - raises 401/403 if not admin"""
+    user = await require_auth(request)
+    if user.email != ADMIN_EMAIL:
+        logger.warning(f"Unauthorized admin access attempt by {user.email}")
+        raise HTTPException(status_code=403, detail="Acesso restrito ao administrador")
+    return user
+
+# ======================== DATABASE INDEXES (on startup) ========================
+
+@app.on_event("startup")
+async def create_indexes():
+    """Create MongoDB indexes for performance and data integrity"""
+    try:
+        # Users collection
+        await db.users.create_index("user_id", unique=True)
+        await db.users.create_index("email", unique=True)
+        await db.users.create_index("push_token", sparse=True)
+        
+        # Providers collection
+        await db.providers.create_index("user_id", unique=True)
+        await db.providers.create_index("provider_id", unique=True)
+        await db.providers.create_index("is_active")
+        await db.providers.create_index("categories")
+        await db.providers.create_index("city")
+        await db.providers.create_index([("is_active", 1), ("blocked", 1)])
+        
+        # Sessions collection
+        await db.user_sessions.create_index("session_token", unique=True)
+        await db.user_sessions.create_index("user_id")
+        await db.user_sessions.create_index("expires_at", expireAfterSeconds=0)
+        
+        # Reviews collection
+        await db.reviews.create_index("provider_id")
+        await db.reviews.create_index("user_id")
+        
+        # Reports collection
+        await db.reports.create_index("status")
+        await db.reports.create_index("provider_id")
+        await db.reports.create_index("created_at")
+        
+        # WhatsApp contacts collection
+        await db.whatsapp_contacts.create_index("user_id")
+        await db.whatsapp_contacts.create_index("provider_id")
+        await db.whatsapp_contacts.create_index([("user_id", 1), ("provider_id", 1)])
+        
+        # Notifications collection
+        await db.notifications.create_index("user_id")
+        await db.notifications.create_index([("user_id", 1), ("read", 1)])
+        
+        # Access logs - TTL index to auto-delete after 90 days
+        await db.access_logs.create_index("timestamp", expireAfterSeconds=90*24*60*60)
+        await db.access_logs.create_index([("date", 1), ("user_type", 1)])
+        
+        # User presence - TTL index to auto-delete stale entries after 1 day
+        await db.user_presence.create_index("user_id", unique=True)
+        await db.user_presence.create_index("last_seen", expireAfterSeconds=24*60*60)
+        
+        # App settings
+        await db.app_settings.create_index("key", unique=True)
+        
+        # Banners
+        await db.banners.create_index("is_active")
+        
+        logger.info("✅ MongoDB indexes created successfully")
+    except Exception as e:
+        logger.error(f"⚠️ Error creating indexes: {e}")
+
+
 # ======================== AUTH ENDPOINTS ========================
 
 @api_router.post("/auth/session")
+@limiter.limit("10/minute")
 async def exchange_session(request: Request, response: Response):
     """Exchange session_id for session_token"""
     session_id = request.headers.get("X-Session-ID")
@@ -1129,6 +1210,7 @@ async def get_provider(provider_id: str):
     return provider
 
 @api_router.post("/providers", response_model=Provider)
+@limiter.limit("3/minute")
 async def create_provider(provider_data: ProviderCreate, request: Request):
     """Create a new provider profile (requires auth)"""
     user = await require_auth(request)
@@ -1681,8 +1763,10 @@ async def get_maintenance_status():
     return {"active": False, "message": ""}
 
 @api_router.post("/admin/maintenance/toggle")
+@limiter.limit("10/minute")
 async def toggle_maintenance(request: Request):
     """Admin: Toggle maintenance mode on/off"""
+    await require_admin(request)
     body = await request.json()
     active = body.get("active", False)
     message = body.get("message", "Estamos realizando uma manutenção programada. Voltamos em breve!")
@@ -1707,6 +1791,7 @@ async def toggle_maintenance(request: Request):
 ONLINE_THRESHOLD_MINUTES = 5  # User is "online" if heartbeat within last 5 minutes
 
 @api_router.post("/heartbeat")
+@limiter.limit("35/minute")
 async def user_heartbeat(request: Request):
     """Track user presence and log access"""
     user = await get_current_user(request)
@@ -1743,8 +1828,9 @@ async def user_heartbeat(request: Request):
     return {"status": "ok"}
 
 @api_router.get("/admin/online-stats")
-async def get_online_stats():
+async def get_online_stats(request: Request):
     """Get real-time online users and daily access counts"""
+    await require_admin(request)
     now = datetime.now(timezone.utc)
     today_str = now.strftime("%Y-%m-%d")
     threshold = now - timedelta(minutes=ONLINE_THRESHOLD_MINUTES)
@@ -1781,8 +1867,9 @@ async def get_online_stats():
 # ======================== ADMIN ENDPOINTS ========================
 
 @api_router.get("/admin/stats")
-async def get_admin_stats():
+async def get_admin_stats(request: Request):
     """Get comprehensive dashboard statistics"""
+    await require_admin(request)
     # Check for expired subscriptions first
     await check_and_expire_subscriptions()
     
@@ -1893,8 +1980,9 @@ async def get_admin_stats():
     }
 
 @api_router.get("/admin/export-excel")
-async def export_excel_report():
+async def export_excel_report(request: Request):
     """Generate and download Excel report with all providers data"""
+    await require_admin(request)
     
     # Fetch all data
     providers = await db.providers.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
@@ -2119,20 +2207,23 @@ async def export_excel_report():
     )
 
 @api_router.get("/admin/all-providers")
-async def get_all_providers():
+async def get_all_providers(request: Request):
     """Get all providers for admin"""
+    await require_admin(request)
     providers = await db.providers.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
     return providers
 
 @api_router.get("/admin/all-users")
-async def get_all_users():
+async def get_all_users(request: Request):
     """Get all users for admin"""
+    await require_admin(request)
     users = await db.users.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
     return users
 
 @api_router.get("/admin/all-subscriptions")
-async def get_all_subscriptions():
+async def get_all_subscriptions(request: Request):
     """Get all subscriptions with provider details - automatically filters out orphans"""
+    await require_admin(request)
     subscriptions = await db.subscriptions.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
     
     # Batch fetch all providers to avoid N+1 query
@@ -2164,14 +2255,16 @@ async def get_all_subscriptions():
     return result
 
 @api_router.get("/admin/all-reviews")
-async def get_all_reviews():
+async def get_all_reviews(request: Request):
     """Get all reviews for admin"""
+    await require_admin(request)
     reviews = await db.reviews.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
     return reviews
 
 @api_router.get("/admin/pending-subscriptions")
-async def get_pending_subscriptions():
+async def get_pending_subscriptions(request: Request):
     """Get all pending subscriptions (for admin to activate)"""
+    await require_admin(request)
     pending = await db.subscriptions.find({"status": "pending"}, {"_id": 0}).to_list(100)
     
     # Batch fetch all providers to avoid N+1 query
@@ -2193,6 +2286,7 @@ async def get_pending_subscriptions():
 @api_router.post("/admin/activate/{provider_id}")
 async def admin_activate_subscription(provider_id: str):
     """Admin endpoint to activate a subscription after PIX payment"""
+    await require_admin(request)
     provider = await db.providers.find_one({"provider_id": provider_id})
     if not provider:
         raise HTTPException(status_code=404, detail="Prestador não encontrado")
@@ -2237,6 +2331,7 @@ async def admin_activate_subscription(provider_id: str):
 @api_router.post("/admin/cancel-subscription/{provider_id}")
 async def admin_cancel_subscription(provider_id: str):
     """Cancel a subscription"""
+    await require_admin(request)
     provider = await db.providers.find_one({"provider_id": provider_id})
     if not provider:
         raise HTTPException(status_code=404, detail="Prestador não encontrado")
@@ -2257,8 +2352,9 @@ async def admin_cancel_subscription(provider_id: str):
     return {"success": True, "message": "Assinatura cancelada"}
 
 @api_router.post("/admin/check-expired")
-async def admin_check_expired_subscriptions():
+async def admin_check_expired_subscriptions(request: Request):
     """Manually check and expire overdue subscriptions"""
+    await require_admin(request)
     expired_count = await check_and_expire_subscriptions()
     
     # Get list of expired providers
@@ -2275,8 +2371,9 @@ async def admin_check_expired_subscriptions():
     }
 
 @api_router.get("/admin/expired-subscriptions")
-async def get_expired_subscriptions():
+async def get_expired_subscriptions(request: Request):
     """Get all expired subscriptions that can be renewed"""
+    await require_admin(request)
     expired = await db.providers.find(
         {"subscription_status": "expired"},
         {"_id": 0}
@@ -2303,6 +2400,7 @@ async def get_expired_subscriptions():
 @api_router.post("/admin/toggle-provider/{provider_id}")
 async def admin_toggle_provider(provider_id: str):
     """Toggle provider active status"""
+    await require_admin(request)
     provider = await db.providers.find_one({"provider_id": provider_id})
     if not provider:
         raise HTTPException(status_code=404, detail="Prestador não encontrado")
@@ -2319,6 +2417,7 @@ async def admin_toggle_provider(provider_id: str):
 @api_router.delete("/admin/provider/{provider_id}")
 async def admin_delete_provider(provider_id: str):
     """Delete a provider"""
+    await require_admin(request)
     provider = await db.providers.find_one({"provider_id": provider_id})
     if not provider:
         raise HTTPException(status_code=404, detail="Prestador não encontrado")
@@ -2336,8 +2435,9 @@ async def admin_delete_provider(provider_id: str):
     return {"success": True, "message": "Prestador excluído"}
 
 @api_router.delete("/admin/cleanup-orphan-subscriptions")
-async def admin_cleanup_orphan_subscriptions():
+async def admin_cleanup_orphan_subscriptions(request: Request):
     """Delete subscriptions that don't have a corresponding provider"""
+    await require_admin(request)
     # Get all subscriptions
     all_subscriptions = await db.subscriptions.find({}, {"_id": 0, "provider_id": 1}).to_list(1000)
     
@@ -2357,6 +2457,7 @@ async def admin_cleanup_orphan_subscriptions():
 @api_router.delete("/admin/user/{user_id}")
 async def admin_delete_user(user_id: str):
     """Delete a user and their provider profile if exists"""
+    await require_admin(request)
     user = await db.users.find_one({"user_id": user_id})
     if not user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
@@ -2376,6 +2477,7 @@ async def admin_delete_user(user_id: str):
 @api_router.delete("/admin/review/{review_id}")
 async def admin_delete_review(review_id: str):
     """Delete a review"""
+    await require_admin(request)
     review = await db.reviews.find_one({"review_id": review_id})
     if not review:
         raise HTTPException(status_code=404, detail="Avaliação não encontrada")
@@ -2418,6 +2520,7 @@ async def admin_delete_review(review_id: str):
 @api_router.post("/admin/banner")
 async def update_banner(request: Request):
     """Update the app banner (admin only)"""
+    await require_admin(request)
     data = await request.json()
     image = data.get("image")
     link = data.get("link", "")
@@ -2458,8 +2561,9 @@ async def get_banner():
     return banner
 
 @api_router.delete("/admin/banner")
-async def delete_banner():
+async def delete_banner(request: Request):
     """Remove the app banner"""
+    await require_admin(request)
     await db.settings.update_one(
         {"key": "app_banner"},
         {"$set": {"active": False}}
@@ -2469,6 +2573,7 @@ async def delete_banner():
 # ======================== REPORTS / DENÚNCIAS ========================
 
 @api_router.post("/reports")
+@limiter.limit("5/minute")
 async def create_report(report_data: ReportCreate, request: Request):
     """Create a report against a provider"""
     # Get current user if authenticated
@@ -2578,8 +2683,9 @@ async def create_report(report_data: ReportCreate, request: Request):
     return {"success": True, "message": "Denúncia enviada com sucesso. Iremos analisar."}
 
 @api_router.get("/admin/reports")
-async def get_admin_reports():
+async def get_admin_reports(request: Request):
     """Get all reports for admin"""
+    await require_admin(request)
     reports = await db.reports.find(
         {},
         {"_id": 0}
@@ -2589,6 +2695,7 @@ async def get_admin_reports():
 @api_router.put("/admin/reports/{report_id}/accept")
 async def admin_accept_report(report_id: str):
     """Accept a report - marks as accepted and blocks the provider"""
+    await require_admin(request)
     report = await db.reports.find_one({"report_id": report_id})
     if not report:
         raise HTTPException(status_code=404, detail="Denúncia não encontrada")
@@ -2644,6 +2751,7 @@ async def admin_accept_report(report_id: str):
 @api_router.put("/admin/reports/{report_id}/discard")
 async def admin_discard_report(report_id: str):
     """Discard a report"""
+    await require_admin(request)
     report = await db.reports.find_one({"report_id": report_id})
     if not report:
         raise HTTPException(status_code=404, detail="Denúncia não encontrada")
@@ -2662,6 +2770,7 @@ async def admin_discard_report(report_id: str):
 @api_router.delete("/admin/reports/{report_id}")
 async def admin_delete_report(report_id: str):
     """Permanently delete a report"""
+    await require_admin(request)
     result = await db.reports.delete_one({"report_id": report_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Denúncia não encontrada")
@@ -2672,6 +2781,7 @@ async def admin_delete_report(report_id: str):
 @api_router.post("/admin/providers/{provider_id}/unblock")
 async def admin_unblock_provider(provider_id: str):
     """Unblock a provider"""
+    await require_admin(request)
     provider = await db.providers.find_one({"provider_id": provider_id})
     if not provider:
         raise HTTPException(status_code=404, detail="Prestador não encontrado")
@@ -2713,6 +2823,7 @@ async def admin_unblock_provider(provider_id: str):
 @api_router.post("/admin/users/{user_id}/block")
 async def admin_block_user(user_id: str):
     """Block a user from accessing the app"""
+    await require_admin(request)
     user = await db.users.find_one({"user_id": user_id})
     if not user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
@@ -2738,6 +2849,7 @@ async def admin_block_user(user_id: str):
 @api_router.post("/admin/users/{user_id}/unblock")
 async def admin_unblock_user(user_id: str):
     """Unblock a user"""
+    await require_admin(request)
     user = await db.users.find_one({"user_id": user_id})
     if not user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
@@ -2760,8 +2872,9 @@ async def admin_unblock_user(user_id: str):
     return {"success": True, "message": "Usuário desbloqueado"}
 
 @api_router.get("/admin/block-history")
-async def get_block_history():
+async def get_block_history(request: Request):
     """Get block/unblock history"""
+    await require_admin(request)
     history = await db.block_history.find(
         {}, {"_id": 0}
     ).sort("created_at", -1).limit(50).to_list(50)
@@ -2772,6 +2885,7 @@ async def get_block_history():
 @api_router.post("/admin/toggle-premium/{provider_id}")
 async def admin_toggle_premium(provider_id: str):
     """Toggle premium status for a provider (admin only)"""
+    await require_admin(request)
     provider = await db.providers.find_one({"provider_id": provider_id})
     if not provider:
         raise HTTPException(status_code=404, detail="Prestador não encontrado")
@@ -2800,8 +2914,9 @@ async def admin_toggle_premium(provider_id: str):
     }
 
 @api_router.get("/admin/premium-providers")
-async def admin_get_premium_providers():
+async def admin_get_premium_providers(request: Request):
     """Get all premium providers"""
+    await require_admin(request)
     providers = await db.providers.find(
         {"is_premium": True},
         {"_id": 0, "profile_image": 0, "service_photos": 0}
@@ -2816,6 +2931,7 @@ class BroadcastNotification(BaseModel):
 @api_router.post("/admin/broadcast-notification")
 async def admin_broadcast_notification(notification: BroadcastNotification):
     """Send push notification to providers, users, or all - with target selection"""
+    await require_admin(request)
     
     sent_count = 0
     failed_count = 0
@@ -2958,8 +3074,9 @@ async def mark_notifications_read(request: Request):
     return {"success": True}
 
 @api_router.post("/admin/send-expiration-notifications")
-async def admin_send_expiration_notifications():
+async def admin_send_expiration_notifications(request: Request):
     """Manually trigger expiration notification check (admin only)"""
+    await require_admin(request)
     notifications_sent = await check_expiring_subscriptions()
     return {
         "success": True,
@@ -2968,8 +3085,9 @@ async def admin_send_expiration_notifications():
     }
 
 @api_router.post("/admin/send-review-reminders")
-async def admin_send_review_reminders():
+async def admin_send_review_reminders(request: Request):
     """Send review reminder notifications to users who contacted providers 24h ago"""
+    await require_admin(request)
     reminders_sent = await send_review_reminders()
     return {
         "success": True,
