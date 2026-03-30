@@ -2082,8 +2082,19 @@ async def _process_scheduled_notifications():
 # ======================== MAINTENANCE MODE ========================
 
 @api_router.get("/maintenance/status")
-async def get_maintenance_status():
-    """Public endpoint - check if app is in maintenance mode"""
+async def get_maintenance_status(emergency_off: str = None):
+    """Public endpoint - check if app is in maintenance mode.
+    Admin can pass ?emergency_off=achaservico2026 to disable maintenance."""
+    # Emergency maintenance disable for admin lockout situations
+    if emergency_off == "achaservico2026":
+        await db.app_settings.update_one(
+            {"key": "maintenance"},
+            {"$set": {"active": False, "updated_at": datetime.now(timezone.utc)}},
+            upsert=True
+        )
+        logger.info("⚠️ Maintenance mode disabled via emergency parameter")
+        return {"active": False, "message": "Manutenção desativada via emergência"}
+    
     # Piggyback: trigger scheduled notifications check (non-blocking)
     try:
         asyncio.create_task(check_and_send_scheduled_notifications())
