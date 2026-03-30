@@ -1025,6 +1025,107 @@ async def create_indexes():
     except Exception as e:
         logger.error(f"⚠️ Error creating indexes: {e}")
 
+# ======================== BACKGROUND SCHEDULER ========================
+
+async def scheduled_notifications_checker():
+    """Background task that checks and sends scheduled notifications every 60 seconds"""
+    logger.info("🔔 Scheduled notifications checker started")
+    while True:
+        try:
+            await asyncio.sleep(60)  # Check every 60 seconds
+            
+            now = datetime.now(timezone(timedelta(hours=-3)))  # Brazil timezone
+            current_hour = now.hour
+            current_minute = now.minute
+            today_str = now.strftime("%Y-%m-%d")
+            
+            # Find active notifications not yet sent today
+            notifications = await db.scheduled_notifications.find({
+                "is_active": True,
+                "last_sent_date": {"$ne": today_str}
+            }).to_list(100)
+            
+            for notif in notifications:
+                try:
+                    parts = notif["time"].split(":")
+                    notif_hour = int(parts[0])
+                    notif_minute = int(parts[1])
+                    
+                    # Check if current time matches (within 2-minute window)
+                    notif_total_min = notif_hour * 60 + notif_minute
+                    current_total_min = current_hour * 60 + current_minute
+                    diff = current_total_min - notif_total_min
+                    
+                    # Only send if we're 0-2 minutes AFTER the scheduled time
+                    if diff >= 0 and diff <= 2:
+                        target = notif.get("target", "all")
+                        push_tokens = set()
+                        
+                        if target in ["all", "providers"]:
+                            providers = await db.providers.find(
+                                {"push_token": {"$exists": True, "$ne": None, "$ne": ""}},
+                                {"push_token": 1}
+                            ).to_list(10000)
+                            for p in providers:
+                                if p.get("push_token"):
+                                    push_tokens.add(p["push_token"])
+                        
+                        if target in ["all", "clients"]:
+                            users = await db.users.find(
+                                {"push_token": {"$exists": True, "$ne": None, "$ne": ""}},
+                                {"push_token": 1}
+                            ).to_list(10000)
+                            for u in users:
+                                if u.get("push_token"):
+                                    push_tokens.add(u["push_token"])
+                        
+                        if push_tokens:
+                            messages = []
+                            for token in push_tokens:
+                                if token.startswith("ExponentPushToken") or token.startswith("ExpoPushToken"):
+                                    messages.append({
+                                        "to": token,
+                                        "sound": "default",
+                                        "title": notif["title"],
+                                        "body": notif["message"],
+                                    })
+                            
+                            # Send in batches of 100
+                            for i in range(0, len(messages), 100):
+                                batch = messages[i:i+100]
+                                try:
+                                    async with httpx.AsyncClient() as client:
+                                        await client.post(
+                                            "https://exp.host/--/api/v2/push/send",
+                                            json=batch,
+                                            headers={
+                                                "Accept": "application/json",
+                                                "Content-Type": "application/json",
+                                            },
+                                            timeout=30
+                                        )
+                                except Exception as e:
+                                    logger.error(f"Error sending push batch: {e}")
+                            
+                            # Mark as sent today
+                            await db.scheduled_notifications.update_one(
+                                {"notification_id": notif["notification_id"]},
+                                {"$set": {"last_sent_date": today_str}}
+                            )
+                            logger.info(f"🔔 Scheduled notification sent: '{notif['title']}' at {notif['time']} to {len(push_tokens)} devices")
+                        
+                except Exception as e:
+                    logger.error(f"Error processing scheduled notification: {e}")
+                    
+        except Exception as e:
+            logger.error(f"Scheduler error: {e}")
+            await asyncio.sleep(30)
+
+@app.on_event("startup")
+async def start_scheduler():
+    """Start the background notification scheduler"""
+    asyncio.create_task(scheduled_notifications_checker())
+
 
 # ======================== AUTH ENDPOINTS ========================
 
