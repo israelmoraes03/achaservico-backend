@@ -624,10 +624,10 @@ export default function AdminScreen() {
     if (isAdmin) {
       fetchAllData();
       
-      // Auto-refresh every 30 seconds
+      // Auto-refresh every 2 minutes
       const interval = setInterval(() => {
         fetchAllData();
-      }, 30000);
+      }, 120000);
       
       return () => clearInterval(interval);
     }
