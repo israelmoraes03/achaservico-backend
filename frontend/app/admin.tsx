@@ -143,6 +143,14 @@ export default function AdminScreen() {
   const [broadcastTarget, setBroadcastTarget] = useState<'providers' | 'users' | 'all'>('providers');
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
 
+  // Scheduled notifications states
+  const [scheduledNotifications, setScheduledNotifications] = useState<any[]>([]);
+  const [newScheduleTime, setNewScheduleTime] = useState('');
+  const [newScheduleTitle, setNewScheduleTitle] = useState('');
+  const [newScheduleMessage, setNewScheduleMessage] = useState('');
+  const [addingSchedule, setAddingSchedule] = useState(false);
+  const [showAddSchedule, setShowAddSchedule] = useState(false);
+
   // Modal states
   const [editModalVisible, setEditModalVisible] = useState(false);
 
@@ -243,6 +251,90 @@ export default function AdminScreen() {
     } catch (error) {
       console.error('Error fetching online stats:', error);
     }
+  };
+
+  const fetchScheduledNotifications = async () => {
+    try {
+      const response = await api.get('/admin/scheduled-notifications');
+      setScheduledNotifications(response.data || []);
+    } catch (error) {
+      console.error('Error fetching scheduled notifications:', error);
+    }
+  };
+
+  const handleAddScheduledNotification = async () => {
+    if (!newScheduleTime.trim() || !newScheduleTitle.trim() || !newScheduleMessage.trim()) {
+      setActionMessage('Preencha todos os campos');
+      setTimeout(() => setActionMessage(''), 3000);
+      return;
+    }
+    // Validate time format
+    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(newScheduleTime.trim())) {
+      setActionMessage('Formato de hora inválido. Use HH:MM (ex: 10:00)');
+      setTimeout(() => setActionMessage(''), 3000);
+      return;
+    }
+    try {
+      setAddingSchedule(true);
+      await api.post('/admin/scheduled-notifications', {
+        time: newScheduleTime.trim(),
+        title: newScheduleTitle.trim(),
+        message: newScheduleMessage.trim(),
+        target: 'all'
+      });
+      setNewScheduleTime('');
+      setNewScheduleTitle('');
+      setNewScheduleMessage('');
+      setShowAddSchedule(false);
+      fetchScheduledNotifications();
+      setActionMessage('Notificação agendada criada!');
+      setTimeout(() => setActionMessage(''), 3000);
+    } catch (error) {
+      setActionMessage('Erro ao criar notificação agendada');
+      setTimeout(() => setActionMessage(''), 3000);
+    } finally {
+      setAddingSchedule(false);
+    }
+  };
+
+  const handleToggleScheduledNotification = async (notif: any) => {
+    try {
+      await api.put(`/admin/scheduled-notifications/${notif.notification_id}`, {
+        is_active: !notif.is_active
+      });
+      fetchScheduledNotifications();
+      setActionMessage(notif.is_active ? 'Notificação desativada' : 'Notificação ativada');
+      setTimeout(() => setActionMessage(''), 3000);
+    } catch (error) {
+      setActionMessage('Erro ao atualizar notificação');
+      setTimeout(() => setActionMessage(''), 3000);
+    }
+  };
+
+  const handleDeleteScheduledNotification = async (notif: any) => {
+    Alert.alert(
+      'Excluir Agendamento',
+      `Deseja excluir a notificação das ${notif.time}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/admin/scheduled-notifications/${notif.notification_id}`);
+              fetchScheduledNotifications();
+              setActionMessage('Agendamento excluído');
+              setTimeout(() => setActionMessage(''), 3000);
+            } catch (error) {
+              setActionMessage('Erro ao excluir agendamento');
+              setTimeout(() => setActionMessage(''), 3000);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const fetchMaintenanceStatus = async () => {
@@ -517,6 +609,7 @@ export default function AdminScreen() {
       fetchStats(),
       fetchOnlineStats(),
       fetchMaintenanceStatus(),
+      fetchScheduledNotifications(),
       fetchProviders(),
       fetchUsers(),
       fetchSubscriptions(),
@@ -1268,6 +1361,132 @@ export default function AdminScreen() {
                     </>
                   )}
                 </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Scheduled Notifications Section */}
+            {activeTab === 'dashboard' && (
+              <View style={{ backgroundColor: '#1F2937', borderRadius: 16, padding: 16, marginBottom: 20 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons name="alarm" size={22} color="#8B5CF6" />
+                    <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: 'bold' }}>Notificações Automáticas</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={{ backgroundColor: '#8B5CF620', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                    onPress={() => setShowAddSchedule(!showAddSchedule)}
+                  >
+                    <Ionicons name={showAddSchedule ? 'close' : 'add'} size={16} color="#8B5CF6" />
+                    <Text style={{ color: '#8B5CF6', fontWeight: '600', fontSize: 13 }}>
+                      {showAddSchedule ? 'Cancelar' : 'Novo'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Add new scheduled notification form */}
+                {showAddSchedule && (
+                  <View style={{ backgroundColor: '#0A0A0A', borderRadius: 12, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#8B5CF640' }}>
+                    <Text style={{ color: '#9CA3AF', fontSize: 12, marginBottom: 8 }}>NOVO AGENDAMENTO</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      <Ionicons name="time" size={18} color="#8B5CF6" />
+                      <TextInput
+                        style={{ backgroundColor: '#1F2937', color: '#FFFFFF', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, flex: 1, fontSize: 16, fontWeight: 'bold', borderWidth: 1, borderColor: '#374151' }}
+                        placeholder="HH:MM (ex: 10:00)"
+                        placeholderTextColor="#6B7280"
+                        value={newScheduleTime}
+                        onChangeText={setNewScheduleTime}
+                        keyboardType="numbers-and-punctuation"
+                        maxLength={5}
+                      />
+                    </View>
+                    <TextInput
+                      style={{ backgroundColor: '#1F2937', color: '#FFFFFF', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 8, borderWidth: 1, borderColor: '#374151' }}
+                      placeholder="Título da notificação"
+                      placeholderTextColor="#6B7280"
+                      value={newScheduleTitle}
+                      onChangeText={setNewScheduleTitle}
+                      maxLength={50}
+                    />
+                    <TextInput
+                      style={{ backgroundColor: '#1F2937', color: '#FFFFFF', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 12, minHeight: 60, textAlignVertical: 'top', borderWidth: 1, borderColor: '#374151' }}
+                      placeholder="Mensagem..."
+                      placeholderTextColor="#6B7280"
+                      value={newScheduleMessage}
+                      onChangeText={setNewScheduleMessage}
+                      multiline
+                      numberOfLines={2}
+                      maxLength={200}
+                    />
+                    <TouchableOpacity
+                      style={{ backgroundColor: '#8B5CF6', borderRadius: 10, paddingVertical: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+                      onPress={handleAddScheduledNotification}
+                      disabled={addingSchedule}
+                    >
+                      {addingSchedule ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <>
+                          <Ionicons name="add-circle" size={18} color="#FFFFFF" />
+                          <Text style={{ color: '#FFFFFF', fontWeight: 'bold', fontSize: 15 }}>Adicionar Agendamento</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* List of scheduled notifications */}
+                {scheduledNotifications.length === 0 ? (
+                  <Text style={{ color: '#6B7280', textAlign: 'center', paddingVertical: 16, fontSize: 14 }}>
+                    Nenhuma notificação agendada. Clique em "Novo" para criar.
+                  </Text>
+                ) : (
+                  scheduledNotifications.map((notif, index) => (
+                    <View key={notif.notification_id || index} style={{
+                      backgroundColor: notif.is_active ? '#0A0A0A' : '#0A0A0A80',
+                      borderRadius: 12,
+                      padding: 14,
+                      marginBottom: index < scheduledNotifications.length - 1 ? 10 : 0,
+                      borderWidth: 1,
+                      borderColor: notif.is_active ? '#8B5CF630' : '#37415150',
+                      opacity: notif.is_active ? 1 : 0.6,
+                    }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <View style={{ backgroundColor: notif.is_active ? '#8B5CF620' : '#37415140', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
+                            <Text style={{ color: notif.is_active ? '#8B5CF6' : '#6B7280', fontSize: 18, fontWeight: 'bold' }}>
+                              {notif.time}
+                            </Text>
+                          </View>
+                          <View style={{
+                            backgroundColor: notif.is_active ? '#10B98130' : '#EF444430',
+                            paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6
+                          }}>
+                            <Text style={{ color: notif.is_active ? '#10B981' : '#EF4444', fontSize: 10, fontWeight: 'bold' }}>
+                              {notif.is_active ? 'ATIVO' : 'INATIVO'}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                          <TouchableOpacity onPress={() => handleToggleScheduledNotification(notif)}>
+                            <Ionicons name={notif.is_active ? 'pause-circle' : 'play-circle'} size={28} color={notif.is_active ? '#F59E0B' : '#10B981'} />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => handleDeleteScheduledNotification(notif)}>
+                            <Ionicons name="trash" size={26} color="#EF4444" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                      <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '600', marginBottom: 2 }}>{notif.title}</Text>
+                      <Text style={{ color: '#9CA3AF', fontSize: 13 }}>{notif.message}</Text>
+                      {notif.last_sent_date && (
+                        <Text style={{ color: '#6B7280', fontSize: 11, marginTop: 6 }}>Último envio: {notif.last_sent_date}</Text>
+                      )}
+                    </View>
+                  ))
+                )}
+
+                <Text style={{ color: '#6B7280', fontSize: 11, marginTop: 12, textAlign: 'center' }}>
+                  As notificações são enviadas diariamente nos horários configurados (horário de Brasília).
+                </Text>
               </View>
             )}
 

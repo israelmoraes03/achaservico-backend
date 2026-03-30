@@ -1764,6 +1764,190 @@ async def activate_subscription_manual(request: Request):
     
     return {"success": True, "message": "Assinatura ativada com sucesso!", "expires_at": expires_at.isoformat()}
 
+
+# ======================== SCHEDULED NOTIFICATIONS ========================
+
+class ScheduledNotificationCreate(BaseModel):
+    time: str  # Format "HH:MM"
+    title: str
+    message: str
+    target: str = "all"  # all, providers, clients
+
+@api_router.get("/admin/scheduled-notifications")
+async def get_scheduled_notifications(request: Request):
+    """Get all scheduled notifications"""
+    await require_admin(request)
+    notifications = await db.scheduled_notifications.find({}, {"_id": 0}).to_list(100)
+    return notifications
+
+@api_router.post("/admin/scheduled-notifications")
+async def create_scheduled_notification(request: Request, data: ScheduledNotificationCreate):
+    """Create a new scheduled notification"""
+    await require_admin(request)
+    
+    # Validate time format
+    try:
+        parts = data.time.split(":")
+        hour = int(parts[0])
+        minute = int(parts[1])
+        if hour < 0 or hour > 23 or minute < 0 or minute > 59:
+            raise ValueError()
+    except (ValueError, IndexError):
+        raise HTTPException(status_code=400, detail="Formato de hora inválido. Use HH:MM (ex: 10:00)")
+    
+    notification = {
+        "notification_id": str(uuid.uuid4()),
+        "time": data.time,
+        "title": data.title,
+        "message": data.message,
+        "target": data.target,
+        "is_active": True,
+        "last_sent_date": None,
+        "created_at": datetime.now(timezone.utc)
+    }
+    
+    await db.scheduled_notifications.insert_one(notification)
+    del notification["_id"]
+    return notification
+
+@api_router.put("/admin/scheduled-notifications/{notification_id}")
+async def update_scheduled_notification(request: Request, notification_id: str):
+    """Update a scheduled notification (toggle active, edit fields)"""
+    await require_admin(request)
+    body = await request.json()
+    
+    update_fields = {}
+    if "is_active" in body:
+        update_fields["is_active"] = body["is_active"]
+    if "time" in body:
+        update_fields["time"] = body["time"]
+    if "title" in body:
+        update_fields["title"] = body["title"]
+    if "message" in body:
+        update_fields["message"] = body["message"]
+    if "target" in body:
+        update_fields["target"] = body["target"]
+    
+    if not update_fields:
+        raise HTTPException(status_code=400, detail="Nenhum campo para atualizar")
+    
+    update_fields["updated_at"] = datetime.now(timezone.utc)
+    
+    result = await db.scheduled_notifications.update_one(
+        {"notification_id": notification_id},
+        {"$set": update_fields}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Notificação não encontrada")
+    
+    return {"success": True, "message": "Notificação atualizada"}
+
+@api_router.delete("/admin/scheduled-notifications/{notification_id}")
+async def delete_scheduled_notification(request: Request, notification_id: str):
+    """Delete a scheduled notification"""
+    await require_admin(request)
+    
+    result = await db.scheduled_notifications.delete_one({"notification_id": notification_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Notificação não encontrada")
+    
+    return {"success": True, "message": "Notificação excluída"}
+
+@api_router.post("/cron/send-scheduled-notifications")
+async def send_scheduled_notifications():
+    """Cron endpoint - checks and sends scheduled notifications for current time.
+    Should be called every 5 minutes by an external cron service."""
+    now = datetime.now(timezone(timedelta(hours=-3)))  # Brazil timezone (BRT/UTC-3)
+    current_time = now.strftime("%H:%M")
+    current_hour = now.hour
+    current_minute = now.minute
+    today_str = now.strftime("%Y-%m-%d")
+    
+    # Find active notifications that match current time (within 5-minute window)
+    notifications = await db.scheduled_notifications.find({
+        "is_active": True,
+        "last_sent_date": {"$ne": today_str}
+    }).to_list(100)
+    
+    sent_count = 0
+    for notif in notifications:
+        try:
+            parts = notif["time"].split(":")
+            notif_hour = int(parts[0])
+            notif_minute = int(parts[1])
+            
+            # Check if within 5-minute window
+            notif_total_min = notif_hour * 60 + notif_minute
+            current_total_min = current_hour * 60 + current_minute
+            diff = abs(current_total_min - notif_total_min)
+            
+            if diff <= 5 or diff >= (24*60 - 5):  # Handle midnight wrap
+                # Determine target tokens
+                target = notif.get("target", "all")
+                push_tokens = set()
+                
+                if target in ["all", "providers"]:
+                    providers = await db.providers.find(
+                        {"push_token": {"$exists": True, "$ne": None, "$ne": ""}},
+                        {"push_token": 1}
+                    ).to_list(10000)
+                    for p in providers:
+                        if p.get("push_token"):
+                            push_tokens.add(p["push_token"])
+                
+                if target in ["all", "clients"]:
+                    users = await db.users.find(
+                        {"push_token": {"$exists": True, "$ne": None, "$ne": ""}},
+                        {"push_token": 1}
+                    ).to_list(10000)
+                    for u in users:
+                        if u.get("push_token"):
+                            push_tokens.add(u["push_token"])
+                
+                if push_tokens:
+                    # Send via Expo Push
+                    messages = []
+                    for token in push_tokens:
+                        if token.startswith("ExponentPushToken") or token.startswith("ExpoPushToken"):
+                            messages.append({
+                                "to": token,
+                                "sound": "default",
+                                "title": notif["title"],
+                                "body": notif["message"],
+                            })
+                    
+                    # Send in batches of 100
+                    for i in range(0, len(messages), 100):
+                        batch = messages[i:i+100]
+                        try:
+                            async with httpx.AsyncClient() as client:
+                                await client.post(
+                                    "https://exp.host/--/api/v2/push/send",
+                                    json=batch,
+                                    headers={
+                                        "Accept": "application/json",
+                                        "Content-Type": "application/json",
+                                    },
+                                    timeout=30
+                                )
+                        except Exception as e:
+                            logger.error(f"Error sending push batch: {e}")
+                    
+                    # Mark as sent today
+                    await db.scheduled_notifications.update_one(
+                        {"notification_id": notif["notification_id"]},
+                        {"$set": {"last_sent_date": today_str}}
+                    )
+                    sent_count += 1
+                    logger.info(f"Scheduled notification sent: '{notif['title']}' to {len(push_tokens)} devices")
+                    
+        except Exception as e:
+            logger.error(f"Error processing scheduled notification: {e}")
+    
+    return {"success": True, "sent": sent_count, "checked_at": current_time}
+
+
 # ======================== MAINTENANCE MODE ========================
 
 @api_router.get("/maintenance/status")
