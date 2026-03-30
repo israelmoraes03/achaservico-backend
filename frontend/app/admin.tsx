@@ -21,10 +21,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import api from '../src/services/api';
+import { useAuth } from '../src/context/AuthContext';
 
-// Admin credentials
+// Admin email - only this account can access the admin panel
 const ADMIN_EMAIL = 'israel.moraes03@gmail.com';
-const ADMIN_PASSWORD = 'Rael9661#';
 
 // Backend URL for direct downloads
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://achaservico-backend.onrender.com';
@@ -100,14 +100,15 @@ interface AdminReport {
 
 export default function AdminScreen() {
   const router = useRouter();
+  const { user, login, isLoading: authLoading } = useAuth();
   const scrollViewRef = useRef<ScrollView>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  // Check if logged-in user is admin
+  const isAdmin = user?.email === ADMIN_EMAIL;
 
   // Data states
   const [stats, setStats] = useState<Stats | null>(null);
@@ -527,7 +528,7 @@ export default function AdminScreen() {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAdmin) {
       fetchAllData();
       
       // Auto-refresh every 30 seconds
@@ -537,7 +538,7 @@ export default function AdminScreen() {
       
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated, fetchAllData]);
+  }, [isAdmin, fetchAllData]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -548,17 +549,8 @@ export default function AdminScreen() {
   const [loginError, setLoginError] = useState('');
   const [actionMessage, setActionMessage] = useState('');
 
-  const handleLogin = () => {
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      setLoginError('');
-    } else {
-      setLoginError('Email ou senha incorretos');
-    }
-  };
-
   const handleLogout = () => {
-    setIsAuthenticated(false);
+    router.back();
   };
 
   // Provider actions
@@ -676,7 +668,18 @@ export default function AdminScreen() {
   };
 
   // Login Screen
-  if (!isAuthenticated) {
+  if (authLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loginContainer}>
+          <ActivityIndicator size="large" color="#10B981" />
+          <Text style={{ color: '#9CA3AF', marginTop: 16 }}>Verificando acesso...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!isAdmin) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loginContainer}>
@@ -687,34 +690,26 @@ export default function AdminScreen() {
             <Text style={styles.loginTitle}>Painel Administrativo</Text>
             <Text style={styles.loginSubtitle}>AchaServiço</Text>
 
-            <TextInput
-              style={styles.input}
-              placeholder="E-mail"
-              placeholderTextColor="#6B7280"
-              value={email}
-              onChangeText={(text) => { setEmail(text); setLoginError(''); }}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder="Senha"
-              placeholderTextColor="#6B7280"
-              secureTextEntry
-              value={password}
-              onChangeText={(text) => { setPassword(text); setLoginError(''); }}
-              onSubmitEditing={handleLogin}
-            />
-
-            {loginError ? (
-              <Text style={styles.errorText}>{loginError}</Text>
-            ) : null}
-
-            <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-              <Ionicons name="log-in" size={20} color="#0A0A0A" />
-              <Text style={styles.loginButtonText}>Entrar</Text>
-            </TouchableOpacity>
+            {!user ? (
+              <>
+                <Text style={{ color: '#9CA3AF', textAlign: 'center', marginBottom: 20, fontSize: 14 }}>
+                  Faça login com sua conta Google de administrador para acessar o painel.
+                </Text>
+                <TouchableOpacity style={styles.loginButton} onPress={login}>
+                  <Ionicons name="logo-google" size={20} color="#0A0A0A" />
+                  <Text style={styles.loginButtonText}>Entrar com Google</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={{ color: '#EF4444', textAlign: 'center', marginBottom: 12, fontSize: 14 }}>
+                  Acesso restrito.
+                </Text>
+                <Text style={{ color: '#6B7280', textAlign: 'center', marginBottom: 20, fontSize: 13 }}>
+                  A conta {user.email} não tem permissão de administrador.
+                </Text>
+              </>
+            )}
 
             <TouchableOpacity style={styles.backLink} onPress={() => router.back()}>
               <Text style={styles.backLinkText}>Voltar ao app</Text>

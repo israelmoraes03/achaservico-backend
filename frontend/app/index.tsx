@@ -20,9 +20,42 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../src/context/AuthContext';
 import api from '../src/services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import OnboardingTutorial, { checkTutorialCompleted } from '../src/components/OnboardingTutorial';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Cache config
+const CACHE_KEY_CATEGORIES = '@cache_categories';
+const CACHE_KEY_CITIES = '@cache_cities';
+const CACHE_KEY_NEIGHBORHOODS = '@cache_neighborhoods';
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+// Helper: get cached data or fetch from API
+async function getCachedOrFetch(cacheKey: string, apiPath: string, params?: any): Promise<any> {
+  try {
+    const cached = await AsyncStorage.getItem(cacheKey);
+    if (cached) {
+      const { data, timestamp } = JSON.parse(cached);
+      if (Date.now() - timestamp < CACHE_TTL) {
+        return data;
+      }
+    }
+  } catch (e) {
+    // Cache read failed, will fetch from API
+  }
+  
+  const response = await api.get(apiPath, { params });
+  const data = response.data;
+  
+  try {
+    await AsyncStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now() }));
+  } catch (e) {
+    // Cache write failed, data still available
+  }
+  
+  return data;
+}
 
 interface Category {
   id: string;
@@ -170,15 +203,14 @@ export default function HomeScreen() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [catRes, citiesRes] = await Promise.all([
-        api.get('/categories'),
-        api.get('/cities'),
+      const [catData, citiesData, neighData] = await Promise.all([
+        getCachedOrFetch(CACHE_KEY_CATEGORIES, '/categories'),
+        getCachedOrFetch(CACHE_KEY_CITIES, '/cities'),
+        getCachedOrFetch(CACHE_KEY_NEIGHBORHOODS, '/neighborhoods'),
       ]);
-      setCategories(catRes.data);
-      setCities(citiesRes.data);
-      // Carregar bairros iniciais (todas as cidades)
-      const neighRes = await api.get('/neighborhoods');
-      setNeighborhoods(neighRes.data);
+      setCategories(catData);
+      setCities(citiesData);
+      setNeighborhoods(neighData);
     } catch (error) {
       console.error('Error fetching data:', error);
     }
@@ -213,9 +245,18 @@ export default function HomeScreen() {
       if (selectedCity) params.city = selectedCity;
       if (selectedNeighborhood) params.neighborhood = selectedNeighborhood;
       if (searchQuery) params.search = searchQuery;
+      params.limit = 50; // Load up to 50 providers
       
       const response = await api.get('/providers', { params });
-      setProviders(response.data);
+      // Support both paginated response {providers: [...]} and legacy array response
+      const data = response.data;
+      if (Array.isArray(data)) {
+        setProviders(data);
+      } else if (data?.providers) {
+        setProviders(data.providers);
+      } else {
+        setProviders([]);
+      }
     } catch (error) {
       console.error('Error fetching providers:', error);
     } finally {

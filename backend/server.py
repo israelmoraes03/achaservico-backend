@@ -1175,11 +1175,18 @@ async def get_providers(
     category: Optional[str] = None,
     neighborhood: Optional[str] = None,
     city: Optional[str] = None,
-    search: Optional[str] = None
+    search: Optional[str] = None,
+    page: int = 1,
+    limit: int = 20
 ):
-    """Get all active providers with optional filters"""
+    """Get all active providers with optional filters and pagination"""
     # First, check and expire any overdue subscriptions
     await check_and_expire_subscriptions()
+    
+    # Sanitize pagination params
+    page = max(1, page)
+    limit = min(max(1, limit), 100)  # Max 100 per page
+    skip = (page - 1) * limit
     
     query = {"is_active": True, "subscription_status": "active"}
     
@@ -1198,8 +1205,16 @@ async def get_providers(
             {"description": {"$regex": search, "$options": "i"}}
         ]
     
-    providers = await db.providers.find(query, {"_id": 0}).sort("average_rating", -1).to_list(100)
-    return providers
+    total = await db.providers.count_documents(query)
+    providers = await db.providers.find(query, {"_id": 0}).sort("average_rating", -1).skip(skip).limit(limit).to_list(limit)
+    
+    return {
+        "providers": providers,
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": (total + limit - 1) // limit  # ceil division
+    }
 
 @api_router.get("/providers/{provider_id}")
 async def get_provider(provider_id: str):
