@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Response, Request
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Response, Request, BackgroundTasks
 from fastapi.responses import HTMLResponse, StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -1970,97 +1970,113 @@ async def send_notification_now(request: Request, notification_id: str):
     return {"success": True, "message": f"Notificação '{notif['title']}' enviada!"}
 
 @api_router.post("/cron/send-scheduled-notifications")
-async def send_scheduled_notifications():
-    """Cron endpoint - checks and sends scheduled notifications for current time.
-    Should be called every 5 minutes by an external cron service."""
+@api_router.get("/cron/send-scheduled-notifications")
+async def send_scheduled_notifications(background_tasks: BackgroundTasks):
+    """Cron endpoint - responds immediately, processes notifications in background.
+    Supports both GET and POST for cron service compatibility."""
     now = datetime.now(timezone(timedelta(hours=-4)))  # Brazil timezone (AMT/UTC-4 - Mato Grosso do Sul)
     current_time = now.strftime("%H:%M")
-    current_hour = now.hour
-    current_minute = now.minute
-    today_str = now.strftime("%Y-%m-%d")
+    logger.info(f"🔔 Cron ping received at {current_time}")
     
-    # Find active notifications that match current time (within 5-minute window)
-    notifications = await db.scheduled_notifications.find({
-        "is_active": True,
-        "last_sent_date": {"$ne": today_str}
-    }).to_list(100)
+    # Process notifications in background to avoid timeout
+    background_tasks.add_task(_process_scheduled_notifications)
     
-    sent_count = 0
-    for notif in notifications:
-        try:
-            parts = notif["time"].split(":")
-            notif_hour = int(parts[0])
-            notif_minute = int(parts[1])
-            
-            # Check if within 5-minute window
-            notif_total_min = notif_hour * 60 + notif_minute
-            current_total_min = current_hour * 60 + current_minute
-            diff = abs(current_total_min - notif_total_min)
-            
-            if diff <= 5 or diff >= (24*60 - 5):  # Handle midnight wrap
-                # Determine target tokens
-                target = notif.get("target", "all")
-                push_tokens = set()
+    return {"success": True, "message": "Processing notifications in background", "checked_at": current_time}
+
+async def _process_scheduled_notifications():
+    """Background task to check and send scheduled notifications."""
+    try:
+        now = datetime.now(timezone(timedelta(hours=-4)))  # Brazil timezone (AMT/UTC-4 - Mato Grosso do Sul)
+        current_hour = now.hour
+        current_minute = now.minute
+        today_str = now.strftime("%Y-%m-%d")
+        
+        # Find active notifications that match current time (within 5-minute window)
+        notifications = await db.scheduled_notifications.find({
+            "is_active": True,
+            "last_sent_date": {"$ne": today_str}
+        }).to_list(100)
+        
+        sent_count = 0
+        for notif in notifications:
+            try:
+                parts = notif["time"].split(":")
+                notif_hour = int(parts[0])
+                notif_minute = int(parts[1])
                 
-                if target in ["all", "providers"]:
-                    providers = await db.providers.find(
-                        {"push_token": {"$exists": True, "$ne": None, "$ne": ""}},
-                        {"push_token": 1}
-                    ).to_list(10000)
-                    for p in providers:
-                        if p.get("push_token"):
-                            push_tokens.add(p["push_token"])
+                # Check if within 5-minute window
+                notif_total_min = notif_hour * 60 + notif_minute
+                current_total_min = current_hour * 60 + current_minute
+                diff = abs(current_total_min - notif_total_min)
                 
-                if target in ["all", "clients"]:
-                    users = await db.users.find(
-                        {"push_token": {"$exists": True, "$ne": None, "$ne": ""}},
-                        {"push_token": 1}
-                    ).to_list(10000)
-                    for u in users:
-                        if u.get("push_token"):
-                            push_tokens.add(u["push_token"])
-                
-                if push_tokens:
-                    # Send via Expo Push
-                    messages = []
-                    for token in push_tokens:
-                        if token.startswith("ExponentPushToken") or token.startswith("ExpoPushToken"):
-                            messages.append({
-                                "to": token,
-                                "sound": "default",
-                                "title": notif["title"],
-                                "body": notif["message"],
-                            })
+                if diff <= 5 or diff >= (24*60 - 5):  # Handle midnight wrap
+                    # Determine target tokens
+                    target = notif.get("target", "all")
+                    push_tokens = set()
                     
-                    # Send in batches of 100
-                    for i in range(0, len(messages), 100):
-                        batch = messages[i:i+100]
-                        try:
-                            async with httpx.AsyncClient() as client:
-                                await client.post(
-                                    "https://exp.host/--/api/v2/push/send",
-                                    json=batch,
-                                    headers={
-                                        "Accept": "application/json",
-                                        "Content-Type": "application/json",
-                                    },
-                                    timeout=30
-                                )
-                        except Exception as e:
-                            logger.error(f"Error sending push batch: {e}")
+                    if target in ["all", "providers"]:
+                        providers = await db.providers.find(
+                            {"push_token": {"$exists": True, "$ne": None, "$ne": ""}},
+                            {"push_token": 1}
+                        ).to_list(10000)
+                        for p in providers:
+                            if p.get("push_token"):
+                                push_tokens.add(p["push_token"])
                     
-                    # Mark as sent today
-                    await db.scheduled_notifications.update_one(
-                        {"notification_id": notif["notification_id"]},
-                        {"$set": {"last_sent_date": today_str}}
-                    )
-                    sent_count += 1
-                    logger.info(f"Scheduled notification sent: '{notif['title']}' to {len(push_tokens)} devices")
+                    if target in ["all", "clients"]:
+                        users = await db.users.find(
+                            {"push_token": {"$exists": True, "$ne": None, "$ne": ""}},
+                            {"push_token": 1}
+                        ).to_list(10000)
+                        for u in users:
+                            if u.get("push_token"):
+                                push_tokens.add(u["push_token"])
                     
-        except Exception as e:
-            logger.error(f"Error processing scheduled notification: {e}")
-    
-    return {"success": True, "sent": sent_count, "checked_at": current_time}
+                    if push_tokens:
+                        # Send via Expo Push
+                        messages = []
+                        for token in push_tokens:
+                            if token.startswith("ExponentPushToken") or token.startswith("ExpoPushToken"):
+                                messages.append({
+                                    "to": token,
+                                    "sound": "default",
+                                    "title": notif["title"],
+                                    "body": notif["message"],
+                                })
+                        
+                        # Send in batches of 100
+                        for i in range(0, len(messages), 100):
+                            batch = messages[i:i+100]
+                            try:
+                                async with httpx.AsyncClient() as client:
+                                    await client.post(
+                                        "https://exp.host/--/api/v2/push/send",
+                                        json=batch,
+                                        headers={
+                                            "Accept": "application/json",
+                                            "Content-Type": "application/json",
+                                        },
+                                        timeout=30
+                                    )
+                            except Exception as e:
+                                logger.error(f"Error sending push batch: {e}")
+                        
+                        # Mark as sent today
+                        await db.scheduled_notifications.update_one(
+                            {"notification_id": notif["notification_id"]},
+                            {"$set": {"last_sent_date": today_str}}
+                        )
+                        sent_count += 1
+                        logger.info(f"✅ Scheduled notification sent: '{notif['title']}' to {len(push_tokens)} devices")
+                        
+            except Exception as e:
+                logger.error(f"Error processing scheduled notification: {e}")
+        
+        if sent_count > 0:
+            logger.info(f"🔔 Cron job completed: {sent_count} notifications sent")
+        
+    except Exception as e:
+        logger.error(f"Error in background notification processing: {e}")
 
 
 # ======================== MAINTENANCE MODE ========================
