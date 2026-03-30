@@ -2929,7 +2929,7 @@ class BroadcastNotification(BaseModel):
     target: str = "providers"  # "providers", "users", "all"
 
 @api_router.post("/admin/broadcast-notification")
-async def admin_broadcast_notification(notification: BroadcastNotification):
+async def admin_broadcast_notification(request: Request, notification: BroadcastNotification):
     """Send push notification to providers, users, or all - with target selection"""
     await require_admin(request)
     
