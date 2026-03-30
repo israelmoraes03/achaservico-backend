@@ -1034,7 +1034,7 @@ async def scheduled_notifications_checker():
         try:
             await asyncio.sleep(60)  # Check every 60 seconds
             
-            now = datetime.now(timezone(timedelta(hours=-3)))  # Brazil timezone
+            now = datetime.now(timezone(timedelta(hours=-4)))  # Brazil timezone (AMT/UTC-4 - Mato Grosso do Sul)
             current_hour = now.hour
             current_minute = now.minute
             today_str = now.strftime("%Y-%m-%d")
@@ -1964,7 +1964,7 @@ async def send_notification_now(request: Request, notification_id: str):
     if not notif:
         raise HTTPException(status_code=404, detail="Notificação não encontrada")
     
-    today_str = datetime.now(timezone(timedelta(hours=-3))).strftime("%Y-%m-%d")
+    today_str = datetime.now(timezone(timedelta(hours=-4))).strftime("%Y-%m-%d")
     await send_scheduled_push(notif, today_str)
     
     return {"success": True, "message": f"Notificação '{notif['title']}' enviada!"}
@@ -1973,7 +1973,7 @@ async def send_notification_now(request: Request, notification_id: str):
 async def send_scheduled_notifications():
     """Cron endpoint - checks and sends scheduled notifications for current time.
     Should be called every 5 minutes by an external cron service."""
-    now = datetime.now(timezone(timedelta(hours=-3)))  # Brazil timezone (BRT/UTC-3)
+    now = datetime.now(timezone(timedelta(hours=-4)))  # Brazil timezone (AMT/UTC-4 - Mato Grosso do Sul)
     current_time = now.strftime("%H:%M")
     current_hour = now.hour
     current_minute = now.minute
@@ -2156,7 +2156,7 @@ async def user_heartbeat(request: Request):
 async def check_and_send_scheduled_notifications():
     """Check and send any pending scheduled notifications"""
     try:
-        now = datetime.now(timezone(timedelta(hours=-3)))  # Brazil timezone
+        now = datetime.now(timezone(timedelta(hours=-4)))  # Brazil timezone (AMT/UTC-4 - Mato Grosso do Sul)
         current_hour = now.hour
         current_minute = now.minute
         today_str = now.strftime("%Y-%m-%d")
