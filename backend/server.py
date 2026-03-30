@@ -2299,7 +2299,7 @@ async def get_pending_subscriptions(request: Request):
     return result
 
 @api_router.post("/admin/activate/{provider_id}")
-async def admin_activate_subscription(provider_id: str):
+async def admin_activate_subscription(request: Request, provider_id: str):
     """Admin endpoint to activate a subscription after PIX payment"""
     await require_admin(request)
     provider = await db.providers.find_one({"provider_id": provider_id})
@@ -2344,7 +2344,7 @@ async def admin_activate_subscription(provider_id: str):
     }
 
 @api_router.post("/admin/cancel-subscription/{provider_id}")
-async def admin_cancel_subscription(provider_id: str):
+async def admin_cancel_subscription(request: Request, provider_id: str):
     """Cancel a subscription"""
     await require_admin(request)
     provider = await db.providers.find_one({"provider_id": provider_id})
@@ -2413,7 +2413,7 @@ async def get_expired_subscriptions(request: Request):
     return result
 
 @api_router.post("/admin/toggle-provider/{provider_id}")
-async def admin_toggle_provider(provider_id: str):
+async def admin_toggle_provider(request: Request, provider_id: str):
     """Toggle provider active status"""
     await require_admin(request)
     provider = await db.providers.find_one({"provider_id": provider_id})
@@ -2430,7 +2430,7 @@ async def admin_toggle_provider(provider_id: str):
     return {"success": True, "is_active": new_status}
 
 @api_router.delete("/admin/provider/{provider_id}")
-async def admin_delete_provider(provider_id: str):
+async def admin_delete_provider(request: Request, provider_id: str):
     """Delete a provider"""
     await require_admin(request)
     provider = await db.providers.find_one({"provider_id": provider_id})
@@ -2470,7 +2470,7 @@ async def admin_cleanup_orphan_subscriptions(request: Request):
     return {"success": True, "deleted_count": orphan_count, "message": f"{orphan_count} assinaturas órfãs removidas"}
 
 @api_router.delete("/admin/user/{user_id}")
-async def admin_delete_user(user_id: str):
+async def admin_delete_user(request: Request, user_id: str):
     """Delete a user and their provider profile if exists"""
     await require_admin(request)
     user = await db.users.find_one({"user_id": user_id})
@@ -2490,7 +2490,7 @@ async def admin_delete_user(user_id: str):
     return {"success": True, "message": "Usuário excluído"}
 
 @api_router.delete("/admin/review/{review_id}")
-async def admin_delete_review(review_id: str):
+async def admin_delete_review(request: Request, review_id: str):
     """Delete a review"""
     await require_admin(request)
     review = await db.reviews.find_one({"review_id": review_id})
@@ -2708,7 +2708,7 @@ async def get_admin_reports(request: Request):
     return reports
 
 @api_router.put("/admin/reports/{report_id}/accept")
-async def admin_accept_report(report_id: str):
+async def admin_accept_report(request: Request, report_id: str):
     """Accept a report - marks as accepted and blocks the provider"""
     await require_admin(request)
     report = await db.reports.find_one({"report_id": report_id})
@@ -2764,7 +2764,7 @@ async def admin_accept_report(report_id: str):
     return {"success": True, "message": "Denúncia aceita e prestador bloqueado"}
 
 @api_router.put("/admin/reports/{report_id}/discard")
-async def admin_discard_report(report_id: str):
+async def admin_discard_report(request: Request, report_id: str):
     """Discard a report"""
     await require_admin(request)
     report = await db.reports.find_one({"report_id": report_id})
@@ -2783,7 +2783,7 @@ async def admin_discard_report(report_id: str):
     return {"success": True, "message": "Denúncia descartada"}
 
 @api_router.delete("/admin/reports/{report_id}")
-async def admin_delete_report(report_id: str):
+async def admin_delete_report(request: Request, report_id: str):
     """Permanently delete a report"""
     await require_admin(request)
     result = await db.reports.delete_one({"report_id": report_id})
@@ -2794,7 +2794,7 @@ async def admin_delete_report(report_id: str):
     return {"success": True, "message": "Denúncia excluída permanentemente"}
 
 @api_router.post("/admin/providers/{provider_id}/unblock")
-async def admin_unblock_provider(provider_id: str):
+async def admin_unblock_provider(request: Request, provider_id: str):
     """Unblock a provider"""
     await require_admin(request)
     provider = await db.providers.find_one({"provider_id": provider_id})
@@ -2836,7 +2836,7 @@ async def admin_unblock_provider(provider_id: str):
     return {"success": True, "message": "Prestador desbloqueado com sucesso"}
 
 @api_router.post("/admin/users/{user_id}/block")
-async def admin_block_user(user_id: str):
+async def admin_block_user(request: Request, user_id: str):
     """Block a user from accessing the app"""
     await require_admin(request)
     user = await db.users.find_one({"user_id": user_id})
@@ -2862,7 +2862,7 @@ async def admin_block_user(user_id: str):
     return {"success": True, "message": "Usuário bloqueado"}
 
 @api_router.post("/admin/users/{user_id}/unblock")
-async def admin_unblock_user(user_id: str):
+async def admin_unblock_user(request: Request, user_id: str):
     """Unblock a user"""
     await require_admin(request)
     user = await db.users.find_one({"user_id": user_id})
@@ -2898,7 +2898,7 @@ async def get_block_history(request: Request):
 # ======================== ADMIN PREMIUM & NOTIFICATIONS ========================
 
 @api_router.post("/admin/toggle-premium/{provider_id}")
-async def admin_toggle_premium(provider_id: str):
+async def admin_toggle_premium(request: Request, provider_id: str):
     """Toggle premium status for a provider (admin only)"""
     await require_admin(request)
     provider = await db.providers.find_one({"provider_id": provider_id})
