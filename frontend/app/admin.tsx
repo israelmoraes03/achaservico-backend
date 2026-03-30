@@ -1467,6 +1467,21 @@ export default function AdminScreen() {
                           </View>
                         </View>
                         <View style={{ flexDirection: 'row', gap: 8 }}>
+                          <TouchableOpacity 
+                            onPress={async () => {
+                              try {
+                                await api.post(`/admin/scheduled-notifications/${notif.notification_id}/send-now`);
+                                fetchScheduledNotifications();
+                                setActionMessage('✅ Notificação enviada agora!');
+                                setTimeout(() => setActionMessage(''), 3000);
+                              } catch (e) {
+                                setActionMessage('Erro ao enviar');
+                                setTimeout(() => setActionMessage(''), 3000);
+                              }
+                            }}
+                          >
+                            <Ionicons name="send" size={24} color="#3B82F6" />
+                          </TouchableOpacity>
                           <TouchableOpacity onPress={() => handleToggleScheduledNotification(notif)}>
                             <Ionicons name={notif.is_active ? 'pause-circle' : 'play-circle'} size={28} color={notif.is_active ? '#F59E0B' : '#10B981'} />
                           </TouchableOpacity>

@@ -1955,6 +1955,20 @@ async def delete_scheduled_notification(request: Request, notification_id: str):
     
     return {"success": True, "message": "Notificação excluída"}
 
+@api_router.post("/admin/scheduled-notifications/{notification_id}/send-now")
+async def send_notification_now(request: Request, notification_id: str):
+    """Force send a scheduled notification immediately"""
+    await require_admin(request)
+    
+    notif = await db.scheduled_notifications.find_one({"notification_id": notification_id})
+    if not notif:
+        raise HTTPException(status_code=404, detail="Notificação não encontrada")
+    
+    today_str = datetime.now(timezone(timedelta(hours=-3))).strftime("%Y-%m-%d")
+    await send_scheduled_push(notif, today_str)
+    
+    return {"success": True, "message": f"Notificação '{notif['title']}' enviada!"}
+
 @api_router.post("/cron/send-scheduled-notifications")
 async def send_scheduled_notifications():
     """Cron endpoint - checks and sends scheduled notifications for current time.
@@ -2125,7 +2139,100 @@ async def user_heartbeat(request: Request):
         upsert=True
     )
     
+    # 3. Piggyback: check scheduled notifications (non-blocking)
+    try:
+        asyncio.create_task(check_and_send_scheduled_notifications())
+    except Exception:
+        pass
+    
     return {"status": "ok"}
+
+async def check_and_send_scheduled_notifications():
+    """Check and send any pending scheduled notifications"""
+    try:
+        now = datetime.now(timezone(timedelta(hours=-3)))  # Brazil timezone
+        current_hour = now.hour
+        current_minute = now.minute
+        today_str = now.strftime("%Y-%m-%d")
+        
+        notifications = await db.scheduled_notifications.find({
+            "is_active": True,
+            "last_sent_date": {"$ne": today_str}
+        }).to_list(100)
+        
+        for notif in notifications:
+            try:
+                parts = notif["time"].split(":")
+                notif_hour = int(parts[0])
+                notif_minute = int(parts[1])
+                
+                notif_total_min = notif_hour * 60 + notif_minute
+                current_total_min = current_hour * 60 + current_minute
+                diff = current_total_min - notif_total_min
+                
+                # Send if we're 0-10 minutes AFTER the scheduled time (wider window)
+                if diff >= 0 and diff <= 10:
+                    await send_scheduled_push(notif, today_str)
+            except Exception as e:
+                logger.error(f"Error checking notification: {e}")
+    except Exception as e:
+        logger.error(f"Scheduled check error: {e}")
+
+async def send_scheduled_push(notif: dict, today_str: str):
+    """Send a scheduled push notification to target users"""
+    target = notif.get("target", "all")
+    push_tokens = set()
+    
+    if target in ["all", "providers"]:
+        providers = await db.providers.find(
+            {"push_token": {"$exists": True, "$ne": None, "$ne": ""}},
+            {"push_token": 1}
+        ).to_list(10000)
+        for p in providers:
+            if p.get("push_token"):
+                push_tokens.add(p["push_token"])
+    
+    if target in ["all", "clients"]:
+        users = await db.users.find(
+            {"push_token": {"$exists": True, "$ne": None, "$ne": ""}},
+            {"push_token": 1}
+        ).to_list(10000)
+        for u in users:
+            if u.get("push_token"):
+                push_tokens.add(u["push_token"])
+    
+    if push_tokens:
+        messages = []
+        for token in push_tokens:
+            if token.startswith("ExponentPushToken") or token.startswith("ExpoPushToken"):
+                messages.append({
+                    "to": token,
+                    "sound": "default",
+                    "title": notif["title"],
+                    "body": notif["message"],
+                })
+        
+        for i in range(0, len(messages), 100):
+            batch = messages[i:i+100]
+            try:
+                async with httpx.AsyncClient() as client:
+                    await client.post(
+                        "https://exp.host/--/api/v2/push/send",
+                        json=batch,
+                        headers={
+                            "Accept": "application/json",
+                            "Content-Type": "application/json",
+                        },
+                        timeout=30
+                    )
+            except Exception as e:
+                logger.error(f"Error sending push batch: {e}")
+        
+        await db.scheduled_notifications.update_one(
+            {"notification_id": notif["notification_id"]},
+            {"$set": {"last_sent_date": today_str}}
+        )
+        logger.info(f"🔔 Sent: '{notif['title']}' at {notif['time']} to {len(push_tokens)} devices")
 
 @api_router.get("/admin/online-stats")
 async def get_online_stats(request: Request):
