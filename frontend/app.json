@@ -2,7 +2,7 @@
   "expo": {
     "name": "AchaServiço",
     "slug": "achaservico",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "achaservico",
@@ -29,7 +29,7 @@
         "android.permission.RECORD_AUDIO"
       ],
       "useNextNotificationsApi": true,
-      "versionCode": 7
+      "versionCode": 8
     },
     "web": {
       "bundler": "metro",
