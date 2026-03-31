@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   Dimensions,
   Animated,
   Modal,
@@ -13,94 +12,64 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Svg, { Defs, Rect, Mask, Circle } from 'react-native-svg';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
-const STATUS_BAR_H = Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 44;
 
 // ── Tutorial Steps ──────────────────────────────────────────────
-interface SpotlightStep {
+interface TutorialStep {
   id: string;
   title: string;
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
-  // Spotlight target area (relative to screen)
-  spotlight?: {
-    x: number;      // center X
-    y: number;      // center Y
-    radiusX: number; // horizontal radius
-    radiusY: number; // vertical radius
-    shape: 'circle' | 'rect';
-    rx?: number; // border radius for rect
-  };
-  // Where the tooltip should appear relative to spotlight
-  tooltipPosition: 'above' | 'below' | 'center';
+  iconColor: string;
+  bgGradient: string;
 }
 
-const STEPS: SpotlightStep[] = [
+const STEPS: TutorialStep[] = [
   {
     id: 'welcome',
     title: 'Bem-vindo ao AchaServiço! 👋',
     description: 'Encontre os melhores profissionais da sua região em poucos toques.',
     icon: 'sparkles',
-    tooltipPosition: 'center',
+    iconColor: '#10B981',
+    bgGradient: '#10B981',
   },
   {
     id: 'search',
-    title: 'Busque Profissionais',
-    description: 'Digite o nome ou serviço que procura aqui.',
+    title: '🔍 Busque Profissionais',
+    description: 'Use a barra de busca para encontrar por nome ou tipo de serviço. Rápido e fácil!',
     icon: 'search',
-    spotlight: {
-      x: SCREEN_W / 2,
-      y: STATUS_BAR_H + 120,
-      radiusX: SCREEN_W / 2 - 12,
-      radiusY: 28,
-      shape: 'rect',
-      rx: 14,
-    },
-    tooltipPosition: 'below',
+    iconColor: '#3B82F6',
+    bgGradient: '#3B82F6',
   },
   {
     id: 'filters',
-    title: 'Filtre por Região',
-    description: 'Selecione cidade, bairro e categoria para resultados mais precisos.',
+    title: '📍 Filtre por Região',
+    description: 'Selecione sua cidade, bairro e categoria para resultados mais precisos na sua área.',
     icon: 'options',
-    spotlight: {
-      x: SCREEN_W / 2,
-      y: STATUS_BAR_H + 185,
-      radiusX: SCREEN_W / 2 - 12,
-      radiusY: 48,
-      shape: 'rect',
-      rx: 12,
-    },
-    tooltipPosition: 'below',
+    iconColor: '#8B5CF6',
+    bgGradient: '#8B5CF6',
   },
   {
-    id: 'provider',
-    title: 'Toque no Profissional',
-    description: 'Veja fotos, avaliações e entre em contato pelo WhatsApp.',
-    icon: 'person',
-    spotlight: {
-      x: SCREEN_W / 2,
-      y: STATUS_BAR_H + 380,
-      radiusX: SCREEN_W / 2 - 12,
-      radiusY: 70,
-      shape: 'rect',
-      rx: 16,
-    },
-    tooltipPosition: 'above',
+    id: 'contact',
+    title: '📱 Contate pelo WhatsApp',
+    description: 'Encontrou o profissional ideal? Toque no perfil e fale diretamente pelo WhatsApp!',
+    icon: 'logo-whatsapp',
+    iconColor: '#22C55E',
+    bgGradient: '#22C55E',
   },
   {
     id: 'ready',
     title: 'Tudo Pronto! 🎉',
-    description: 'Agora é só buscar, contatar e avaliar. Bom uso!',
+    description: 'Agora é só buscar, contatar e avaliar. Bom uso do AchaServiço!',
     icon: 'checkmark-circle',
-    tooltipPosition: 'center',
+    iconColor: '#F59E0B',
+    bgGradient: '#F59E0B',
   },
 ];
 
 // ── Storage ─────────────────────────────────────────────────────
-const STORAGE_KEY = '@achaservico_tutorial_completed';
+const STORAGE_KEY = '@achaservico_tutorial_v2';
 
 export async function checkTutorialCompleted(): Promise<boolean> {
   try {
@@ -114,6 +83,8 @@ export async function checkTutorialCompleted(): Promise<boolean> {
 export async function resetTutorial(): Promise<void> {
   try {
     await AsyncStorage.removeItem(STORAGE_KEY);
+    // Also remove old key
+    await AsyncStorage.removeItem('@achaservico_tutorial_completed');
   } catch {}
 }
 
@@ -125,52 +96,55 @@ interface Props {
 export default function OnboardingTutorial({ onComplete }: Props) {
   const [step, setStep] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const scaleAnim = useRef(new Animated.Value(0.85)).current;
   const current = STEPS[step];
   const total = STEPS.length;
 
-  // Fade in on step change
+  // Animate in on step change
   useEffect(() => {
     fadeAnim.setValue(0);
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 350,
-      useNativeDriver: true,
-    }).start();
+    scaleAnim.setValue(0.85);
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, [step]);
 
-  // Pulse animation for spotlight
-  useEffect(() => {
-    if (!current.spotlight) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.08, duration: 900, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [step]);
+  const animateOut = (callback: () => void) => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 0.85,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(callback);
+  };
 
   const goNext = () => {
     if (step >= total - 1) {
       finish();
       return;
     }
-    Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => setStep(s => s + 1));
+    animateOut(() => setStep(s => s + 1));
   };
 
   const goBack = () => {
     if (step <= 0) return;
-    Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => setStep(s => s - 1));
+    animateOut(() => setStep(s => s - 1));
   };
 
   const finish = async () => {
@@ -180,169 +154,74 @@ export default function OnboardingTutorial({ onComplete }: Props) {
     onComplete();
   };
 
-  // ── Render spotlight overlay with SVG mask ──
-  const renderOverlay = () => {
-    const sp = current.spotlight;
-    return (
-      <Svg width={SCREEN_W} height={SCREEN_H} style={StyleSheet.absoluteFill}>
-        <Defs>
-          <Mask id="spotlight-mask" x="0" y="0" width={SCREEN_W} height={SCREEN_H}>
-            {/* White = visible (dark overlay), Black = hidden (spotlight hole) */}
-            <Rect x="0" y="0" width={SCREEN_W} height={SCREEN_H} fill="white" />
-            {sp && sp.shape === 'circle' ? (
-              <Circle cx={sp.x} cy={sp.y} r={sp.radiusX} fill="black" />
-            ) : sp ? (
-              <Rect
-                x={sp.x - sp.radiusX}
-                y={sp.y - sp.radiusY}
-                width={sp.radiusX * 2}
-                height={sp.radiusY * 2}
-                rx={sp.rx || 12}
-                ry={sp.rx || 12}
-                fill="black"
-              />
-            ) : null}
-          </Mask>
-        </Defs>
-        <Rect
-          x="0"
-          y="0"
-          width={SCREEN_W}
-          height={SCREEN_H}
-          fill="rgba(0,0,0,0.88)"
-          mask="url(#spotlight-mask)"
-        />
-      </Svg>
-    );
-  };
-
-  // ── Spotlight glow ring ──
-  const renderGlow = () => {
-    const sp = current.spotlight;
-    if (!sp) return null;
-
-    if (sp.shape === 'rect') {
-      return (
+  return (
+    <Modal visible transparent animationType="fade" statusBarTranslucent>
+      <View style={styles.overlay}>
         <Animated.View
           style={[
-            styles.glowRect,
+            styles.card,
             {
-              top: sp.y - sp.radiusY - 4,
-              left: sp.x - sp.radiusX - 4,
-              width: sp.radiusX * 2 + 8,
-              height: sp.radiusY * 2 + 8,
-              borderRadius: (sp.rx || 12) + 2,
-              transform: [{ scale: pulseAnim }],
+              opacity: fadeAnim,
+              transform: [{ scale: scaleAnim }],
             },
           ]}
-        />
-      );
-    }
-    return (
-      <Animated.View
-        style={[
-          styles.glowCircle,
-          {
-            top: sp.y - sp.radiusX - 4,
-            left: sp.x - sp.radiusX - 4,
-            width: sp.radiusX * 2 + 8,
-            height: sp.radiusX * 2 + 8,
-            borderRadius: sp.radiusX + 4,
-            transform: [{ scale: pulseAnim }],
-          },
-        ]}
-      />
-    );
-  };
-
-  // ── Tooltip position ──
-  const getTooltipPosition = (): object => {
-    const sp = current.spotlight;
-    if (!sp || current.tooltipPosition === 'center') {
-      return { top: SCREEN_H / 2 - 120, left: 24, right: 24 };
-    }
-    if (current.tooltipPosition === 'below') {
-      return { top: sp.y + sp.radiusY + 24, left: 24, right: 24 };
-    }
-    // above
-    return { bottom: SCREEN_H - (sp.y - sp.radiusY) + 24, left: 24, right: 24 };
-  };
-
-  return (
-    <Modal visible transparent animationType="none" statusBarTranslucent>
-      <View style={styles.container}>
-        {/* Dark overlay with spotlight hole */}
-        {renderOverlay()}
-
-        {/* Pulsing glow border */}
-        {renderGlow()}
-
-        {/* Tooltip card */}
-        <Animated.View
-          style={[
-            styles.tooltip,
-            getTooltipPosition(),
-            { opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] },
-          ]}
         >
-          {/* Icon badge */}
-          <View style={styles.iconBadge}>
-            <Ionicons name={current.icon as any} size={28} color="#10B981" />
+          {/* Colored accent line at top */}
+          <View style={[styles.accentLine, { backgroundColor: current.bgGradient }]} />
+
+          {/* Icon */}
+          <View style={[styles.iconCircle, { backgroundColor: current.iconColor + '18', borderColor: current.iconColor + '40' }]}>
+            <Ionicons name={current.icon as any} size={36} color={current.iconColor} />
           </View>
 
+          {/* Content */}
           <Text style={styles.title}>{current.title}</Text>
-          <Text style={styles.desc}>{current.description}</Text>
+          <Text style={styles.description}>{current.description}</Text>
 
-          {/* Progress bar */}
-          <View style={styles.progressRow}>
-            {STEPS.map((_, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.progressDot,
-                  i === step && styles.progressDotActive,
-                  i < step && styles.progressDotDone,
-                ]}
-              />
-            ))}
+          {/* Step indicator */}
+          <View style={styles.stepsRow}>
+            <Text style={styles.stepCounter}>{step + 1} de {total}</Text>
+            <View style={styles.dotsRow}>
+              {STEPS.map((_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.dot,
+                    i === step && [styles.dotActive, { backgroundColor: current.iconColor }],
+                    i < step && styles.dotDone,
+                  ]}
+                />
+              ))}
+            </View>
           </View>
 
           {/* Buttons */}
-          <View style={styles.btnRow}>
-            {step > 0 && step < total - 1 && (
-              <TouchableOpacity style={styles.btnBack} onPress={goBack}>
-                <Ionicons name="chevron-back" size={18} color="#9CA3AF" />
-                <Text style={styles.btnBackText}>Voltar</Text>
+          <View style={styles.buttonsRow}>
+            {step === 0 ? (
+              <TouchableOpacity style={styles.skipBtn} onPress={finish} activeOpacity={0.7}>
+                <Text style={styles.skipText}>Pular</Text>
               </TouchableOpacity>
-            )}
-            
-            {step === 0 && (
-              <TouchableOpacity style={styles.btnSkip} onPress={finish}>
-                <Text style={styles.btnSkipText}>Pular tutorial</Text>
+            ) : (
+              <TouchableOpacity style={styles.backBtn} onPress={goBack} activeOpacity={0.7}>
+                <Ionicons name="chevron-back" size={18} color="#9CA3AF" />
+                <Text style={styles.backText}>Voltar</Text>
               </TouchableOpacity>
             )}
 
             <TouchableOpacity
-              style={[styles.btnNext, step >= total - 1 && styles.btnFinish]}
+              style={[styles.nextBtn, { backgroundColor: current.iconColor }]}
               onPress={goNext}
               activeOpacity={0.8}
             >
-              <Text style={styles.btnNextText}>
-                {step === 0 ? 'Vamos lá!' : step >= total - 1 ? 'Começar!' : 'Próximo'}
+              <Text style={styles.nextText}>
+                {step === 0 ? 'Vamos lá!' : step >= total - 1 ? '🚀 Começar!' : 'Próximo'}
               </Text>
-              {step < total - 1 && (
-                <Ionicons name="chevron-forward" size={18} color="#0A0A0A" />
+              {step < total - 1 && step > 0 && (
+                <Ionicons name="chevron-forward" size={18} color="#FFF" />
               )}
             </TouchableOpacity>
           </View>
         </Animated.View>
-
-        {/* Tap anywhere hint (for non-first steps) */}
-        {step > 0 && step < total - 1 && (
-          <TouchableWithoutFeedback onPress={goNext}>
-            <View style={styles.tapZone} />
-          </TouchableWithoutFeedback>
-        )}
       </View>
     </Modal>
   );
@@ -350,153 +229,134 @@ export default function OnboardingTutorial({ onComplete }: Props) {
 
 // ── Styles ──────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: {
+  overlay: {
     flex: 1,
-  },
-  // Glow ring around spotlight
-  glowRect: {
-    position: 'absolute',
-    borderWidth: 2,
-    borderColor: '#10B981',
-    backgroundColor: 'transparent',
-    zIndex: 2,
-  },
-  glowCircle: {
-    position: 'absolute',
-    borderWidth: 2,
-    borderColor: '#10B981',
-    backgroundColor: 'transparent',
-    zIndex: 2,
-  },
-  // Tooltip
-  tooltip: {
-    position: 'absolute',
-    backgroundColor: '#1A1A2E',
-    borderRadius: 20,
-    paddingTop: 28,
-    paddingBottom: 20,
-    paddingHorizontal: 22,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#10B98130',
-    zIndex: 10,
-    // shadow
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  iconBadge: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#10B98118',
+    backgroundColor: 'rgba(0,0,0,0.85)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#10B98130',
+    paddingHorizontal: 24,
+  },
+  card: {
+    backgroundColor: '#1A1A2E',
+    borderRadius: 24,
+    width: '100%',
+    maxWidth: 380,
+    paddingTop: 0,
+    paddingBottom: 24,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    overflow: 'hidden',
+    // Shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  accentLine: {
+    width: '100%',
+    height: 4,
+    marginBottom: 28,
+  },
+  iconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    borderWidth: 2,
   },
   title: {
-    fontSize: 19,
-    fontWeight: '700',
+    fontSize: 21,
+    fontWeight: '800',
     color: '#FFFFFF',
     textAlign: 'center',
-    marginBottom: 8,
-    letterSpacing: 0.2,
+    marginBottom: 10,
+    letterSpacing: 0.3,
   },
-  desc: {
-    fontSize: 14.5,
+  description: {
+    fontSize: 15,
     color: '#B0B8C8',
     textAlign: 'center',
-    lineHeight: 21,
-    marginBottom: 18,
+    lineHeight: 22,
+    marginBottom: 24,
+    paddingHorizontal: 8,
+  },
+  stepsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 20,
     paddingHorizontal: 4,
   },
-  // Progress dots
-  progressRow: {
+  stepCounter: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  dotsRow: {
     flexDirection: 'row',
     gap: 6,
-    marginBottom: 18,
     alignItems: 'center',
   },
-  progressDot: {
+  dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: '#2A2A3E',
   },
-  progressDotActive: {
-    width: 28,
+  dotActive: {
+    width: 24,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#10B981',
   },
-  progressDotDone: {
-    backgroundColor: '#10B98160',
+  dotDone: {
+    backgroundColor: '#4B5563',
   },
-  // Buttons
-  btnRow: {
+  buttonsRow: {
     flexDirection: 'row',
-    gap: 10,
     width: '100%',
-    justifyContent: 'center',
+    gap: 10,
     alignItems: 'center',
   },
-  btnBack: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 11,
-    paddingHorizontal: 14,
-    borderRadius: 14,
-    backgroundColor: '#2A2A3E',
-    gap: 2,
-  },
-  btnBackText: {
-    color: '#9CA3AF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  btnSkip: {
-    paddingVertical: 11,
+  skipBtn: {
+    paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 14,
   },
-  btnSkipText: {
+  skipText: {
     color: '#6B7280',
     fontSize: 14,
     fontWeight: '500',
     textDecorationLine: 'underline',
   },
-  btnNext: {
+  backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingVertical: 12,
-    paddingHorizontal: 22,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     borderRadius: 14,
-    backgroundColor: '#10B981',
+    backgroundColor: '#2A2A3E',
+    gap: 2,
+  },
+  backText: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  nextBtn: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
-    maxWidth: 180,
+    gap: 4,
+    paddingVertical: 14,
+    borderRadius: 14,
   },
-  btnFinish: {
-    backgroundColor: '#10B981',
-    paddingHorizontal: 28,
-    maxWidth: 200,
-  },
-  btnNextText: {
-    color: '#0A0A0A',
-    fontSize: 15,
+  nextText: {
+    color: '#FFF',
+    fontSize: 16,
     fontWeight: '700',
-  },
-  tapZone: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 1,
   },
 });
