@@ -1,383 +1,502 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   Dimensions,
   Animated,
   Modal,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Svg, { Defs, Rect, Mask, Circle } from 'react-native-svg';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+const STATUS_BAR_H = Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 44;
 
-interface TutorialStep {
+// ── Tutorial Steps ──────────────────────────────────────────────
+interface SpotlightStep {
   id: string;
   title: string;
   description: string;
-  icon: string;
-  position: 'top' | 'center' | 'bottom';
-  highlightArea?: {
-    top: number;
-    left: number;
-    width: number;
-    height: number;
+  icon: keyof typeof Ionicons.glyphMap;
+  // Spotlight target area (relative to screen)
+  spotlight?: {
+    x: number;      // center X
+    y: number;      // center Y
+    radiusX: number; // horizontal radius
+    radiusY: number; // vertical radius
+    shape: 'circle' | 'rect';
+    rx?: number; // border radius for rect
   };
+  // Where the tooltip should appear relative to spotlight
+  tooltipPosition: 'above' | 'below' | 'center';
 }
 
-const TUTORIAL_STEPS: TutorialStep[] = [
+const STEPS: SpotlightStep[] = [
   {
     id: 'welcome',
-    title: 'Bem-vindo ao AchaServiço!',
-    description: 'Vamos mostrar como usar o app para encontrar os melhores profissionais da sua região.',
-    icon: 'hand-right',
-    position: 'center',
+    title: 'Bem-vindo ao AchaServiço! 👋',
+    description: 'Encontre os melhores profissionais da sua região em poucos toques.',
+    icon: 'sparkles',
+    tooltipPosition: 'center',
   },
   {
     id: 'search',
     title: 'Busque Profissionais',
-    description: 'Use a barra de busca para encontrar serviços ou profissionais pelo nome.',
+    description: 'Digite o nome ou serviço que procura aqui.',
     icon: 'search',
-    position: 'top',
-    highlightArea: { top: 100, left: 16, width: screenWidth - 32, height: 48 },
+    spotlight: {
+      x: SCREEN_W / 2,
+      y: STATUS_BAR_H + 120,
+      radiusX: SCREEN_W / 2 - 12,
+      radiusY: 28,
+      shape: 'rect',
+      rx: 14,
+    },
+    tooltipPosition: 'below',
   },
   {
     id: 'filters',
-    title: 'Filtre por Cidade e Bairro',
-    description: 'Selecione sua cidade e bairro para ver apenas profissionais que atendem na sua região.',
-    icon: 'location',
-    position: 'top',
-    highlightArea: { top: 160, left: 16, width: screenWidth - 32, height: 80 },
-  },
-  {
-    id: 'categories',
-    title: 'Escolha a Categoria',
-    description: 'Filtre por tipo de serviço: eletricista, encanador, diarista e muito mais!',
-    icon: 'apps',
-    position: 'center',
-  },
-  {
-    id: 'contact',
-    title: 'Entre em Contato',
-    description: 'Clique no botão verde para falar diretamente pelo WhatsApp e pedir seu orçamento.',
-    icon: 'logo-whatsapp',
-    position: 'center',
-  },
-  {
-    id: 'favorite',
-    title: 'Favorite Profissionais',
-    description: 'Toque no coração para salvar seus profissionais favoritos e encontrá-los facilmente depois.',
-    icon: 'heart',
-    position: 'center',
+    title: 'Filtre por Região',
+    description: 'Selecione cidade, bairro e categoria para resultados mais precisos.',
+    icon: 'options',
+    spotlight: {
+      x: SCREEN_W / 2,
+      y: STATUS_BAR_H + 185,
+      radiusX: SCREEN_W / 2 - 12,
+      radiusY: 48,
+      shape: 'rect',
+      rx: 12,
+    },
+    tooltipPosition: 'below',
   },
   {
     id: 'provider',
-    title: 'É Prestador de Serviços?',
-    description: 'Toque no botão da maleta no canto inferior direito para se cadastrar e receber clientes!',
-    icon: 'briefcase',
-    position: 'bottom',
-    highlightArea: { top: screenHeight - 100, left: screenWidth - 80, width: 56, height: 56 },
+    title: 'Toque no Profissional',
+    description: 'Veja fotos, avaliações e entre em contato pelo WhatsApp.',
+    icon: 'person',
+    spotlight: {
+      x: SCREEN_W / 2,
+      y: STATUS_BAR_H + 380,
+      radiusX: SCREEN_W / 2 - 12,
+      radiusY: 70,
+      shape: 'rect',
+      rx: 16,
+    },
+    tooltipPosition: 'above',
   },
   {
-    id: 'finish',
-    title: 'Tudo Pronto!',
-    description: 'Agora você está pronto para encontrar os melhores profissionais. Bom uso!',
+    id: 'ready',
+    title: 'Tudo Pronto! 🎉',
+    description: 'Agora é só buscar, contatar e avaliar. Bom uso!',
     icon: 'checkmark-circle',
-    position: 'center',
+    tooltipPosition: 'center',
   },
 ];
 
+// ── Storage ─────────────────────────────────────────────────────
 const STORAGE_KEY = '@achaservico_tutorial_completed';
 
-interface OnboardingTutorialProps {
+export async function checkTutorialCompleted(): Promise<boolean> {
+  try {
+    const v = await AsyncStorage.getItem(STORAGE_KEY);
+    return v === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export async function resetTutorial(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+  } catch {}
+}
+
+// ── Component ───────────────────────────────────────────────────
+interface Props {
   onComplete: () => void;
 }
 
-export default function OnboardingTutorial({ onComplete }: OnboardingTutorialProps) {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [fadeAnim] = useState(new Animated.Value(0));
-  const [visible, setVisible] = useState(true);
+export default function OnboardingTutorial({ onComplete }: Props) {
+  const [step, setStep] = useState(0);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const current = STEPS[step];
+  const total = STEPS.length;
 
-  const step = TUTORIAL_STEPS[currentStep];
-  const isLastStep = currentStep === TUTORIAL_STEPS.length - 1;
-  const isFirstStep = currentStep === 0;
-
+  // Fade in on step change
   useEffect(() => {
-    // Fade in animation
+    fadeAnim.setValue(0);
     Animated.timing(fadeAnim, {
       toValue: 1,
-      duration: 300,
+      duration: 350,
       useNativeDriver: true,
     }).start();
-  }, [currentStep]);
+  }, [step]);
 
-  const handleNext = () => {
-    if (isLastStep) {
-      handleComplete();
-    } else {
-      // Fade out then change step
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(() => {
-        setCurrentStep(currentStep + 1);
-      });
+  // Pulse animation for spotlight
+  useEffect(() => {
+    if (!current.spotlight) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.08, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [step]);
+
+  const goNext = () => {
+    if (step >= total - 1) {
+      finish();
+      return;
     }
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => setStep(s => s + 1));
   };
 
-  const handleSkip = async () => {
-    handleComplete();
+  const goBack = () => {
+    if (step <= 0) return;
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => setStep(s => s - 1));
   };
 
-  const handleComplete = async () => {
+  const finish = async () => {
     try {
       await AsyncStorage.setItem(STORAGE_KEY, 'true');
-    } catch (error) {
-      console.log('Error saving tutorial status:', error);
-    }
-    setVisible(false);
+    } catch {}
     onComplete();
   };
 
-  const getTooltipStyle = () => {
-    switch (step.position) {
-      case 'top':
-        return styles.tooltipTop;
-      case 'bottom':
-        return styles.tooltipBottom;
-      default:
-        return styles.tooltipCenter;
-    }
+  // ── Render spotlight overlay with SVG mask ──
+  const renderOverlay = () => {
+    const sp = current.spotlight;
+    return (
+      <Svg width={SCREEN_W} height={SCREEN_H} style={StyleSheet.absoluteFill}>
+        <Defs>
+          <Mask id="spotlight-mask" x="0" y="0" width={SCREEN_W} height={SCREEN_H}>
+            {/* White = visible (dark overlay), Black = hidden (spotlight hole) */}
+            <Rect x="0" y="0" width={SCREEN_W} height={SCREEN_H} fill="white" />
+            {sp && sp.shape === 'circle' ? (
+              <Circle cx={sp.x} cy={sp.y} r={sp.radiusX} fill="black" />
+            ) : sp ? (
+              <Rect
+                x={sp.x - sp.radiusX}
+                y={sp.y - sp.radiusY}
+                width={sp.radiusX * 2}
+                height={sp.radiusY * 2}
+                rx={sp.rx || 12}
+                ry={sp.rx || 12}
+                fill="black"
+              />
+            ) : null}
+          </Mask>
+        </Defs>
+        <Rect
+          x="0"
+          y="0"
+          width={SCREEN_W}
+          height={SCREEN_H}
+          fill="rgba(0,0,0,0.88)"
+          mask="url(#spotlight-mask)"
+        />
+      </Svg>
+    );
   };
 
-  if (!visible) return null;
+  // ── Spotlight glow ring ──
+  const renderGlow = () => {
+    const sp = current.spotlight;
+    if (!sp) return null;
+
+    if (sp.shape === 'rect') {
+      return (
+        <Animated.View
+          style={[
+            styles.glowRect,
+            {
+              top: sp.y - sp.radiusY - 4,
+              left: sp.x - sp.radiusX - 4,
+              width: sp.radiusX * 2 + 8,
+              height: sp.radiusY * 2 + 8,
+              borderRadius: (sp.rx || 12) + 2,
+              transform: [{ scale: pulseAnim }],
+            },
+          ]}
+        />
+      );
+    }
+    return (
+      <Animated.View
+        style={[
+          styles.glowCircle,
+          {
+            top: sp.y - sp.radiusX - 4,
+            left: sp.x - sp.radiusX - 4,
+            width: sp.radiusX * 2 + 8,
+            height: sp.radiusX * 2 + 8,
+            borderRadius: sp.radiusX + 4,
+            transform: [{ scale: pulseAnim }],
+          },
+        ]}
+      />
+    );
+  };
+
+  // ── Tooltip position ──
+  const getTooltipPosition = (): object => {
+    const sp = current.spotlight;
+    if (!sp || current.tooltipPosition === 'center') {
+      return { top: SCREEN_H / 2 - 120, left: 24, right: 24 };
+    }
+    if (current.tooltipPosition === 'below') {
+      return { top: sp.y + sp.radiusY + 24, left: 24, right: 24 };
+    }
+    // above
+    return { bottom: SCREEN_H - (sp.y - sp.radiusY) + 24, left: 24, right: 24 };
+  };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      statusBarTranslucent
-    >
-      <View style={styles.overlay}>
-        {/* Highlight area if defined */}
-        {step.highlightArea && (
-          <View
-            style={[
-              styles.highlightBox,
-              {
-                top: step.highlightArea.top,
-                left: step.highlightArea.left,
-                width: step.highlightArea.width,
-                height: step.highlightArea.height,
-              },
-            ]}
-          />
-        )}
+    <Modal visible transparent animationType="none" statusBarTranslucent>
+      <View style={styles.container}>
+        {/* Dark overlay with spotlight hole */}
+        {renderOverlay()}
 
-        {/* Tooltip */}
+        {/* Pulsing glow border */}
+        {renderGlow()}
+
+        {/* Tooltip card */}
         <Animated.View
           style={[
             styles.tooltip,
-            getTooltipStyle(),
-            { opacity: fadeAnim },
+            getTooltipPosition(),
+            { opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] },
           ]}
         >
-          {/* Icon */}
-          <View style={styles.iconContainer}>
-            <Ionicons name={step.icon as any} size={40} color="#10B981" />
+          {/* Icon badge */}
+          <View style={styles.iconBadge}>
+            <Ionicons name={current.icon as any} size={28} color="#10B981" />
           </View>
 
-          {/* Content */}
-          <Text style={styles.title}>{step.title}</Text>
-          <Text style={styles.description}>{step.description}</Text>
+          <Text style={styles.title}>{current.title}</Text>
+          <Text style={styles.desc}>{current.description}</Text>
 
-          {/* Progress dots */}
-          <View style={styles.dotsContainer}>
-            {TUTORIAL_STEPS.map((_, index) => (
+          {/* Progress bar */}
+          <View style={styles.progressRow}>
+            {STEPS.map((_, i) => (
               <View
-                key={index}
+                key={i}
                 style={[
-                  styles.dot,
-                  index === currentStep && styles.dotActive,
-                  index < currentStep && styles.dotCompleted,
+                  styles.progressDot,
+                  i === step && styles.progressDotActive,
+                  i < step && styles.progressDotDone,
                 ]}
               />
             ))}
           </View>
 
           {/* Buttons */}
-          <View style={styles.buttonsContainer}>
-            {!isFirstStep && !isLastStep && (
-              <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-                <Text style={styles.skipButtonText}>Pular</Text>
+          <View style={styles.btnRow}>
+            {step > 0 && step < total - 1 && (
+              <TouchableOpacity style={styles.btnBack} onPress={goBack}>
+                <Ionicons name="chevron-back" size={18} color="#9CA3AF" />
+                <Text style={styles.btnBackText}>Voltar</Text>
               </TouchableOpacity>
             )}
             
+            {step === 0 && (
+              <TouchableOpacity style={styles.btnSkip} onPress={finish}>
+                <Text style={styles.btnSkipText}>Pular tutorial</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
-              style={[styles.nextButton, isLastStep && styles.finishButton]}
-              onPress={handleNext}
+              style={[styles.btnNext, step >= total - 1 && styles.btnFinish]}
+              onPress={goNext}
+              activeOpacity={0.8}
             >
-              <Text style={styles.nextButtonText}>
-                {isLastStep ? 'Começar!' : isFirstStep ? 'Vamos lá!' : 'Próximo'}
+              <Text style={styles.btnNextText}>
+                {step === 0 ? 'Vamos lá!' : step >= total - 1 ? 'Começar!' : 'Próximo'}
               </Text>
-              {!isLastStep && (
-                <Ionicons name="arrow-forward" size={18} color="#0A0A0A" />
+              {step < total - 1 && (
+                <Ionicons name="chevron-forward" size={18} color="#0A0A0A" />
               )}
             </TouchableOpacity>
           </View>
-
-          {/* Step counter */}
-          <Text style={styles.stepCounter}>
-            {currentStep + 1} de {TUTORIAL_STEPS.length}
-          </Text>
         </Animated.View>
+
+        {/* Tap anywhere hint (for non-first steps) */}
+        {step > 0 && step < total - 1 && (
+          <TouchableWithoutFeedback onPress={goNext}>
+            <View style={styles.tapZone} />
+          </TouchableWithoutFeedback>
+        )}
       </View>
     </Modal>
   );
 }
 
-// Static method to check if tutorial was completed
-export async function checkTutorialCompleted(): Promise<boolean> {
-  try {
-    const value = await AsyncStorage.getItem(STORAGE_KEY);
-    return value === 'true';
-  } catch (error) {
-    console.log('Error checking tutorial status:', error);
-    return false;
-  }
-}
-
-// Static method to reset tutorial (for testing)
-export async function resetTutorial(): Promise<void> {
-  try {
-    await AsyncStorage.removeItem(STORAGE_KEY);
-  } catch (error) {
-    console.log('Error resetting tutorial:', error);
-  }
-}
-
+// ── Styles ──────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  overlay: {
+  container: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  highlightBox: {
+  // Glow ring around spotlight
+  glowRect: {
     position: 'absolute',
     borderWidth: 2,
     borderColor: '#10B981',
-    borderRadius: 12,
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    backgroundColor: 'transparent',
+    zIndex: 2,
   },
+  glowCircle: {
+    position: 'absolute',
+    borderWidth: 2,
+    borderColor: '#10B981',
+    backgroundColor: 'transparent',
+    zIndex: 2,
+  },
+  // Tooltip
   tooltip: {
-    backgroundColor: '#1F1F1F',
+    position: 'absolute',
+    backgroundColor: '#1A1A2E',
     borderRadius: 20,
-    padding: 24,
-    marginHorizontal: 24,
-    maxWidth: 340,
+    paddingTop: 28,
+    paddingBottom: 20,
+    paddingHorizontal: 22,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#10B98140',
+    borderColor: '#10B98130',
+    zIndex: 10,
+    // shadow
     shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 12,
   },
-  tooltipTop: {
-    position: 'absolute',
-    top: 260,
-  },
-  tooltipCenter: {
-    // Default centered
-  },
-  tooltipBottom: {
-    position: 'absolute',
-    bottom: 180,
-  },
-  iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#10B98120',
+  iconBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#10B98118',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#10B98130',
   },
   title: {
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: '700',
     color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 8,
+    letterSpacing: 0.2,
   },
-  description: {
-    fontSize: 15,
-    color: '#9CA3AF',
+  desc: {
+    fontSize: 14.5,
+    color: '#B0B8C8',
     textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 20,
+    lineHeight: 21,
+    marginBottom: 18,
+    paddingHorizontal: 4,
   },
-  dotsContainer: {
+  // Progress dots
+  progressRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 20,
+    gap: 6,
+    marginBottom: 18,
+    alignItems: 'center',
   },
-  dot: {
+  progressDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#374151',
+    backgroundColor: '#2A2A3E',
   },
-  dotActive: {
+  progressDotActive: {
+    width: 28,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#10B981',
-    width: 24,
   },
-  dotCompleted: {
-    backgroundColor: '#10B98180',
+  progressDotDone: {
+    backgroundColor: '#10B98160',
   },
-  buttonsContainer: {
+  // Buttons
+  btnRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
     width: '100%',
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  skipButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    backgroundColor: '#2A2A2A',
-  },
-  skipButtonText: {
-    color: '#9CA3AF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  nextButton: {
+  btnBack: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    backgroundColor: '#2A2A3E',
+    gap: 2,
+  },
+  btnBackText: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  btnSkip: {
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+  },
+  btnSkipText: {
+    color: '#6B7280',
+    fontSize: 14,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
+  btnNext: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 25,
+    paddingHorizontal: 22,
+    borderRadius: 14,
     backgroundColor: '#10B981',
+    flex: 1,
+    justifyContent: 'center',
+    maxWidth: 180,
   },
-  finishButton: {
-    paddingHorizontal: 32,
+  btnFinish: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 28,
+    maxWidth: 200,
   },
-  nextButtonText: {
+  btnNextText: {
     color: '#0A0A0A',
     fontSize: 15,
     fontWeight: '700',
   },
-  stepCounter: {
-    marginTop: 16,
-    color: '#6B7280',
-    fontSize: 12,
+  tapZone: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
   },
 });
