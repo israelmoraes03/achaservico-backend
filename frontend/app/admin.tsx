@@ -672,17 +672,34 @@ export default function AdminScreen() {
   };
 
   const handleDeleteProvider = async (provider: Provider) => {
-    // Confirm with a simple tap - no Alert needed
-    try {
-      await api.delete(`/admin/provider/${provider.provider_id}`);
-      fetchProviders();
-      fetchStats();
-      setActionMessage('Prestador excluído!');
-      setTimeout(() => setActionMessage(''), 3000);
-    } catch (error) {
-      setActionMessage('Erro ao excluir');
-      setTimeout(() => setActionMessage(''), 3000);
-    }
+    Alert.alert(
+      'Excluir Prestador',
+      `Deseja excluir "${provider.name}"? Todos os dados serão removidos.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await api.post(`/admin/provider/${provider.provider_id}/delete`);
+              if (response.data?.success) {
+                fetchProviders();
+                fetchStats();
+                setActionMessage('Prestador excluído!');
+              } else {
+                setActionMessage('Erro ao excluir prestador');
+              }
+              setTimeout(() => setActionMessage(''), 3000);
+            } catch (error: any) {
+              const msg = error?.response?.data?.detail || 'Erro ao excluir prestador';
+              setActionMessage(msg);
+              setTimeout(() => setActionMessage(''), 4000);
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Subscription actions
@@ -717,13 +734,14 @@ export default function AdminScreen() {
   // Review actions
   const handleDeleteReview = async (review: Review) => {
     try {
-      await api.delete(`/admin/review/${review.review_id}`);
+      await api.post(`/admin/review/${review.review_id}/delete`);
       fetchReviews();
       fetchStats();
       setActionMessage('Avaliação excluída!');
       setTimeout(() => setActionMessage(''), 3000);
-    } catch (error) {
-      setActionMessage('Erro ao excluir avaliação');
+    } catch (error: any) {
+      const msg = error?.response?.data?.detail || 'Erro ao excluir avaliação';
+      setActionMessage(msg);
       setTimeout(() => setActionMessage(''), 3000);
     }
   };
@@ -740,7 +758,7 @@ export default function AdminScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const response = await api.delete(`/admin/user/${user.user_id}`);
+              const response = await api.post(`/admin/user/${user.user_id}/delete`);
               if (response.data?.success) {
                 fetchUsers();
                 fetchProviders();

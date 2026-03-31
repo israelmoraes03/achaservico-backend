@@ -2867,6 +2867,7 @@ async def admin_toggle_provider(request: Request, provider_id: str):
     return {"success": True, "is_active": new_status}
 
 @api_router.delete("/admin/provider/{provider_id}")
+@api_router.post("/admin/provider/{provider_id}/delete")
 async def admin_delete_provider(request: Request, provider_id: str):
     """Delete a provider"""
     await require_admin(request)
@@ -2874,17 +2875,25 @@ async def admin_delete_provider(request: Request, provider_id: str):
     if not provider:
         raise HTTPException(status_code=404, detail="Prestador não encontrado")
     
-    await db.providers.delete_one({"provider_id": provider_id})
-    await db.subscriptions.delete_many({"provider_id": provider_id})
-    await db.reviews.delete_many({"provider_id": provider_id})
-    
-    if provider.get("user_id"):
-        await db.users.update_one(
-            {"user_id": provider["user_id"]},
-            {"$set": {"is_provider": False}}
-        )
-    
-    return {"success": True, "message": "Prestador excluído"}
+    try:
+        await db.providers.delete_one({"provider_id": provider_id})
+        await db.subscriptions.delete_many({"provider_id": provider_id})
+        await db.reviews.delete_many({"provider_id": provider_id})
+        await db.whatsapp_contacts.delete_many({"provider_id": provider_id})
+        await db.reports.delete_many({"provider_id": provider_id})
+        await db.favorites.delete_many({"provider_id": provider_id})
+        
+        if provider.get("user_id"):
+            await db.users.update_one(
+                {"user_id": provider["user_id"]},
+                {"$set": {"is_provider": False}}
+            )
+        
+        logger.info(f"Admin deleted provider: {provider.get('name', provider_id)}")
+        return {"success": True, "message": "Prestador excluído"}
+    except Exception as e:
+        logger.error(f"Error deleting provider {provider_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao excluir: {str(e)}")
 
 @api_router.delete("/admin/cleanup-orphan-subscriptions")
 async def admin_cleanup_orphan_subscriptions(request: Request):
@@ -2907,6 +2916,7 @@ async def admin_cleanup_orphan_subscriptions(request: Request):
     return {"success": True, "deleted_count": orphan_count, "message": f"{orphan_count} assinaturas órfãs removidas"}
 
 @api_router.delete("/admin/user/{user_id}")
+@api_router.post("/admin/user/{user_id}/delete")
 async def admin_delete_user(request: Request, user_id: str):
     """Delete a user and their provider profile if exists"""
     await require_admin(request)
@@ -2943,6 +2953,7 @@ async def admin_delete_user(request: Request, user_id: str):
         raise HTTPException(status_code=500, detail=f"Erro ao excluir: {str(e)}")
 
 @api_router.delete("/admin/review/{review_id}")
+@api_router.post("/admin/review/{review_id}/delete")
 async def admin_delete_review(request: Request, review_id: str):
     """Delete a review"""
     await require_admin(request)
