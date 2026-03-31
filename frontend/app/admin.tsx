@@ -730,17 +730,35 @@ export default function AdminScreen() {
 
   // User actions
   const handleDeleteUser = async (user: User) => {
-    try {
-      await api.delete(`/admin/user/${user.user_id}`);
-      fetchUsers();
-      fetchProviders();
-      fetchStats();
-      setActionMessage('Usuário excluído!');
-      setTimeout(() => setActionMessage(''), 3000);
-    } catch (error) {
-      setActionMessage('Erro ao excluir usuário');
-      setTimeout(() => setActionMessage(''), 3000);
-    }
+    Alert.alert(
+      'Excluir Usuário',
+      `Deseja excluir permanentemente "${user.name}" (${user.email})? Todos os dados serão removidos.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await api.delete(`/admin/user/${user.user_id}`);
+              if (response.data?.success) {
+                fetchUsers();
+                fetchProviders();
+                fetchStats();
+                setActionMessage('Usuário excluído!');
+              } else {
+                setActionMessage('Erro ao excluir usuário');
+              }
+              setTimeout(() => setActionMessage(''), 3000);
+            } catch (error: any) {
+              const msg = error?.response?.data?.detail || 'Erro ao excluir usuário';
+              setActionMessage(msg);
+              setTimeout(() => setActionMessage(''), 4000);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const formatDate = (dateString: string) => {

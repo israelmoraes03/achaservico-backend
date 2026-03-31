@@ -2914,17 +2914,33 @@ async def admin_delete_user(request: Request, user_id: str):
     if not user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     
-    provider = await db.providers.find_one({"user_id": user_id})
-    if provider:
-        await db.providers.delete_one({"user_id": user_id})
-        await db.subscriptions.delete_many({"provider_id": provider["provider_id"]})
-        await db.reviews.delete_many({"provider_id": provider["provider_id"]})
-    
-    await db.reviews.delete_many({"user_id": user_id})
-    await db.users.delete_one({"user_id": user_id})
-    await db.user_sessions.delete_many({"user_id": user_id})
-    
-    return {"success": True, "message": "Usuário excluído"}
+    try:
+        # Delete provider profile and related data if exists
+        provider = await db.providers.find_one({"user_id": user_id})
+        if provider:
+            provider_id = provider.get("provider_id")
+            await db.providers.delete_one({"user_id": user_id})
+            if provider_id:
+                await db.subscriptions.delete_many({"provider_id": provider_id})
+                await db.reviews.delete_many({"provider_id": provider_id})
+                await db.whatsapp_contacts.delete_many({"provider_id": provider_id})
+                await db.reports.delete_many({"provider_id": provider_id})
+        
+        # Delete user's own reviews, favorites, contacts, etc.
+        await db.reviews.delete_many({"user_id": user_id})
+        await db.favorites.delete_many({"user_id": user_id})
+        await db.whatsapp_contacts.delete_many({"user_id": user_id})
+        await db.notifications.delete_many({"user_id": user_id})
+        await db.users.delete_one({"user_id": user_id})
+        await db.user_sessions.delete_many({"user_id": user_id})
+        await db.user_presence.delete_many({"user_id": user_id})
+        await db.access_logs.delete_many({"user_id": user_id})
+        
+        logger.info(f"Admin deleted user: {user.get('email', user_id)}")
+        return {"success": True, "message": "Usuário excluído"}
+    except Exception as e:
+        logger.error(f"Error deleting user {user_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao excluir: {str(e)}")
 
 @api_router.delete("/admin/review/{review_id}")
 async def admin_delete_review(request: Request, review_id: str):
