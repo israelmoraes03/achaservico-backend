@@ -1672,6 +1672,14 @@ async def create_review(review_data: ReviewCreate, request: Request):
     """Create a review for a provider (requires auth + WhatsApp contact)"""
     user = await require_auth(request)
     
+    # Check if user is blocked from reviewing
+    user_data = await db.users.find_one({"user_id": user.user_id})
+    if user_data and user_data.get("review_blocked"):
+        raise HTTPException(
+            status_code=403, 
+            detail="Sua permissão para avaliar foi suspensa devido a uma denúncia aceita."
+        )
+    
     provider = await db.providers.find_one({"provider_id": review_data.provider_id})
     if not provider:
         raise HTTPException(status_code=404, detail="Prestador não encontrado")
@@ -3191,6 +3199,14 @@ async def admin_accept_report(request: Request, report_id: str):
             }}
         )
         
+        # Block the user from reviewing (prevent retaliation/defamation)
+        if provider.get("user_id"):
+            await db.users.update_one(
+                {"user_id": provider["user_id"]},
+                {"$set": {"review_blocked": True, "review_blocked_at": datetime.now(timezone.utc)}}
+            )
+            logger.info(f"User {provider['user_id']} blocked from reviewing due to report {report_id}")
+        
         # Log to block history
         await db.block_history.insert_one({
             "target_type": "provider",
@@ -3273,6 +3289,14 @@ async def admin_unblock_provider(request: Request, provider_id: str):
             "updated_at": datetime.now(timezone.utc)
         }}
     )
+    
+    # Restore user's ability to review
+    if provider.get("user_id"):
+        await db.users.update_one(
+            {"user_id": provider["user_id"]},
+            {"$unset": {"review_blocked": "", "review_blocked_at": ""}}
+        )
+        logger.info(f"User {provider['user_id']} review rights restored after unblock")
     
     # Log to block history
     await db.block_history.insert_one({
