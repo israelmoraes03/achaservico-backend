@@ -640,6 +640,7 @@ class ProviderCreate(BaseModel):
     neighborhoods: List[str] = []  # New field (multiple)
     description: str
     profile_image: Optional[str] = None
+    service_photos: List[str] = []  # Array of base64 images for service gallery
 
 class ProviderUpdate(BaseModel):
     name: Optional[str] = None
