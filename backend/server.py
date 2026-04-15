@@ -1,5 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Response, Request, BackgroundTasks
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, PlainTextResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -1981,16 +1981,9 @@ async def send_notification_now(request: Request, notification_id: str):
 @api_router.post("/cron/send-scheduled-notifications")
 @api_router.get("/cron/send-scheduled-notifications")
 async def send_scheduled_notifications(background_tasks: BackgroundTasks):
-    """Cron endpoint - responds immediately, processes notifications in background.
-    Supports both GET and POST for cron service compatibility."""
-    now = datetime.now(timezone(timedelta(hours=-4)))  # Brazil timezone (AMT/UTC-4 - Mato Grosso do Sul)
-    current_time = now.strftime("%H:%M")
-    logger.info(f"🔔 Cron ping received at {current_time}")
-    
-    # Process notifications in background to avoid timeout
+    """Cron endpoint - responds immediately with minimal data, processes in background."""
     background_tasks.add_task(_process_scheduled_notifications)
-    
-    return {"success": True, "message": "Processing notifications in background", "checked_at": current_time}
+    return PlainTextResponse("OK")
 
 async def _process_scheduled_notifications():
     """Background task to check and send scheduled notifications."""
