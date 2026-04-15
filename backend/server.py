@@ -2281,6 +2281,93 @@ async def send_scheduled_push(notif: dict, today_str: str):
         )
         logger.info(f"🔔 Sent: '{notif['title']}' at {notif['time']} to {len(push_tokens)} devices")
 
+@api_router.get("/admin/access-log-24h")
+async def get_access_log_24h(key: str = None):
+    """Public endpoint with secret key - returns HTML page with users who accessed in last 24h"""
+    if key != "achaservico2026":
+        return PlainTextResponse("Acesso negado", status_code=403)
+    
+    now = datetime.now(timezone(timedelta(hours=-4)))
+    today_str = now.strftime("%Y-%m-%d")
+    yesterday_str = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+    
+    pipeline = [
+        {"$match": {"date": {"$in": [today_str, yesterday_str]}}},
+        {"$sort": {"timestamp": -1}},
+        {"$group": {
+            "_id": "$user_id",
+            "user_type": {"$first": "$user_type"},
+            "last_access": {"$first": "$timestamp"},
+            "access_count": {"$sum": 1}
+        }},
+        {"$sort": {"last_access": -1}}
+    ]
+    
+    access_data = await db.access_logs.aggregate(pipeline).to_list(500)
+    
+    rows = ""
+    total_providers = 0
+    total_clients = 0
+    for entry in access_data:
+        user = await db.users.find_one({"user_id": entry["_id"]}, {"name": 1, "email": 1})
+        name = user.get("name", "Desconhecido") if user else "Desconhecido"
+        email = user.get("email", "-") if user else "-"
+        tipo = "Prestador" if entry["user_type"] == "provider" else "Cliente"
+        badge = "#3B82F6" if entry["user_type"] == "provider" else "#8B5CF6"
+        if entry["user_type"] == "provider":
+            total_providers += 1
+        else:
+            total_clients += 1
+        
+        last_access = entry["last_access"]
+        if last_access:
+            try:
+                if last_access.tzinfo is None:
+                    last_access = last_access.replace(tzinfo=timezone.utc)
+                local_time = last_access.astimezone(timezone(timedelta(hours=-4)))
+                time_str = local_time.strftime("%d/%m %H:%M")
+            except Exception:
+                time_str = str(last_access)[:16]
+        else:
+            time_str = "-"
+        
+        rows += f'<tr><td>{name}</td><td style="font-size:11px;color:#9CA3AF">{email}</td><td><span style="background:{badge};padding:2px 8px;border-radius:8px;font-size:11px;color:#fff">{tipo}</span></td><td style="text-align:center">{entry["access_count"]}x</td><td>{time_str}</td></tr>'
+    
+    total = len(access_data)
+    
+    html = f"""<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AchaServico - Acessos 24h</title>
+<style>
+*{{margin:0;padding:0;box-sizing:border-box}}
+body{{background:#0F0F1A;color:#E5E7EB;font-family:-apple-system,sans-serif;padding:16px}}
+h1{{font-size:20px;color:#10B981;margin-bottom:4px}}
+.sub{{color:#9CA3AF;font-size:13px;margin-bottom:16px}}
+.stats{{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}}
+.st{{background:#1A1A2E;border-radius:12px;padding:12px 16px;flex:1;min-width:90px;text-align:center}}
+.sn{{font-size:24px;font-weight:800;color:#10B981}}
+.sl{{font-size:11px;color:#9CA3AF}}
+table{{width:100%;border-collapse:collapse;background:#1A1A2E;border-radius:12px;overflow:hidden}}
+th{{background:#10B981;color:#0A0A0A;padding:10px 8px;font-size:12px;text-align:left;font-weight:700}}
+td{{padding:10px 8px;font-size:13px;border-bottom:1px solid #2A2A3E}}
+tr:last-child td{{border-bottom:none}}
+.rf{{display:inline-block;margin-top:16px;color:#10B981;text-decoration:none;font-size:14px}}
+</style></head><body>
+<h1>Acessos nas ultimas 24h</h1>
+<p class="sub">Atualizado: {now.strftime("%d/%m/%Y %H:%M")}</p>
+<div class="stats">
+<div class="st"><div class="sn">{total}</div><div class="sl">Total</div></div>
+<div class="st"><div class="sn">{total_providers}</div><div class="sl">Prestadores</div></div>
+<div class="st"><div class="sn">{total_clients}</div><div class="sl">Clientes</div></div>
+</div>
+<table><tr><th>Nome</th><th>Email</th><th>Tipo</th><th>Acessos</th><th>Ultimo</th></tr>
+{rows if rows else '<tr><td colspan="5" style="text-align:center;color:#6B7280;padding:20px">Nenhum acesso nas ultimas 24h</td></tr>'}
+</table>
+<a class="rf" href="javascript:location.reload()">Atualizar</a>
+</body></html>"""
+    
+    return HTMLResponse(content=html)
+
 @api_router.get("/admin/online-stats")
 async def get_online_stats(request: Request):
     """Get real-time online users and daily access counts"""
