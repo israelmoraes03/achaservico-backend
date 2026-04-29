@@ -62,10 +62,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isCheckingBlockRef = useRef(false);
 
   // Google Sign-In hook (only active on mobile)
+  // IMPORTANT: Override redirectUri to match the scheme registered in app.json
+  // This fixes Samsung devices where Chrome Custom Tab falls back to deep links
+  const googleRedirectUri = Platform.OS !== 'web' ? 'achaservico://oauthredirect' : undefined;
+  
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     webClientId: GOOGLE_WEB_CLIENT_ID,
     androidClientId: GOOGLE_ANDROID_CLIENT_ID,
     selectAccount: true,
+    redirectUri: googleRedirectUri,
   });
 
   // Function to register push notification token
