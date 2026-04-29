@@ -383,36 +383,119 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsLoading(true);
       
-      const redirectUrl = Platform.OS === 'web'
-        ? window.location.origin + '/'
-        : Linking.createURL('/');
-      
-      console.log('Redirect URL:', redirectUrl);
-      
-      const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
-      
       if (Platform.OS === 'web') {
+        // Web: use old auth.emergentagent.com flow
+        const redirectUrl = window.location.origin + '/';
+        const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
         window.location.href = authUrl;
-      } else {
-        const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl, {
-          preferEphemeralSession: false,
-          showInRecents: true,
-        });
+        return;
+      }
+      
+      // Mobile: Direct Google Sign-In
+      const redirectUri = `com.achaservico.app:/oauth2redirect`;
+      
+      // Use expo-auth-session's Google discovery
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+        `client_id=${GOOGLE_WEB_CLIENT_ID}` +
+        `&redirect_uri=${encodeURIComponent('https://auth.expo.io/@israel_moraes/achaservico')}` +
+        `&response_type=id_token` +
+        `&scope=${encodeURIComponent('openid profile email')}` +
+        `&nonce=${Math.random().toString(36).substring(7)}`;
+      
+      console.log('Opening Google OAuth via Expo proxy...');
+      
+      const result = await WebBrowser.openAuthSessionAsync(
+        authUrl, 
+        'exp://israel_moraes/achaservico',
+        { showInRecents: true }
+      );
+      
+      console.log('Auth result type:', result.type);
+      
+      if (result.type === 'success' && result.url) {
+        // Extract id_token from URL
+        const hashPart = result.url.split('#')[1] || '';
+        const params = new URLSearchParams(hashPart);
+        let idToken = params.get('id_token');
         
-        console.log('Auth result:', result.type);
+        if (!idToken) {
+          const queryPart = result.url.split('?')[1]?.split('#')[0] || '';
+          const qParams = new URLSearchParams(queryPart);
+          idToken = qParams.get('id_token');
+        }
         
-        if (result.type === 'success' && result.url) {
+        if (idToken) {
+          console.log('Got Google ID token, authenticating...');
+          await processGoogleToken(idToken);
+        } else {
+          // Fallback: old flow session_id
           const sessionId = extractSessionId(result.url);
           if (sessionId) {
             await processSessionId(sessionId);
+          } else {
+            console.log('No token found in URL:', result.url);
+            setIsLoading(false);
           }
-        } else {
-          setIsLoading(false);
         }
+      } else {
+        setIsLoading(false);
       }
     } catch (error) {
       console.error('Login error:', error);
       setIsLoading(false);
+    }
+  };
+
+  // Process Google ID token directly with our backend
+  const processGoogleToken = async (idToken: string) => {
+    try {
+      if (!isMountedRef.current) return;
+      setIsLoading(true);
+      console.log('Sending Google token to backend...');
+      
+      const response = await api.post('/auth/google-signin', { id_token: idToken }, { timeout: 15000 });
+      
+      if (!isMountedRef.current) return;
+      
+      const userData = response?.data?.user;
+      const sessionToken = response?.data?.session_token;
+      
+      if (!userData || !sessionToken) {
+        console.log('Invalid response from google-signin');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check if user is blocked
+      if (userData.blocked || userData.is_blocked) {
+        showBlockedAlert();
+        setIsLoading(false);
+        return;
+      }
+      
+      await AsyncStorage.setItem('session_token', sessionToken);
+      api.defaults.headers.common['Authorization'] = `Bearer ${sessionToken}`;
+      if (isMountedRef.current) setUser(userData);
+      
+      // Check if user has provider profile
+      let isProvider = false;
+      try {
+        const meResponse = await api.get('/auth/me', { timeout: 10000 });
+        if (isMountedRef.current && meResponse?.data?.provider) {
+          setProvider(meResponse.data.provider);
+          isProvider = true;
+        }
+      } catch (e) {
+        console.log('No provider profile');
+      }
+
+      // Register push token after successful login
+      await registerPushToken(isProvider);
+    } catch (error: any) {
+      console.error('Google sign-in error:', error?.response?.data || error?.message);
+      Alert.alert('Erro no login', 'Não foi possível fazer login. Tente novamente.');
+    } finally {
+      if (isMountedRef.current) setIsLoading(false);
     }
   };
 

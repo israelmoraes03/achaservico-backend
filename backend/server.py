@@ -1130,6 +1130,116 @@ async def start_scheduler():
 
 # ======================== AUTH ENDPOINTS ========================
 
+GOOGLE_WEB_CLIENT_ID = "639805008201-nm0krq490hfu4uep97a3vl8p2ftssf73.apps.googleusercontent.com"
+
+@api_router.post("/auth/google-signin")
+@limiter.limit("10/minute")
+async def google_signin(request: Request, response: Response):
+    """Direct Google Sign-In - verify ID token and create/login user"""
+    try:
+        body = await request.json()
+        id_token = body.get("id_token")
+        if not id_token:
+            raise HTTPException(status_code=400, detail="Token não fornecido")
+        
+        # Verify token with Google
+        async with httpx.AsyncClient() as client:
+            verify_response = await client.get(
+                f"https://oauth2.googleapis.com/tokeninfo?id_token={id_token}",
+                timeout=10
+            )
+            
+            if verify_response.status_code != 200:
+                logger.error(f"Google token verification failed: {verify_response.text}")
+                raise HTTPException(status_code=401, detail="Token inválido")
+            
+            token_data = verify_response.json()
+        
+        # Verify the token is for our app
+        if token_data.get("aud") != GOOGLE_WEB_CLIENT_ID:
+            logger.error(f"Token audience mismatch: {token_data.get('aud')}")
+            raise HTTPException(status_code=401, detail="Token não pertence a este app")
+        
+        # Extract user info
+        email = token_data.get("email")
+        name = token_data.get("name", email.split("@")[0] if email else "User")
+        picture = token_data.get("picture", "")
+        
+        if not email:
+            raise HTTPException(status_code=400, detail="Email não encontrado no token")
+        
+        # Find or create user
+        user = await db.users.find_one({"email": email})
+        
+        if user:
+            # Check if blocked
+            if user.get("is_blocked"):
+                raise HTTPException(status_code=403, detail="Conta bloqueada")
+            
+            # Update name/picture if changed
+            await db.users.update_one(
+                {"email": email},
+                {"$set": {"name": name, "picture": picture, "last_login": datetime.now(timezone.utc)}}
+            )
+            user_id = user["user_id"]
+        else:
+            # Create new user
+            user_id = str(uuid.uuid4())
+            new_user = {
+                "user_id": user_id,
+                "email": email,
+                "name": name,
+                "picture": picture,
+                "is_provider": False,
+                "is_blocked": False,
+                "created_at": datetime.now(timezone.utc),
+                "last_login": datetime.now(timezone.utc),
+            }
+            await db.users.insert_one(new_user)
+            logger.info(f"New user created via Google Sign-In: {email}")
+        
+        # Create session
+        session_token = str(uuid.uuid4())
+        await db.user_sessions.insert_one({
+            "session_token": session_token,
+            "user_id": user_id,
+            "email": email,
+            "created_at": datetime.now(timezone.utc),
+        })
+        
+        # Check if user is admin
+        is_admin = email == "israel.moraes03@gmail.com"
+        
+        # Check if user has provider profile
+        provider = await db.providers.find_one({"user_id": user_id})
+        
+        # Log access
+        now = datetime.now(timezone(timedelta(hours=-4)))
+        await db.access_logs.insert_one({
+            "user_id": user_id,
+            "user_type": "provider" if provider else "client",
+            "date": now.strftime("%Y-%m-%d"),
+            "timestamp": datetime.now(timezone.utc),
+        })
+        
+        return {
+            "user": {
+                "user_id": user_id,
+                "email": email,
+                "name": name,
+                "picture": picture,
+                "is_provider": bool(provider),
+                "is_admin": is_admin,
+            },
+            "session_token": session_token,
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Google sign-in error: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno no login")
+
 @api_router.post("/auth/session")
 @limiter.limit("10/minute")
 async def exchange_session(request: Request, response: Response):
