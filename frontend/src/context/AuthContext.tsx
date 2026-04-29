@@ -524,11 +524,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (deepLinkHandled) return;
         console.log('Deep link received:', event.url);
         
+        // Dismiss the browser window immediately when deep link arrives
+        try {
+          WebBrowser.dismissAuthSession();
+        } catch (e) {
+          console.log('dismissAuthSession not available:', e);
+        }
+        
         const sessionId = extractSessionId(event.url);
         if (sessionId) {
           deepLinkHandled = true;
           deepLinkSubscription.remove();
           await processSessionId(sessionId);
+          return;
         }
         
         const { idToken, accessToken } = extractTokenFromUrl(event.url);
@@ -536,10 +544,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           deepLinkHandled = true;
           deepLinkSubscription.remove();
           await processGoogleToken(idToken);
+          return;
         } else if (accessToken) {
           deepLinkHandled = true;
           deepLinkSubscription.remove();
           await processGoogleAccessToken(accessToken);
+          return;
         }
         
         // Check for session_token
