@@ -508,11 +508,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       // Mobile: Use auth.emergentagent.com with app scheme redirect
-      // This avoids the "Invalid state parameter" issue on Samsung by using 
-      // the app's custom scheme directly as the redirect target
+      // Uses root path to avoid "Unmatched Route" from Expo Router
       console.log('Starting Google Sign-In...');
       
-      const returnUrl = 'achaservico://auth';
+      const returnUrl = Linking.createURL('/');
       const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(returnUrl)}`;
       
       console.log('Auth URL:', authUrl);
