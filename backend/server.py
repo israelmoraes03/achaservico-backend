@@ -1131,6 +1131,8 @@ async def start_scheduler():
 # ======================== AUTH ENDPOINTS ========================
 
 GOOGLE_WEB_CLIENT_ID = "639805008201-nm0krq490hfu4uep97a3vl8p2ftssf73.apps.googleusercontent.com"
+GOOGLE_ANDROID_CLIENT_ID = "639805008201-62p97nrvov8s71v03eoaauq0eqjqfn8a.apps.googleusercontent.com"
+GOOGLE_VALID_CLIENT_IDS = {GOOGLE_WEB_CLIENT_ID, GOOGLE_ANDROID_CLIENT_ID}
 
 @api_router.post("/auth/google-signin")
 @limiter.limit("10/minute")
@@ -1155,8 +1157,8 @@ async def google_signin(request: Request, response: Response):
             
             token_data = verify_response.json()
         
-        # Verify the token is for our app
-        if token_data.get("aud") != GOOGLE_WEB_CLIENT_ID:
+        # Verify the token is for our app (accept both Web and Android client IDs)
+        if token_data.get("aud") not in GOOGLE_VALID_CLIENT_IDS:
             logger.error(f"Token audience mismatch: {token_data.get('aud')}")
             raise HTTPException(status_code=401, detail="Token não pertence a este app")
         
@@ -1239,6 +1241,106 @@ async def google_signin(request: Request, response: Response):
     except Exception as e:
         logger.error(f"Google sign-in error: {e}")
         raise HTTPException(status_code=500, detail="Erro interno no login")
+
+@api_router.post("/auth/google-signin-token")
+@limiter.limit("10/minute")
+async def google_signin_access_token(request: Request, response: Response):
+    """Google Sign-In via access_token - fallback when id_token is not available"""
+    try:
+        body = await request.json()
+        access_token = body.get("access_token")
+        if not access_token:
+            raise HTTPException(status_code=400, detail="Access token não fornecido")
+        
+        # Get user info from Google using access_token
+        async with httpx.AsyncClient() as client:
+            userinfo_response = await client.get(
+                "https://www.googleapis.com/oauth2/v2/userinfo",
+                headers={"Authorization": f"Bearer {access_token}"},
+                timeout=10
+            )
+            
+            if userinfo_response.status_code != 200:
+                logger.error(f"Google userinfo failed: {userinfo_response.text}")
+                raise HTTPException(status_code=401, detail="Access token inválido")
+            
+            user_info = userinfo_response.json()
+        
+        # Extract user info
+        email = user_info.get("email")
+        name = user_info.get("name", email.split("@")[0] if email else "User")
+        picture = user_info.get("picture", "")
+        
+        if not email:
+            raise HTTPException(status_code=400, detail="Email não encontrado")
+        
+        # Find or create user (same logic as google-signin)
+        user = await db.users.find_one({"email": email})
+        
+        if user:
+            if user.get("is_blocked"):
+                raise HTTPException(status_code=403, detail="Conta bloqueada")
+            
+            await db.users.update_one(
+                {"email": email},
+                {"$set": {"name": name, "picture": picture, "last_login": datetime.now(timezone.utc)}}
+            )
+            user_id = user["user_id"]
+        else:
+            user_id = str(uuid.uuid4())
+            new_user = {
+                "user_id": user_id,
+                "email": email,
+                "name": name,
+                "picture": picture,
+                "is_provider": False,
+                "is_blocked": False,
+                "created_at": datetime.now(timezone.utc),
+                "last_login": datetime.now(timezone.utc),
+            }
+            await db.users.insert_one(new_user)
+            logger.info(f"New user created via Google access_token: {email}")
+        
+        # Create session
+        session_token = str(uuid.uuid4())
+        await db.user_sessions.insert_one({
+            "session_token": session_token,
+            "user_id": user_id,
+            "email": email,
+            "created_at": datetime.now(timezone.utc),
+        })
+        
+        is_admin = email == "israel.moraes03@gmail.com"
+        provider = await db.providers.find_one({"user_id": user_id})
+        
+        # Log access
+        now = datetime.now(timezone(timedelta(hours=-4)))
+        await db.access_logs.insert_one({
+            "user_id": user_id,
+            "user_type": "provider" if provider else "client",
+            "date": now.strftime("%Y-%m-%d"),
+            "timestamp": datetime.now(timezone.utc),
+        })
+        
+        return {
+            "user": {
+                "user_id": user_id,
+                "email": email,
+                "name": name,
+                "picture": picture,
+                "is_provider": bool(provider),
+                "is_admin": is_admin,
+            },
+            "session_token": session_token,
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Google access_token sign-in error: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno no login")
+
+
 
 @api_router.post("/auth/session")
 @limiter.limit("10/minute")

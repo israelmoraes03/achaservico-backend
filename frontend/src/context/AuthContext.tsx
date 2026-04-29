@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert, AppState, AppStateStatus } from 'react-native';
@@ -8,8 +9,12 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import api from '../services/api';
 
-// Warm up browser for faster auth on Android
+// Complete any pending auth sessions (MUST be at module level)
 WebBrowser.maybeCompleteAuthSession();
+
+// Google OAuth Client IDs
+const GOOGLE_WEB_CLIENT_ID = '639805008201-nm0krq490hfu4uep97a3vl8p2ftssf73.apps.googleusercontent.com';
+const GOOGLE_ANDROID_CLIENT_ID = '639805008201-62p97nrvov8s71v03eoaauq0eqjqfn8a.apps.googleusercontent.com';
 
 interface User {
   user_id: string;
@@ -56,17 +61,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const isCheckingBlockRef = useRef(false);
 
+  // Google Sign-In hook (only active on mobile)
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+    selectAccount: true,
+  });
+
   // Function to register push notification token
   const registerPushToken = useCallback(async (isProvider: boolean) => {
     try {
-      if (Platform.OS === 'web') return; // Skip on web
+      if (Platform.OS === 'web') return;
       
       if (!Device.isDevice) {
         console.log('Push notifications require a physical device');
         return;
       }
 
-      // Request permission
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
       
@@ -80,7 +91,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Get the token
       const projectId = Constants.expoConfig?.extra?.eas?.projectId;
       const token = await Notifications.getExpoPushTokenAsync({
         projectId: projectId,
@@ -88,7 +98,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       console.log('Push token:', token.data);
 
-      // Register token with the appropriate endpoint
       const endpoint = isProvider ? '/providers/register-push-token' : '/users/register-push-token';
       await api.post(endpoint, { push_token: token.data });
       console.log('Push token registered successfully');
@@ -99,11 +108,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const extractSessionId = (url: string): string | null => {
     try {
-      // Try hash first
       const hashMatch = url.match(/#session_id=([^&]+)/);
       if (hashMatch) return hashMatch[1];
       
-      // Try query string
       const queryMatch = url.match(/[?&]session_id=([^&]+)/);
       if (queryMatch) return queryMatch[1];
     } catch (e) {
@@ -127,6 +134,145 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Process Google ID token directly with our backend
+  const processGoogleToken = useCallback(async (idToken: string) => {
+    try {
+      if (!isMountedRef.current) return;
+      setIsLoading(true);
+      console.log('Sending Google token to backend...');
+      
+      const resp = await api.post('/auth/google-signin', { id_token: idToken }, { timeout: 15000 });
+      
+      if (!isMountedRef.current) return;
+      
+      const userData = resp?.data?.user;
+      const sessionToken = resp?.data?.session_token;
+      
+      if (!userData || !sessionToken) {
+        console.log('Invalid response from google-signin');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check if user is blocked
+      if (userData.blocked || userData.is_blocked) {
+        showBlockedAlert();
+        setIsLoading(false);
+        return;
+      }
+      
+      await AsyncStorage.setItem('session_token', sessionToken);
+      api.defaults.headers.common['Authorization'] = `Bearer ${sessionToken}`;
+      if (isMountedRef.current) setUser(userData);
+      
+      // Check if user has provider profile
+      let isProviderUser = false;
+      try {
+        const meResponse = await api.get('/auth/me', { timeout: 10000 });
+        if (isMountedRef.current && meResponse?.data?.provider) {
+          setProvider(meResponse.data.provider);
+          isProviderUser = true;
+        }
+      } catch (e) {
+        console.log('No provider profile');
+      }
+
+      // Register push token after successful login
+      await registerPushToken(isProviderUser);
+    } catch (error: any) {
+      console.error('Google sign-in error:', error?.response?.data || error?.message);
+      if (Platform.OS !== 'web') {
+        Alert.alert('Erro no login', 'Não foi possível fazer login. Tente novamente.');
+      }
+    } finally {
+      if (isMountedRef.current) setIsLoading(false);
+    }
+  }, [showBlockedAlert, registerPushToken]);
+
+  // Process Google access token as fallback (when id_token is not available)
+  const processGoogleAccessToken = useCallback(async (accessToken: string) => {
+    try {
+      if (!isMountedRef.current) return;
+      setIsLoading(true);
+      console.log('Sending Google access_token to backend...');
+      
+      const resp = await api.post('/auth/google-signin-token', { access_token: accessToken }, { timeout: 15000 });
+      
+      if (!isMountedRef.current) return;
+      
+      const userData = resp?.data?.user;
+      const sessionToken = resp?.data?.session_token;
+      
+      if (!userData || !sessionToken) {
+        console.log('Invalid response from google-signin-token');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (userData.blocked || userData.is_blocked) {
+        showBlockedAlert();
+        setIsLoading(false);
+        return;
+      }
+      
+      await AsyncStorage.setItem('session_token', sessionToken);
+      api.defaults.headers.common['Authorization'] = `Bearer ${sessionToken}`;
+      if (isMountedRef.current) setUser(userData);
+      
+      let isProviderUser = false;
+      try {
+        const meResponse = await api.get('/auth/me', { timeout: 10000 });
+        if (isMountedRef.current && meResponse?.data?.provider) {
+          setProvider(meResponse.data.provider);
+          isProviderUser = true;
+        }
+      } catch (e) {
+        console.log('No provider profile');
+      }
+
+      await registerPushToken(isProviderUser);
+    } catch (error: any) {
+      console.error('Google access token sign-in error:', error?.response?.data || error?.message);
+      if (Platform.OS !== 'web') {
+        Alert.alert('Erro no login', 'Não foi possível fazer login. Tente novamente.');
+      }
+    } finally {
+      if (isMountedRef.current) setIsLoading(false);
+    }
+  }, [showBlockedAlert, registerPushToken]);
+
+  // Handle Google auth response (from useIdTokenAuthRequest hook)
+  useEffect(() => {
+    if (!response) return;
+    
+    console.log('Google auth response type:', response.type);
+    
+    if (response.type === 'success') {
+      // Try id_token first (preferred)
+      const idToken = response.params?.id_token || (response as any).authentication?.idToken;
+      if (idToken && idToken.length > 10) {
+        console.log('Got Google ID token via expo-auth-session');
+        processGoogleToken(idToken);
+      } else {
+        // Fallback: use access_token
+        const accessToken = response.params?.access_token || (response as any).authentication?.accessToken;
+        if (accessToken) {
+          console.log('No id_token, using access_token fallback');
+          processGoogleAccessToken(accessToken);
+        } else {
+          console.log('No token found in response:', JSON.stringify(response.params));
+          setIsLoading(false);
+        }
+      }
+    } else if (response.type === 'error') {
+      console.error('Google auth error:', (response as any).error);
+      setIsLoading(false);
+    } else if (response.type === 'dismiss' || response.type === 'cancel') {
+      console.log('Google auth dismissed/cancelled');
+      setIsLoading(false);
+    }
+  }, [response, processGoogleToken, processGoogleAccessToken]);
+
   const processSessionId = useCallback(async (sessionId: string, retryCount = 0) => {
     const maxRetries = 3;
     const retryDelay = 2000;
@@ -136,15 +282,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true);
       console.log(`Processing session ID... (attempt ${retryCount + 1})`);
       
-      const response = await api.post('/auth/session', {}, {
+      const resp = await api.post('/auth/session', {}, {
         headers: { 'X-Session-ID': sessionId },
         timeout: 15000
       });
       
       if (!isMountedRef.current) return;
       
-      const userData = response?.data?.user;
-      const sessionToken = response?.data?.session_token;
+      const userData = resp?.data?.user;
+      const sessionToken = resp?.data?.session_token;
       
       if (!userData || !sessionToken) {
         console.log('Invalid session response - missing user or token');
@@ -164,23 +310,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (isMountedRef.current) setUser(userData);
       
       // Check if user has provider profile
-      let isProvider = false;
+      let isProviderUser = false;
       try {
         const meResponse = await api.get('/auth/me', { timeout: 10000 });
         if (isMountedRef.current && meResponse?.data?.provider) {
           setProvider(meResponse.data.provider);
-          isProvider = true;
+          isProviderUser = true;
         }
       } catch (e) {
         console.log('No provider profile');
       }
 
       // Register push token after successful login
-      await registerPushToken(isProvider);
+      await registerPushToken(isProviderUser);
     } catch (error: any) {
       console.error('Error processing session:', error?.message || 'Unknown error');
       
-      // Retry if server is waking up
       if (retryCount < maxRetries && (error?.code === 'ECONNABORTED' || error?.message?.includes('timeout') || error?.message?.includes('Network'))) {
         console.log(`Server may be waking up, retrying in ${retryDelay/1000}s...`);
         await new Promise(resolve => setTimeout(resolve, retryDelay));
@@ -204,14 +349,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (token) {
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        const response = await api.get('/auth/me', { timeout: 15000 });
+        const resp = await api.get('/auth/me', { timeout: 15000 });
         
         if (!isMountedRef.current) return;
         
-        const userData = response?.data?.user;
-        const providerData = response?.data?.provider;
+        const userData = resp?.data?.user;
+        const providerData = resp?.data?.provider;
         
-        // Check if user is blocked
         if (userData?.blocked || userData?.is_blocked) {
           showBlockedAlert();
           await AsyncStorage.removeItem('session_token');
@@ -224,9 +368,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setProvider(providerData || null);
           console.log('Session restored');
           
-          // Register push token on session restore
-          const isProvider = !!providerData;
-          await registerPushToken(isProvider);
+          const isProviderUser = !!providerData;
+          await registerPushToken(isProviderUser);
         } else {
           console.log('Session response missing user data');
         }
@@ -238,7 +381,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (!isMountedRef.current) return;
       
-      // If server is waking up (timeout or network error), retry
       if (retryCount < maxRetries && (error?.code === 'ECONNABORTED' || error?.message?.includes('timeout') || error?.message?.includes('Network'))) {
         console.log(`Server may be waking up, retrying in ${retryDelay/1000}s...`);
         await new Promise(resolve => setTimeout(resolve, retryDelay));
@@ -248,7 +390,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       
-      // Clear token only if it's an auth error (401), not a network error
       if (error?.response?.status === 401) {
         await AsyncStorage.removeItem('session_token');
         delete api.defaults.headers.common['Authorization'];
@@ -268,7 +409,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const sessionId = extractSessionId(hash || search);
           
           if (sessionId) {
-            // Clean URL
             window.history.replaceState(null, '', window.location.pathname);
             await processSessionId(sessionId);
             return;
@@ -299,7 +439,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
     
-    // Small delay to ensure app is fully loaded
     const timer = setTimeout(() => {
       init();
     }, 100);
@@ -311,7 +450,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
       try {
-        // Only check when coming FROM background/inactive TO active
         if (
           (appStateRef.current === 'background' || appStateRef.current === 'inactive') &&
           nextAppState === 'active' &&
@@ -324,8 +462,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const token = await AsyncStorage.getItem('session_token');
           if (token && isMountedRef.current) {
             try {
-              const response = await api.get('/auth/me', { timeout: 10000 });
-              const userData = response?.data?.user;
+              const resp = await api.get('/auth/me', { timeout: 10000 });
+              const userData = resp?.data?.user;
               
               if (isMountedRef.current && (userData?.blocked || userData?.is_blocked)) {
                 console.log('User is blocked, forcing logout...');
@@ -371,10 +509,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    // Send immediately on login/session restore
     sendHeartbeat();
-
-    // Then every 2 minutes
     const interval = setInterval(sendHeartbeat, 2 * 60 * 1000);
     return () => clearInterval(interval);
   }, [user]);
@@ -384,60 +519,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true);
       
       if (Platform.OS === 'web') {
-        // Web: use old auth.emergentagent.com flow
+        // Web: use auth.emergentagent.com flow (keeps web preview working)
         const redirectUrl = window.location.origin + '/';
         const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
         window.location.href = authUrl;
         return;
       }
       
-      // Mobile: Direct Google Sign-In
-      const redirectUri = `com.achaservico.app:/oauth2redirect`;
+      // Mobile: Use expo-auth-session Google Sign-In
+      console.log('Starting Google Sign-In via expo-auth-session...');
+      console.log('Request ready:', !!request);
       
-      // Use expo-auth-session's Google discovery
-      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-        `client_id=${GOOGLE_WEB_CLIENT_ID}` +
-        `&redirect_uri=${encodeURIComponent('https://auth.expo.io/@israel_moraes/achaservico')}` +
-        `&response_type=id_token` +
-        `&scope=${encodeURIComponent('openid profile email')}` +
-        `&nonce=${Math.random().toString(36).substring(7)}`;
+      if (!request) {
+        console.log('Auth request not ready yet, waiting...');
+        setIsLoading(false);
+        return;
+      }
       
-      console.log('Opening Google OAuth via Expo proxy...');
+      // promptAsync opens the Google sign-in browser
+      const result = await promptAsync({ showInRecents: true });
+      console.log('promptAsync result type:', result?.type);
       
-      const result = await WebBrowser.openAuthSessionAsync(
-        authUrl, 
-        'exp://israel_moraes/achaservico',
-        { showInRecents: true }
-      );
-      
-      console.log('Auth result type:', result.type);
-      
-      if (result.type === 'success' && result.url) {
-        // Extract id_token from URL
-        const hashPart = result.url.split('#')[1] || '';
-        const params = new URLSearchParams(hashPart);
-        let idToken = params.get('id_token');
-        
-        if (!idToken) {
-          const queryPart = result.url.split('?')[1]?.split('#')[0] || '';
-          const qParams = new URLSearchParams(queryPart);
-          idToken = qParams.get('id_token');
-        }
-        
-        if (idToken) {
-          console.log('Got Google ID token, authenticating...');
-          await processGoogleToken(idToken);
-        } else {
-          // Fallback: old flow session_id
-          const sessionId = extractSessionId(result.url);
-          if (sessionId) {
-            await processSessionId(sessionId);
-          } else {
-            console.log('No token found in URL:', result.url);
-            setIsLoading(false);
-          }
-        }
-      } else {
+      // Response is handled by the useEffect above
+      // If it was cancelled/dismissed, reset loading
+      if (result?.type !== 'success') {
         setIsLoading(false);
       }
     } catch (error) {
@@ -446,68 +551,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Process Google ID token directly with our backend
-  const processGoogleToken = async (idToken: string) => {
-    try {
-      if (!isMountedRef.current) return;
-      setIsLoading(true);
-      console.log('Sending Google token to backend...');
-      
-      const response = await api.post('/auth/google-signin', { id_token: idToken }, { timeout: 15000 });
-      
-      if (!isMountedRef.current) return;
-      
-      const userData = response?.data?.user;
-      const sessionToken = response?.data?.session_token;
-      
-      if (!userData || !sessionToken) {
-        console.log('Invalid response from google-signin');
-        setIsLoading(false);
-        return;
-      }
-      
-      // Check if user is blocked
-      if (userData.blocked || userData.is_blocked) {
-        showBlockedAlert();
-        setIsLoading(false);
-        return;
-      }
-      
-      await AsyncStorage.setItem('session_token', sessionToken);
-      api.defaults.headers.common['Authorization'] = `Bearer ${sessionToken}`;
-      if (isMountedRef.current) setUser(userData);
-      
-      // Check if user has provider profile
-      let isProvider = false;
-      try {
-        const meResponse = await api.get('/auth/me', { timeout: 10000 });
-        if (isMountedRef.current && meResponse?.data?.provider) {
-          setProvider(meResponse.data.provider);
-          isProvider = true;
-        }
-      } catch (e) {
-        console.log('No provider profile');
-      }
-
-      // Register push token after successful login
-      await registerPushToken(isProvider);
-    } catch (error: any) {
-      console.error('Google sign-in error:', error?.response?.data || error?.message);
-      Alert.alert('Erro no login', 'Não foi possível fazer login. Tente novamente.');
-    } finally {
-      if (isMountedRef.current) setIsLoading(false);
-    }
-  };
-
   const logout = async (): Promise<void> => {
     try {
       await api.post('/auth/logout');
     } catch (error) {
       console.error('Logout API error:', error);
-      // Continue with local cleanup even if API fails
     }
     
-    // Clear all local state
     try {
       await AsyncStorage.removeItem('session_token');
       await AsyncStorage.removeItem('user_data');
@@ -515,10 +565,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Error clearing storage:', e);
     }
     
-    // Clear API headers
     delete api.defaults.headers.common['Authorization'];
-    
-    // Reset state
     setUser(null);
     setProvider(null);
     
@@ -531,9 +578,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const token = await AsyncStorage.getItem('session_token');
       if (token) {
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        const response = await api.get('/auth/me');
-        setUser(response.data.user);
-        setProvider(response.data.provider);
+        const resp = await api.get('/auth/me');
+        setUser(resp.data.user);
+        setProvider(resp.data.provider);
       }
     } catch (error) {
       console.error('Refresh user error:', error);
