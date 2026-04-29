@@ -385,7 +385,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       const redirectUrl = Platform.OS === 'web'
         ? window.location.origin + '/'
-        : Linking.createURL('/');
+        : Linking.createURL('auth-callback');
       
       console.log('Redirect URL:', redirectUrl);
       
@@ -394,7 +394,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (Platform.OS === 'web') {
         window.location.href = authUrl;
       } else {
-        const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
+        const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl, {
+          preferEphemeralSession: false,
+          showInRecents: true,
+        });
         
         console.log('Auth result:', result.type);
         
