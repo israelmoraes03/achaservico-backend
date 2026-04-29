@@ -385,7 +385,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       const redirectUrl = Platform.OS === 'web'
         ? window.location.origin + '/'
-        : Linking.createURL('auth-callback');
+        : Linking.createURL('/');
       
       console.log('Redirect URL:', redirectUrl);
       
