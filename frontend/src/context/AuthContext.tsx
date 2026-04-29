@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert, AppState, AppStateStatus } from 'react-native';
@@ -14,7 +13,6 @@ WebBrowser.maybeCompleteAuthSession();
 
 // Google OAuth Client IDs
 const GOOGLE_WEB_CLIENT_ID = '639805008201-nm0krq490hfu4uep97a3vl8p2ftssf73.apps.googleusercontent.com';
-const GOOGLE_ANDROID_CLIENT_ID = '639805008201-62p97nrvov8s71v03eoaauq0eqjqfn8a.apps.googleusercontent.com';
 
 interface User {
   user_id: string;
@@ -60,18 +58,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isMountedRef = useRef(true);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const isCheckingBlockRef = useRef(false);
-
-  // Google Sign-In hook (only active on mobile)
-  // IMPORTANT: Override redirectUri to match the scheme registered in app.json
-  // This fixes Samsung devices where Chrome Custom Tab falls back to deep links
-  const googleRedirectUri = Platform.OS !== 'web' ? 'achaservico://oauthredirect' : undefined;
-  
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    webClientId: GOOGLE_WEB_CLIENT_ID,
-    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
-    selectAccount: true,
-    redirectUri: googleRedirectUri,
-  });
 
   // Function to register push notification token
   const registerPushToken = useCallback(async (isProvider: boolean) => {
@@ -124,6 +110,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return null;
   };
 
+  // Extract tokens from Google OAuth redirect URL
+  const extractTokenFromUrl = (url: string): { idToken?: string; accessToken?: string } => {
+    try {
+      // Check URL fragment (hash) for implicit flow tokens
+      const hashPart = url.split('#')[1] || '';
+      const params = new URLSearchParams(hashPart);
+      
+      const idToken = params.get('id_token') || undefined;
+      const accessToken = params.get('access_token') || undefined;
+      
+      if (idToken || accessToken) {
+        return { idToken, accessToken };
+      }
+      
+      // Also check query parameters
+      const queryPart = url.split('?')[1]?.split('#')[0] || '';
+      const qParams = new URLSearchParams(queryPart);
+      
+      return {
+        idToken: qParams.get('id_token') || undefined,
+        accessToken: qParams.get('access_token') || undefined,
+      };
+    } catch (e) {
+      console.error('Error extracting token from URL:', e);
+      return {};
+    }
+  };
+
   // Helper to safely show blocked alert
   const showBlockedAlert = useCallback(() => {
     try {
@@ -159,7 +173,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       
-      // Check if user is blocked
       if (userData.blocked || userData.is_blocked) {
         showBlockedAlert();
         setIsLoading(false);
@@ -170,7 +183,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       api.defaults.headers.common['Authorization'] = `Bearer ${sessionToken}`;
       if (isMountedRef.current) setUser(userData);
       
-      // Check if user has provider profile
       let isProviderUser = false;
       try {
         const meResponse = await api.get('/auth/me', { timeout: 10000 });
@@ -182,7 +194,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('No provider profile');
       }
 
-      // Register push token after successful login
       await registerPushToken(isProviderUser);
     } catch (error: any) {
       console.error('Google sign-in error:', error?.response?.data || error?.message);
@@ -194,7 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [showBlockedAlert, registerPushToken]);
 
-  // Process Google access token as fallback (when id_token is not available)
+  // Process Google access token as fallback
   const processGoogleAccessToken = useCallback(async (accessToken: string) => {
     try {
       if (!isMountedRef.current) return;
@@ -246,38 +257,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [showBlockedAlert, registerPushToken]);
 
-  // Handle Google auth response (from useIdTokenAuthRequest hook)
-  useEffect(() => {
-    if (!response) return;
-    
-    console.log('Google auth response type:', response.type);
-    
-    if (response.type === 'success') {
-      // Try id_token first (preferred)
-      const idToken = response.params?.id_token || (response as any).authentication?.idToken;
-      if (idToken && idToken.length > 10) {
-        console.log('Got Google ID token via expo-auth-session');
-        processGoogleToken(idToken);
-      } else {
-        // Fallback: use access_token
-        const accessToken = response.params?.access_token || (response as any).authentication?.accessToken;
-        if (accessToken) {
-          console.log('No id_token, using access_token fallback');
-          processGoogleAccessToken(accessToken);
-        } else {
-          console.log('No token found in response:', JSON.stringify(response.params));
-          setIsLoading(false);
-        }
-      }
-    } else if (response.type === 'error') {
-      console.error('Google auth error:', (response as any).error);
-      setIsLoading(false);
-    } else if (response.type === 'dismiss' || response.type === 'cancel') {
-      console.log('Google auth dismissed/cancelled');
-      setIsLoading(false);
-    }
-  }, [response, processGoogleToken, processGoogleAccessToken]);
-
   const processSessionId = useCallback(async (sessionId: string, retryCount = 0) => {
     const maxRetries = 3;
     const retryDelay = 2000;
@@ -303,7 +282,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       
-      // Check if user is blocked
       if (userData.blocked || userData.is_blocked) {
         showBlockedAlert();
         setIsLoading(false);
@@ -314,7 +292,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       api.defaults.headers.common['Authorization'] = `Bearer ${sessionToken}`;
       if (isMountedRef.current) setUser(userData);
       
-      // Check if user has provider profile
       let isProviderUser = false;
       try {
         const meResponse = await api.get('/auth/me', { timeout: 10000 });
@@ -326,7 +303,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('No provider profile');
       }
 
-      // Register push token after successful login
       await registerPushToken(isProviderUser);
     } catch (error: any) {
       console.error('Error processing session:', error?.message || 'Unknown error');
@@ -531,23 +507,140 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       
-      // Mobile: Use expo-auth-session Google Sign-In
-      console.log('Starting Google Sign-In via expo-auth-session...');
-      console.log('Request ready:', !!request);
+      // Mobile: Use auth.emergentagent.com with app scheme redirect
+      // This avoids the "Invalid state parameter" issue on Samsung by using 
+      // the app's custom scheme directly as the redirect target
+      console.log('Starting Google Sign-In...');
       
-      if (!request) {
-        console.log('Auth request not ready yet, waiting...');
-        setIsLoading(false);
+      const returnUrl = 'achaservico://auth';
+      const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(returnUrl)}`;
+      
+      console.log('Auth URL:', authUrl);
+      console.log('Return URL:', returnUrl);
+      
+      // Set up a deep link listener as fallback for Samsung devices
+      // where Chrome Custom Tab doesn't properly return the result
+      let deepLinkHandled = false;
+      const deepLinkSubscription = Linking.addEventListener('url', async (event) => {
+        if (deepLinkHandled) return;
+        console.log('Deep link received:', event.url);
+        
+        const sessionId = extractSessionId(event.url);
+        if (sessionId) {
+          deepLinkHandled = true;
+          deepLinkSubscription.remove();
+          await processSessionId(sessionId);
+        }
+        
+        const { idToken, accessToken } = extractTokenFromUrl(event.url);
+        if (idToken) {
+          deepLinkHandled = true;
+          deepLinkSubscription.remove();
+          await processGoogleToken(idToken);
+        } else if (accessToken) {
+          deepLinkHandled = true;
+          deepLinkSubscription.remove();
+          await processGoogleAccessToken(accessToken);
+        }
+        
+        // Check for session_token
+        const tokenMatch = event.url.match(/[?&]session_token=([^&]+)/);
+        if (tokenMatch) {
+          deepLinkHandled = true;
+          deepLinkSubscription.remove();
+          const sessionToken = decodeURIComponent(tokenMatch[1]);
+          await AsyncStorage.setItem('session_token', sessionToken);
+          api.defaults.headers.common['Authorization'] = `Bearer ${sessionToken}`;
+          try {
+            const meResponse = await api.get('/auth/me', { timeout: 10000 });
+            if (isMountedRef.current) {
+              setUser(meResponse.data.user);
+              setProvider(meResponse.data.provider || null);
+              await registerPushToken(!!meResponse.data.provider);
+            }
+          } catch (e) {
+            console.error('Error fetching user:', e);
+          }
+          if (isMountedRef.current) setIsLoading(false);
+        }
+      });
+      
+      // Open the auth session
+      const result = await WebBrowser.openAuthSessionAsync(
+        authUrl,
+        returnUrl,
+        { showInRecents: true }
+      );
+      
+      console.log('Auth result type:', result.type);
+      
+      // Clean up deep link listener after a delay
+      setTimeout(() => {
+        if (!deepLinkHandled) {
+          deepLinkSubscription.remove();
+        }
+      }, 5000);
+      
+      if (deepLinkHandled) {
+        // Already handled by deep link listener
         return;
       }
       
-      // promptAsync opens the Google sign-in browser
-      const result = await promptAsync({ showInRecents: true });
-      console.log('promptAsync result type:', result?.type);
-      
-      // Response is handled by the useEffect above
-      // If it was cancelled/dismissed, reset loading
-      if (result?.type !== 'success') {
+      if (result.type === 'success' && result.url) {
+        console.log('Auth redirect URL received via WebBrowser');
+        const url = result.url;
+        
+        // Check for session_token
+        const tokenMatch = url.match(/[?&]session_token=([^&]+)/);
+        if (tokenMatch) {
+          const sessionToken = decodeURIComponent(tokenMatch[1]);
+          await AsyncStorage.setItem('session_token', sessionToken);
+          api.defaults.headers.common['Authorization'] = `Bearer ${sessionToken}`;
+          try {
+            const meResponse = await api.get('/auth/me', { timeout: 10000 });
+            if (isMountedRef.current) {
+              setUser(meResponse.data.user);
+              setProvider(meResponse.data.provider || null);
+              await registerPushToken(!!meResponse.data.provider);
+            }
+          } catch (e) {
+            console.error('Error fetching user:', e);
+          }
+          setIsLoading(false);
+          return;
+        }
+        
+        // Check for id_token
+        const { idToken, accessToken } = extractTokenFromUrl(url);
+        if (idToken) {
+          await processGoogleToken(idToken);
+          return;
+        }
+        if (accessToken) {
+          await processGoogleAccessToken(accessToken);
+          return;
+        }
+        
+        // Check for session_id (auth.emergentagent.com flow)
+        const sessionId = extractSessionId(url);
+        if (sessionId) {
+          await processSessionId(sessionId);
+          return;
+        }
+        
+        // Check for error
+        const errorMatch = url.match(/[?&]error=([^&]+)/);
+        if (errorMatch) {
+          const error = decodeURIComponent(errorMatch[1]);
+          console.error('Auth error:', error);
+          Alert.alert('Erro no login', 'Não foi possível fazer login. Tente novamente.');
+        } else {
+          console.log('No recognizable token in URL:', url.substring(0, 100));
+        }
+        
+        setIsLoading(false);
+      } else {
+        console.log('Auth dismissed or cancelled');
         setIsLoading(false);
       }
     } catch (error) {
