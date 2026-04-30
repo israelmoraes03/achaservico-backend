@@ -575,10 +575,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       // Open the auth session
+      // Note: Do NOT use showInRecents:true - it makes Chrome a separate task that won't auto-close
       const result = await WebBrowser.openAuthSessionAsync(
         authUrl,
         returnUrl,
-        { showInRecents: true }
+        { createTask: false }
       );
       
       console.log('Auth result type:', result.type);
