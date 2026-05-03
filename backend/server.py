@@ -2651,6 +2651,11 @@ async def get_admin_stats(request: Request):
     active_providers = await db.providers.count_documents({"is_active": True})
     inactive_provider_count = await db.providers.count_documents({"is_active": False})
     
+    # Push notification stats
+    users_with_push = await db.users.count_documents({"push_token": {"$exists": True, "$ne": None, "$ne": ""}})
+    providers_with_push = await db.providers.count_documents({"push_token": {"$exists": True, "$ne": None, "$ne": ""}})
+    total_push_tokens = users_with_push + providers_with_push
+    
     # Average rating across all providers
     pipeline = [
         {"$match": {"average_rating": {"$gt": 0}}},
