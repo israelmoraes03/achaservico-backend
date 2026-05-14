@@ -781,6 +781,8 @@ CATEGORIES = [
     {"id": "bartender", "name": "Bartender", "icon": "wine"},
     {"id": "taxi_dog", "name": "Taxi-Dog", "icon": "paw"},
     {"id": "transporte_escolar", "name": "Transporte Escolar", "icon": "bus"},
+    {"id": "carreto_mudancas", "name": "Carreto/Mudanças", "icon": "cube"},
+    {"id": "influencer", "name": "Influencer", "icon": "megaphone"},
 ]
 
 # Bairros organizados por cidade
