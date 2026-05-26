@@ -723,6 +723,40 @@ class SessionDataResponse(BaseModel):
     picture: Optional[str] = None
     session_token: str
 
+# ======================== JOB LISTINGS MODELS ========================
+
+class Job(BaseModel):
+    job_id: str = Field(default_factory=lambda: f"job_{uuid.uuid4().hex[:12]}")
+    company_name: str
+    job_title: str
+    email: str
+    phone: Optional[str] = None
+    requirements: str
+    description: str
+    city: str = ""
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class JobCreate(BaseModel):
+    company_name: str
+    job_title: str
+    email: str
+    phone: Optional[str] = None
+    requirements: str
+    description: str
+    city: str = ""
+
+class JobUpdate(BaseModel):
+    company_name: Optional[str] = None
+    job_title: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    requirements: Optional[str] = None
+    description: Optional[str] = None
+    city: Optional[str] = None
+    is_active: Optional[bool] = None
+
 # ======================== STATIC DATA ========================
 
 CATEGORIES = [
@@ -3682,6 +3716,82 @@ async def get_block_history(request: Request):
         {}, {"_id": 0}
     ).sort("created_at", -1).limit(50).to_list(50)
     return history
+
+# ======================== JOB LISTINGS ========================
+
+@api_router.get("/jobs")
+async def list_jobs(city: Optional[str] = None, search: Optional[str] = None):
+    """List all active job listings (public endpoint)"""
+    query = {"is_active": True}
+    if city:
+        query["city"] = city
+    if search:
+        query["$or"] = [
+            {"company_name": {"$regex": search, "$options": "i"}},
+            {"job_title": {"$regex": search, "$options": "i"}},
+            {"description": {"$regex": search, "$options": "i"}},
+        ]
+    
+    jobs = await db.jobs.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return jobs
+
+@api_router.get("/jobs/{job_id}")
+async def get_job(job_id: str):
+    """Get a specific job listing by ID"""
+    job = await db.jobs.find_one({"job_id": job_id}, {"_id": 0})
+    if not job:
+        raise HTTPException(status_code=404, detail="Vaga não encontrada")
+    return job
+
+@api_router.post("/admin/jobs")
+async def create_job(request: Request, job_data: JobCreate):
+    """Create a new job listing (admin only)"""
+    await require_admin(request)
+    
+    job = Job(
+        company_name=job_data.company_name,
+        job_title=job_data.job_title,
+        email=job_data.email,
+        phone=job_data.phone,
+        requirements=job_data.requirements,
+        description=job_data.description,
+        city=job_data.city,
+    )
+    
+    await db.jobs.insert_one(job.dict())
+    return {"success": True, "job_id": job.job_id, "message": "Vaga criada com sucesso!"}
+
+@api_router.put("/admin/jobs/{job_id}")
+async def update_job(request: Request, job_id: str, job_data: JobUpdate):
+    """Update a job listing (admin only)"""
+    await require_admin(request)
+    
+    job = await db.jobs.find_one({"job_id": job_id})
+    if not job:
+        raise HTTPException(status_code=404, detail="Vaga não encontrada")
+    
+    update_fields = {k: v for k, v in job_data.dict().items() if v is not None}
+    update_fields["updated_at"] = datetime.now(timezone.utc)
+    
+    await db.jobs.update_one({"job_id": job_id}, {"$set": update_fields})
+    return {"success": True, "message": "Vaga atualizada com sucesso!"}
+
+@api_router.delete("/admin/jobs/{job_id}")
+async def delete_job(request: Request, job_id: str):
+    """Delete a job listing (admin only)"""
+    await require_admin(request)
+    
+    result = await db.jobs.delete_one({"job_id": job_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Vaga não encontrada")
+    return {"success": True, "message": "Vaga excluída com sucesso!"}
+
+@api_router.get("/admin/all-jobs")
+async def admin_list_all_jobs(request: Request):
+    """List all job listings including inactive (admin only)"""
+    await require_admin(request)
+    jobs = await db.jobs.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return jobs
 
 # ======================== ADMIN PREMIUM & NOTIFICATIONS ========================
 

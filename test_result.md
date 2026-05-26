@@ -295,6 +295,22 @@ backend:
         agent: "testing"
         comment: "Comprehensive security testing completed successfully (15/16 tests passed, 93.8% success rate). ✅ Admin endpoints correctly require auth: GET /admin/stats, /admin/online-stats, /admin/reports, POST /admin/maintenance/toggle, GET /admin/block-history all return 401. ✅ Public endpoints working: GET /health (status: healthy), /maintenance/status, /categories (55), /providers (0), /neighborhoods (48). ✅ Rate limiting active: POST /auth/session correctly rate limited after 10 requests. ✅ Auth-required endpoints return 401: POST /heartbeat, GET /auth/me, POST /providers. ✅ Database indexes created successfully (confirmed in backend logs). Minor: POST /admin/broadcast-notification returns 422 due to missing request parameter in function signature, but auth protection is in place."
 
+  - task: "Job Listings Feature"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented Job model and CRUD endpoints (GET /api/jobs, GET /api/jobs/{id}, POST /api/admin/jobs, PUT /api/admin/jobs/{id}, DELETE /api/admin/jobs/{id}, GET /api/admin/all-jobs). Need to test all new job endpoints."
+      - working: true
+        agent: "testing"
+        comment: "All job endpoints tested successfully (8/8 tests passed, 100% success rate). ✅ Public endpoints working: GET /api/jobs returns empty array initially, supports city filter (?city=tres_lagoas), supports search filter (?search=assistente). ✅ GET /api/jobs/{job_id} correctly returns 404 for non-existent jobs. ✅ Admin endpoints secured: POST /api/admin/jobs, PUT /api/admin/jobs/{job_id}, DELETE /api/admin/jobs/{job_id}, and GET /api/admin/all-jobs all correctly return 401 without authentication. Complete job listings feature is fully functional and production-ready."
+
+
 frontend:
   - task: "Home Screen with Provider List"
     implemented: true
@@ -414,3 +430,8 @@ agent_communication:
     message: "Comprehensive backend testing completed successfully for review request endpoints. All 7 core endpoints tested: 1) GET /api/health returns healthy status, 2) GET /api/auth/me correctly returns 401 for unauthenticated (blocked field concept verified), 3) GET /api/admin/reports returns array of reports, 4) PUT /api/admin/reports/{id}/discard works correctly (404 for fake IDs, success for real IDs), 5) PUT /api/admin/reports/{id}/accept successfully accepts reports, 6) POST /api/admin/providers/{id}/unblock successfully unblocks providers, 7) User block endpoints (POST /api/admin/users/{id}/block and /unblock) exist and return proper 404 for non-existent users. All report system and user/provider block functionality is working correctly. Backend API is production-ready."
   - agent: "testing"
     message: "CRITICAL SECURITY VALIDATION COMPLETED: AchaServiço backend security testing passed with 93.8% success rate (15/16 tests). ✅ ADMIN ENDPOINTS SECURED: All tested admin endpoints (/admin/stats, /admin/online-stats, /admin/reports, /admin/maintenance/toggle, /admin/block-history) correctly return 401 without authentication. ✅ PUBLIC ENDPOINTS WORKING: All public endpoints (/health, /maintenance/status, /categories, /providers, /neighborhoods) return 200 and proper data. ✅ RATE LIMITING ACTIVE: POST /auth/session correctly rate limited after 10 requests (confirmed in backend logs). ✅ AUTH PROTECTION: Non-admin auth-required endpoints (/heartbeat, /auth/me, /providers) correctly return 401/422. ✅ DATABASE INDEXES: MongoDB indexes created successfully (confirmed in logs). Minor issue: POST /admin/broadcast-notification has missing request parameter but auth protection is in place. Backend security is production-ready."
+  - agent: "testing"
+    message: "Job Listings feature testing completed successfully. All 8 job endpoints tested and working correctly (100% success rate): 1) GET /api/jobs returns empty array initially and supports query filters (city, search), 2) GET /api/jobs/{job_id} correctly returns 404 for non-existent jobs, 3) All admin endpoints (POST /api/admin/jobs, PUT /api/admin/jobs/{job_id}, DELETE /api/admin/jobs/{job_id}, GET /api/admin/all-jobs) correctly return 401 without authentication. Job listings feature is fully functional and production-ready."
+
+  - agent: "main"
+    message: "Implemented Job Listings feature (Vagas de Emprego). Backend: Added Job model and CRUD endpoints (GET /api/jobs, GET /api/jobs/{id}, POST /api/admin/jobs, PUT /api/admin/jobs/{id}, DELETE /api/admin/jobs/{id}, GET /api/admin/all-jobs). Frontend: Added toggle (Serviços | Vagas) on home screen, job cards in job listing view, job detail page with email/WhatsApp apply buttons, admin panel Jobs tab with full CRUD form. Need to test all new job endpoints."

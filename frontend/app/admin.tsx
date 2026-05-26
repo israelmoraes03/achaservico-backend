@@ -29,7 +29,7 @@ const ADMIN_EMAIL = 'israel.moraes03@gmail.com';
 // Backend URL for direct downloads
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://achaservico-backend.onrender.com';
 
-type TabType = 'dashboard' | 'providers' | 'users' | 'subscriptions' | 'reviews' | 'reports';
+type TabType = 'dashboard' | 'providers' | 'users' | 'subscriptions' | 'reviews' | 'reports' | 'jobs';
 
 interface Stats {
   total_users: number;
@@ -118,6 +118,19 @@ export default function AdminScreen() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reports, setReports] = useState<AdminReport[]>([]);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Jobs states
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [showJobForm, setShowJobForm] = useState(false);
+  const [editingJob, setEditingJob] = useState<any>(null);
+  const [jobCompanyName, setJobCompanyName] = useState('');
+  const [jobTitle, setJobTitle] = useState('');
+  const [jobEmail, setJobEmail] = useState('');
+  const [jobPhone, setJobPhone] = useState('');
+  const [jobRequirements, setJobRequirements] = useState('');
+  const [jobDescription, setJobDescription] = useState('');
+  const [jobCity, setJobCity] = useState('');
+  const [savingJob, setSavingJob] = useState(false);
   const [bannerImage, setBannerImage] = useState<string | null>(null);
   const [bannerLink, setBannerLink] = useState('');
   const [currentBanner, setCurrentBanner] = useState<any>(null);
@@ -445,6 +458,112 @@ export default function AdminScreen() {
     }
   };
 
+  const fetchJobs = async () => {
+    try {
+      const response = await api.get('/admin/all-jobs');
+      setJobs(response.data || []);
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
+    }
+  };
+
+  const resetJobForm = () => {
+    setJobCompanyName('');
+    setJobTitle('');
+    setJobEmail('');
+    setJobPhone('');
+    setJobRequirements('');
+    setJobDescription('');
+    setJobCity('');
+    setEditingJob(null);
+    setShowJobForm(false);
+  };
+
+  const handleEditJob = (job: any) => {
+    setEditingJob(job);
+    setJobCompanyName(job.company_name || '');
+    setJobTitle(job.job_title || '');
+    setJobEmail(job.email || '');
+    setJobPhone(job.phone || '');
+    setJobRequirements(job.requirements || '');
+    setJobDescription(job.description || '');
+    setJobCity(job.city || '');
+    setShowJobForm(true);
+  };
+
+  const handleSaveJob = async () => {
+    if (!jobCompanyName.trim() || !jobTitle.trim() || !jobEmail.trim()) {
+      Alert.alert('Erro', 'Preencha pelo menos: Empresa, Vaga e Email');
+      return;
+    }
+    try {
+      setSavingJob(true);
+      const jobData = {
+        company_name: jobCompanyName.trim(),
+        job_title: jobTitle.trim(),
+        email: jobEmail.trim(),
+        phone: jobPhone.trim() || null,
+        requirements: jobRequirements.trim(),
+        description: jobDescription.trim(),
+        city: jobCity.trim(),
+      };
+
+      if (editingJob) {
+        await api.put(`/admin/jobs/${editingJob.job_id}`, jobData);
+        setActionMessage('Vaga atualizada!');
+      } else {
+        await api.post('/admin/jobs', jobData);
+        setActionMessage('Vaga criada com sucesso!');
+      }
+      resetJobForm();
+      fetchJobs();
+      setTimeout(() => setActionMessage(''), 3000);
+    } catch (error: any) {
+      const msg = error?.response?.data?.detail || 'Erro ao salvar vaga';
+      setActionMessage(msg);
+      setTimeout(() => setActionMessage(''), 3000);
+    } finally {
+      setSavingJob(false);
+    }
+  };
+
+  const handleDeleteJob = (job: any) => {
+    Alert.alert(
+      'Excluir Vaga',
+      `Deseja excluir a vaga "${job.job_title}" da empresa "${job.company_name}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/admin/jobs/${job.job_id}`);
+              fetchJobs();
+              setActionMessage('Vaga excluída!');
+              setTimeout(() => setActionMessage(''), 3000);
+            } catch (error) {
+              setActionMessage('Erro ao excluir vaga');
+              setTimeout(() => setActionMessage(''), 3000);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleToggleJobStatus = async (job: any) => {
+    try {
+      await api.put(`/admin/jobs/${job.job_id}`, { is_active: !job.is_active });
+      fetchJobs();
+      setActionMessage(job.is_active ? 'Vaga desativada' : 'Vaga ativada');
+      setTimeout(() => setActionMessage(''), 3000);
+    } catch (error) {
+      setActionMessage('Erro ao alterar status');
+      setTimeout(() => setActionMessage(''), 3000);
+    }
+  };
+
   const pickBannerImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -616,6 +735,7 @@ export default function AdminScreen() {
       fetchReviews(),
       fetchReports(),
       fetchBanner(),
+      fetchJobs(),
     ]);
     setIsLoading(false);
   }, []);
@@ -886,6 +1006,7 @@ export default function AdminScreen() {
           { id: 'subscriptions', label: 'Assinaturas', icon: 'card' },
           { id: 'reviews', label: 'Avaliações', icon: 'star' },
           { id: 'reports', label: 'Denúncias', icon: 'flag' },
+          { id: 'jobs', label: 'Vagas', icon: 'briefcase-outline' },
         ].map((tab) => (
           <TouchableOpacity
             key={tab.id}
@@ -2068,6 +2189,188 @@ export default function AdminScreen() {
                         >
                           <Ionicons name="trash-outline" size={14} color="#EF4444" />
                           <Text style={styles.reportDeleteText}>Excluir</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))
+                )}
+              </View>
+            )}
+
+            {/* ========== JOBS TAB ========== */}
+            {activeTab === 'jobs' && (
+              <View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <Text style={styles.sectionTitle}>
+                    Vagas de Emprego ({jobs.length})
+                  </Text>
+                  <TouchableOpacity
+                    style={{ backgroundColor: '#10B981', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                    onPress={() => { resetJobForm(); setShowJobForm(true); }}
+                  >
+                    <Ionicons name="add" size={18} color="#FFFFFF" />
+                    <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 14 }}>Nova Vaga</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Job Form Modal */}
+                {showJobForm && (
+                  <View style={[styles.card, { marginBottom: 16, borderColor: '#10B981', borderWidth: 1 }]}>
+                    <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', marginBottom: 12 }}>
+                      {editingJob ? 'Editar Vaga' : 'Nova Vaga'}
+                    </Text>
+                    
+                    <Text style={{ color: '#9CA3AF', fontSize: 13, marginBottom: 4 }}>Nome da Empresa *</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={jobCompanyName}
+                      onChangeText={setJobCompanyName}
+                      placeholder="Ex: Empresa XPTO"
+                      placeholderTextColor="#6B7280"
+                    />
+
+                    <Text style={{ color: '#9CA3AF', fontSize: 13, marginBottom: 4 }}>Título da Vaga *</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={jobTitle}
+                      onChangeText={setJobTitle}
+                      placeholder="Ex: Assistente Administrativo"
+                      placeholderTextColor="#6B7280"
+                    />
+
+                    <Text style={{ color: '#9CA3AF', fontSize: 13, marginBottom: 4 }}>Email para Contato *</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={jobEmail}
+                      onChangeText={setJobEmail}
+                      placeholder="Ex: rh@empresa.com"
+                      placeholderTextColor="#6B7280"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+
+                    <Text style={{ color: '#9CA3AF', fontSize: 13, marginBottom: 4 }}>Telefone/WhatsApp (opcional)</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={jobPhone}
+                      onChangeText={setJobPhone}
+                      placeholder="Ex: (67) 99999-9999"
+                      placeholderTextColor="#6B7280"
+                      keyboardType="phone-pad"
+                    />
+
+                    <Text style={{ color: '#9CA3AF', fontSize: 13, marginBottom: 4 }}>Cidade</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={jobCity}
+                      onChangeText={setJobCity}
+                      placeholder="Ex: tres_lagoas"
+                      placeholderTextColor="#6B7280"
+                    />
+
+                    <Text style={{ color: '#9CA3AF', fontSize: 13, marginBottom: 4 }}>Requisitos *</Text>
+                    <TextInput
+                      style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+                      value={jobRequirements}
+                      onChangeText={setJobRequirements}
+                      placeholder="Ex: Ensino médio completo, experiência com Excel..."
+                      placeholderTextColor="#6B7280"
+                      multiline
+                      numberOfLines={3}
+                    />
+
+                    <Text style={{ color: '#9CA3AF', fontSize: 13, marginBottom: 4 }}>Descrição da Vaga *</Text>
+                    <TextInput
+                      style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
+                      value={jobDescription}
+                      onChangeText={setJobDescription}
+                      placeholder="Descreva as atividades e responsabilidades..."
+                      placeholderTextColor="#6B7280"
+                      multiline
+                      numberOfLines={4}
+                    />
+
+                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+                      <TouchableOpacity
+                        style={{ flex: 1, backgroundColor: '#374151', paddingVertical: 12, borderRadius: 8, alignItems: 'center' }}
+                        onPress={resetJobForm}
+                      >
+                        <Text style={{ color: '#9CA3AF', fontWeight: '600' }}>Cancelar</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={{ flex: 1, backgroundColor: '#10B981', paddingVertical: 12, borderRadius: 8, alignItems: 'center', opacity: savingJob ? 0.6 : 1 }}
+                        onPress={handleSaveJob}
+                        disabled={savingJob}
+                      >
+                        <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>
+                          {savingJob ? 'Salvando...' : (editingJob ? 'Atualizar' : 'Criar Vaga')}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
+                {/* Jobs List */}
+                {jobs.length === 0 ? (
+                  <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                    <Ionicons name="briefcase-outline" size={48} color="#374151" />
+                    <Text style={styles.emptyText}>Nenhuma vaga cadastrada</Text>
+                    <Text style={{ color: '#6B7280', fontSize: 13, textAlign: 'center', marginTop: 4 }}>
+                      Clique em "Nova Vaga" para adicionar
+                    </Text>
+                  </View>
+                ) : (
+                  jobs.map((job) => (
+                    <View key={job.job_id} style={[styles.card, !job.is_active && { opacity: 0.6 }]}>
+                      <View style={styles.cardHeader}>
+                        <View style={styles.cardInfo}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                            <Ionicons name="business" size={18} color="#10B981" />
+                            <Text style={styles.cardTitle}>{job.company_name}</Text>
+                          </View>
+                          <Text style={{ color: '#10B981', fontSize: 14, fontWeight: '600', marginBottom: 4 }}>
+                            {job.job_title}
+                          </Text>
+                          <Text style={styles.cardDetail}>
+                            {job.city ? job.city.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : 'Sem cidade'}
+                          </Text>
+                          <Text style={styles.cardDetail}>
+                            {job.email}
+                          </Text>
+                          {job.phone && (
+                            <Text style={styles.cardDetail}>{job.phone}</Text>
+                          )}
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => handleToggleJobStatus(job)}
+                          style={[
+                            styles.statusBadge,
+                            { backgroundColor: job.is_active ? '#10B98120' : '#EF444420' }
+                          ]}
+                        >
+                          <Text style={[
+                            styles.statusText,
+                            { color: job.is_active ? '#10B981' : '#EF4444' }
+                          ]}>
+                            {job.is_active ? 'Ativa' : 'Inativa'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      <View style={styles.cardActions}>
+                        <TouchableOpacity
+                          style={[styles.actionButton, { backgroundColor: '#3B82F620', flex: 1 }]}
+                          onPress={() => handleEditJob(job)}
+                        >
+                          <Ionicons name="create-outline" size={16} color="#3B82F6" />
+                          <Text style={[styles.actionText, { color: '#3B82F6' }]}>Editar</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.actionButton, { backgroundColor: '#EF444420', flex: 1 }]}
+                          onPress={() => handleDeleteJob(job)}
+                        >
+                          <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                          <Text style={[styles.actionText, { color: '#EF4444' }]}>Excluir</Text>
                         </TouchableOpacity>
                       </View>
                     </View>

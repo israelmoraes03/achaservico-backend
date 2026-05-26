@@ -105,6 +105,13 @@ export default function HomeScreen() {
   const [showTutorial, setShowTutorial] = useState(false);
   const [bannerData, setBannerData] = useState<{image: string; link?: string; active: boolean} | null>(null);
   const [showBanner, setShowBanner] = useState(false);
+  
+  // Jobs tab state
+  const [activeMainTab, setActiveMainTab] = useState<'services' | 'jobs'>('services');
+  const [jobListings, setJobListings] = useState<any[]>([]);
+  const [isLoadingJobs, setIsLoadingJobs] = useState(false);
+  const [jobSearchQuery, setJobSearchQuery] = useState('');
+  const [jobCityFilter, setJobCityFilter] = useState<string | null>(null);
 
   // Check if tutorial should be shown
   useEffect(() => {
@@ -199,6 +206,41 @@ export default function HomeScreen() {
     } catch (error) {
       console.log('Error sharing:', error);
     }
+  };
+
+  // Fetch job listings
+  const fetchJobListings = useCallback(async () => {
+    try {
+      setIsLoadingJobs(true);
+      const params: any = {};
+      if (jobCityFilter) params.city = jobCityFilter;
+      if (jobSearchQuery) params.search = jobSearchQuery;
+      const response = await api.get('/jobs', { params });
+      setJobListings(response.data || []);
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
+    } finally {
+      setIsLoadingJobs(false);
+    }
+  }, [jobCityFilter, jobSearchQuery]);
+
+  // Fetch jobs when tab switches or filters change
+  useEffect(() => {
+    if (activeMainTab === 'jobs') {
+      fetchJobListings();
+    }
+  }, [activeMainTab, fetchJobListings]);
+
+  const getJobTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Hoje';
+    if (diffDays === 1) return 'Ontem';
+    if (diffDays < 7) return `${diffDays} dias atrás`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} sem. atrás`;
+    return `${Math.floor(diffDays / 30)} mês(es) atrás`;
   };
 
   const fetchData = useCallback(async () => {
@@ -402,7 +444,30 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Modern Filter Chips */}
+      {/* Main Tab Toggle: Serviços | Vagas */}
+      <View style={styles.mainTabToggle}>
+        <TouchableOpacity
+          style={[styles.mainTabButton, activeMainTab === 'services' && styles.mainTabButtonActive]}
+          onPress={() => setActiveMainTab('services')}
+        >
+          <Ionicons name="construct" size={18} color={activeMainTab === 'services' ? '#FFFFFF' : '#10B981'} />
+          <Text style={[styles.mainTabText, activeMainTab === 'services' && styles.mainTabTextActive]}>
+            Serviços
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.mainTabButton, activeMainTab === 'jobs' && styles.mainTabButtonActive]}
+          onPress={() => setActiveMainTab('jobs')}
+        >
+          <Ionicons name="briefcase" size={18} color={activeMainTab === 'jobs' ? '#FFFFFF' : '#10B981'} />
+          <Text style={[styles.mainTabText, activeMainTab === 'jobs' && styles.mainTabTextActive]}>
+            Vagas
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Modern Filter Chips - Only show for services */}
+      {activeMainTab === 'services' && (
       <View style={styles.filterChipsContainer}>
         <TouchableOpacity
           style={[styles.filterChip, selectedCity && styles.filterChipActive]}
@@ -441,6 +506,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
         )}
       </View>
+      )}
 
       {/* City Bottom Sheet Modal */}
       <Modal
@@ -540,7 +606,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Banner - Seja um Prestador */}
-        {user && !user.is_provider && (
+        {activeMainTab === 'services' && user && !user.is_provider && (
           <TouchableOpacity
             style={styles.providerBanner}
             onPress={() => router.push('/provider/register')}
@@ -560,7 +626,7 @@ export default function HomeScreen() {
         )}
 
         {/* Banner - Acessar Dashboard (para prestadores) */}
-        {user && user.is_provider && (
+        {activeMainTab === 'services' && user && user.is_provider && (
           <TouchableOpacity
             style={styles.providerDashboardBanner}
             onPress={() => router.push('/provider/dashboard')}
@@ -579,7 +645,9 @@ export default function HomeScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Categories */}
+        {/* Categories - Only show for services */}
+        {activeMainTab === 'services' && (
+        <>
         <Text style={styles.sectionTitle}>Categorias</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesContainer}>
           <TouchableOpacity
@@ -859,6 +927,62 @@ export default function HomeScreen() {
               </View>
             </TouchableOpacity>
           ))
+        )}
+        </>
+        )}
+
+        {/* ========== JOBS TAB CONTENT ========== */}
+        {activeMainTab === 'jobs' && (
+          <>
+            <Text style={styles.sectionTitle}>
+              Vagas Disponíveis {jobListings.length > 0 && `(${jobListings.length})`}
+            </Text>
+
+            {isLoadingJobs ? (
+              <ActivityIndicator size="large" color="#10B981" style={styles.loader} />
+            ) : jobListings.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="briefcase-outline" size={64} color="#374151" />
+                <Text style={styles.emptyTitle}>Nenhuma vaga disponível</Text>
+                <Text style={styles.emptyText}>
+                  No momento não há vagas publicadas. Volte em breve!
+                </Text>
+              </View>
+            ) : (
+              jobListings.map((job: any) => (
+                <TouchableOpacity
+                  key={job.job_id}
+                  style={styles.jobCard}
+                  onPress={() => router.push(`/jobs/${job.job_id}`)}
+                >
+                  <View style={styles.jobCardHeader}>
+                    <View style={styles.jobIconContainer}>
+                      <Ionicons name="business" size={24} color="#10B981" />
+                    </View>
+                    <View style={styles.jobCardInfo}>
+                      <Text style={styles.jobCompanyName}>{job.company_name}</Text>
+                      <Text style={styles.jobTitle}>{job.job_title}</Text>
+                      <View style={styles.jobMeta}>
+                        {job.city && (
+                          <View style={styles.jobMetaItem}>
+                            <Ionicons name="location" size={12} color="#6B7280" />
+                            <Text style={styles.jobMetaText}>
+                              {getCityName(job.city)}
+                            </Text>
+                          </View>
+                        )}
+                        <View style={styles.jobMetaItem}>
+                          <Ionicons name="time" size={12} color="#6B7280" />
+                          <Text style={styles.jobMetaText}>{getJobTimeAgo(job.created_at)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
+          </>
         )}
 
         <View style={styles.bottomSpacer} />
@@ -1538,5 +1662,82 @@ const styles = StyleSheet.create({
   bottomSheetOptionTextActive: {
     color: '#10B981',
     fontWeight: '600',
+  },
+  // Main Tab Toggle (Serviços | Vagas)
+  mainTabToggle: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    backgroundColor: '#1F2937',
+    borderRadius: 12,
+    padding: 4,
+  },
+  mainTabButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
+  },
+  mainTabButtonActive: {
+    backgroundColor: '#10B981',
+  },
+  mainTabText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#10B981',
+  },
+  mainTabTextActive: {
+    color: '#FFFFFF',
+  },
+  // Job Cards
+  jobCard: {
+    backgroundColor: '#1F2937',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+  },
+  jobCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  jobIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#10B98115',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  jobCardInfo: {
+    flex: 1,
+  },
+  jobCompanyName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  jobTitle: {
+    fontSize: 14,
+    color: '#10B981',
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  jobMeta: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  jobMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  jobMetaText: {
+    fontSize: 12,
+    color: '#6B7280',
   },
 });
