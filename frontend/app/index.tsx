@@ -116,13 +116,24 @@ export default function HomeScreen() {
   const [jobAvailableCompanies, setJobAvailableCompanies] = useState<string[]>([]);
   const [showJobSubmitForm, setShowJobSubmitForm] = useState(false);
   const [jobSubmitting, setJobSubmitting] = useState(false);
-  const [submitCompanyName, setSubmitCompanyName] = useState('');
-  const [submitJobTitle, setSubmitJobTitle] = useState('');
-  const [submitJobEmail, setSubmitJobEmail] = useState('');
-  const [submitJobPhone, setSubmitJobPhone] = useState('');
-  const [submitJobRequirements, setSubmitJobRequirements] = useState('');
-  const [submitJobDescription, setSubmitJobDescription] = useState('');
-  const [submitJobCity, setSubmitJobCity] = useState('');
+  // Company state
+  const [myCompany, setMyCompany] = useState<any>(null);
+  const [companyLoading, setCompanyLoading] = useState(false);
+  const [showCompanyRegForm, setShowCompanyRegForm] = useState(false);
+  const [regCompanyName, setRegCompanyName] = useState('');
+  const [regCompanyCnpj, setRegCompanyCnpj] = useState('');
+  const [regCompanyEmail, setRegCompanyEmail] = useState('');
+  const [regCompanyPhone, setRegCompanyPhone] = useState('');
+  const [regCompanyCity, setRegCompanyCity] = useState('');
+  const [regSubmitting, setRegSubmitting] = useState(false);
+  // Company jobs management
+  const [myCompanyJobs, setMyCompanyJobs] = useState<any[]>([]);
+  const [showNewJobForm, setShowNewJobForm] = useState(false);
+  const [newJobTitle, setNewJobTitle] = useState('');
+  const [newJobRequirements, setNewJobRequirements] = useState('');
+  const [newJobDescription, setNewJobDescription] = useState('');
+  const [newJobCity, setNewJobCity] = useState('');
+  const [newJobSubmitting, setNewJobSubmitting] = useState(false);
 
   // Check if tutorial should be shown
   useEffect(() => {
@@ -260,37 +271,106 @@ export default function HomeScreen() {
   };
 
   const handleSubmitJob = async () => {
-    if (!submitCompanyName.trim() || !submitJobTitle.trim() || !submitJobEmail.trim()) {
-      Alert.alert('Erro', 'Preencha pelo menos: Empresa, Vaga e Email');
+    if (!newJobTitle.trim() || !newJobRequirements.trim() || !newJobDescription.trim()) {
+      Alert.alert('Erro', 'Preencha todos os campos obrigatórios');
       return;
     }
     try {
-      setJobSubmitting(true);
+      setNewJobSubmitting(true);
       await api.post('/jobs/submit', {
-        company_name: submitCompanyName.trim(),
-        job_title: submitJobTitle.trim(),
-        email: submitJobEmail.trim(),
-        phone: submitJobPhone.trim() || null,
-        requirements: submitJobRequirements.trim(),
-        description: submitJobDescription.trim(),
-        city: submitJobCity.trim(),
+        company_name: myCompany?.company?.company_name || '',
+        job_title: newJobTitle.trim(),
+        email: myCompany?.company?.email || '',
+        phone: myCompany?.company?.phone || null,
+        requirements: newJobRequirements.trim(),
+        description: newJobDescription.trim(),
+        city: newJobCity.trim() || myCompany?.company?.city || '',
       });
-      Alert.alert('Sucesso!', 'Sua vaga foi enviada para aprovação. O administrador irá analisar em breve.');
-      setShowJobSubmitForm(false);
-      setSubmitCompanyName('');
-      setSubmitJobTitle('');
-      setSubmitJobEmail('');
-      setSubmitJobPhone('');
-      setSubmitJobRequirements('');
-      setSubmitJobDescription('');
-      setSubmitJobCity('');
+      Alert.alert('Sucesso!', 'Vaga publicada com sucesso!');
+      setShowNewJobForm(false);
+      setNewJobTitle('');
+      setNewJobRequirements('');
+      setNewJobDescription('');
+      setNewJobCity('');
+      fetchMyCompanyJobs();
+      fetchJobListings();
     } catch (error: any) {
-      const msg = error?.response?.data?.detail || 'Erro ao enviar vaga. Faça login primeiro.';
-      Alert.alert('Erro', msg);
+      Alert.alert('Erro', error?.response?.data?.detail || 'Erro ao publicar vaga');
     } finally {
-      setJobSubmitting(false);
+      setNewJobSubmitting(false);
     }
   };
+
+  const handleRegisterCompany = async () => {
+    if (!regCompanyName.trim() || !regCompanyEmail.trim() || !regCompanyPhone.trim()) {
+      Alert.alert('Erro', 'Preencha pelo menos: Nome, Email e Telefone');
+      return;
+    }
+    try {
+      setRegSubmitting(true);
+      await api.post('/companies/register', {
+        company_name: regCompanyName.trim(),
+        cnpj: regCompanyCnpj.trim() || null,
+        email: regCompanyEmail.trim(),
+        phone: regCompanyPhone.trim(),
+        city: regCompanyCity.trim(),
+      });
+      Alert.alert('Sucesso!', 'Empresa cadastrada! Aguarde a aprovação do administrador.');
+      setShowCompanyRegForm(false);
+      fetchMyCompany();
+    } catch (error: any) {
+      Alert.alert('Erro', error?.response?.data?.detail || 'Erro ao cadastrar empresa');
+    } finally {
+      setRegSubmitting(false);
+    }
+  };
+
+  const fetchMyCompany = async () => {
+    try {
+      setCompanyLoading(true);
+      const response = await api.get('/companies/my');
+      setMyCompany(response.data);
+    } catch (error) {
+      console.log('No company found');
+    } finally {
+      setCompanyLoading(false);
+    }
+  };
+
+  const fetchMyCompanyJobs = async () => {
+    try {
+      const response = await api.get('/companies/my-jobs');
+      setMyCompanyJobs(response.data || []);
+    } catch (error) {
+      console.log('Error fetching company jobs');
+    }
+  };
+
+  const handleDeleteMyJob = (job: any) => {
+    Alert.alert('Excluir Vaga', `Deseja excluir a vaga "${job.job_title}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Excluir', style: 'destructive',
+        onPress: async () => {
+          try {
+            await api.delete(`/companies/jobs/${job.job_id}`);
+            fetchMyCompanyJobs();
+            fetchJobListings();
+            Alert.alert('Sucesso', 'Vaga excluída!');
+          } catch (error) {
+            Alert.alert('Erro', 'Erro ao excluir vaga');
+          }
+        }
+      }
+    ]);
+  };
+
+  // Fetch company data when jobs tab is active
+  useEffect(() => {
+    if (activeMainTab === 'jobs' && user) {
+      fetchMyCompany();
+    }
+  }, [activeMainTab, user]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -1012,42 +1092,146 @@ export default function HomeScreen() {
               </ScrollView>
             )}
 
-            {/* Anunciar Vaga Button */}
+            {/* Company Section - Registration or Management */}
             {user && (
-              <TouchableOpacity
-                style={{ backgroundColor: '#8B5CF6', borderRadius: 12, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16 }}
-                onPress={() => setShowJobSubmitForm(!showJobSubmitForm)}
-              >
-                <Ionicons name={showJobSubmitForm ? 'close' : 'add-circle'} size={20} color="#FFFFFF" />
-                <Text style={{ color: '#FFFFFF', fontWeight: 'bold', fontSize: 15 }}>
-                  {showJobSubmitForm ? 'Cancelar' : 'Anunciar Vaga'}
-                </Text>
-              </TouchableOpacity>
-            )}
+              <View style={{ marginBottom: 16 }}>
+                {companyLoading ? (
+                  <ActivityIndicator size="small" color="#10B981" />
+                ) : !myCompany?.has_company ? (
+                  /* No company - Show registration CTA */
+                  <View>
+                    {!showCompanyRegForm ? (
+                      <View style={{ backgroundColor: '#1F2937', borderRadius: 16, padding: 20, alignItems: 'center' }}>
+                        <Ionicons name="business-outline" size={40} color="#8B5CF6" />
+                        <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', marginTop: 12, textAlign: 'center' }}>Quer anunciar vagas?</Text>
+                        <Text style={{ color: '#9CA3AF', fontSize: 13, textAlign: 'center', marginTop: 6, marginBottom: 16 }}>
+                          Cadastre sua empresa para publicar vagas no AchaServiço. É rápido e fácil!
+                        </Text>
+                        <TouchableOpacity
+                          style={{ backgroundColor: '#8B5CF6', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 24 }}
+                          onPress={() => setShowCompanyRegForm(true)}
+                        >
+                          <Text style={{ color: '#FFFFFF', fontWeight: 'bold', fontSize: 14 }}>Cadastrar Minha Empresa</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      /* Company Registration Form */
+                      <View style={{ backgroundColor: '#1F2937', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#8B5CF6' }}>
+                        <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', marginBottom: 4 }}>Cadastro da Empresa</Text>
+                        <Text style={{ color: '#9CA3AF', fontSize: 12, marginBottom: 12 }}>Após o cadastro, o administrador irá analisar e aprovar sua empresa.</Text>
+                        <TextInput style={styles.jobFormInput} placeholder="Nome da Empresa *" placeholderTextColor="#6B7280" value={regCompanyName} onChangeText={setRegCompanyName} />
+                        <TextInput style={styles.jobFormInput} placeholder="CNPJ (opcional)" placeholderTextColor="#6B7280" value={regCompanyCnpj} onChangeText={setRegCompanyCnpj} />
+                        <TextInput style={styles.jobFormInput} placeholder="Email Corporativo *" placeholderTextColor="#6B7280" value={regCompanyEmail} onChangeText={setRegCompanyEmail} keyboardType="email-address" autoCapitalize="none" />
+                        <TextInput style={styles.jobFormInput} placeholder="Telefone/WhatsApp *" placeholderTextColor="#6B7280" value={regCompanyPhone} onChangeText={setRegCompanyPhone} keyboardType="phone-pad" />
+                        <TextInput style={styles.jobFormInput} placeholder="Cidade" placeholderTextColor="#6B7280" value={regCompanyCity} onChangeText={setRegCompanyCity} />
+                        <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                          <TouchableOpacity
+                            style={{ flex: 1, backgroundColor: '#374151', paddingVertical: 12, borderRadius: 8, alignItems: 'center' }}
+                            onPress={() => setShowCompanyRegForm(false)}
+                          >
+                            <Text style={{ color: '#9CA3AF', fontWeight: '600' }}>Cancelar</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={{ flex: 1, backgroundColor: '#8B5CF6', paddingVertical: 12, borderRadius: 8, alignItems: 'center', opacity: regSubmitting ? 0.6 : 1 }}
+                            onPress={handleRegisterCompany}
+                            disabled={regSubmitting}
+                          >
+                            <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>{regSubmitting ? 'Enviando...' : 'Cadastrar'}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                ) : myCompany?.company?.status === 'pending' ? (
+                  /* Company pending approval */
+                  <View style={{ backgroundColor: '#1F2937', borderRadius: 16, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: '#F59E0B40' }}>
+                    <Ionicons name="hourglass-outline" size={36} color="#F59E0B" />
+                    <Text style={{ color: '#F59E0B', fontSize: 16, fontWeight: 'bold', marginTop: 10 }}>Empresa em Análise</Text>
+                    <Text style={{ color: '#9CA3AF', fontSize: 13, textAlign: 'center', marginTop: 6 }}>
+                      Sua empresa "{myCompany.company.company_name}" está sendo analisada pelo administrador. Você será notificado quando for aprovada.
+                    </Text>
+                  </View>
+                ) : myCompany?.company?.status === 'approved' ? (
+                  /* Company approved - Job Management */
+                  <View>
+                    <View style={{ backgroundColor: '#1F2937', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#10B98140' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Ionicons name="business" size={22} color="#10B981" />
+                          <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' }}>{myCompany.company.company_name}</Text>
+                        </View>
+                        <View style={{ backgroundColor: '#10B98120', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                          <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '600' }}>Aprovada</Text>
+                        </View>
+                      </View>
+                      
+                      <TouchableOpacity
+                        style={{ backgroundColor: '#8B5CF6', borderRadius: 10, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                        onPress={() => { setShowNewJobForm(!showNewJobForm); if (!showNewJobForm) fetchMyCompanyJobs(); }}
+                      >
+                        <Ionicons name={showNewJobForm ? 'close' : 'add-circle'} size={18} color="#FFFFFF" />
+                        <Text style={{ color: '#FFFFFF', fontWeight: 'bold', fontSize: 14 }}>{showNewJobForm ? 'Cancelar' : 'Publicar Nova Vaga'}</Text>
+                      </TouchableOpacity>
+                    </View>
 
-            {/* Job Submit Form */}
-            {showJobSubmitForm && (
-              <View style={{ backgroundColor: '#1F2937', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#8B5CF6' }}>
-                <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', marginBottom: 12 }}>Anunciar Vaga</Text>
-                <Text style={{ color: '#9CA3AF', fontSize: 12, marginBottom: 12 }}>A vaga será analisada pelo administrador antes de ser publicada.</Text>
-                
-                <TextInput style={styles.jobFormInput} placeholder="Nome da Empresa *" placeholderTextColor="#6B7280" value={submitCompanyName} onChangeText={setSubmitCompanyName} />
-                <TextInput style={styles.jobFormInput} placeholder="Título da Vaga *" placeholderTextColor="#6B7280" value={submitJobTitle} onChangeText={setSubmitJobTitle} />
-                <TextInput style={styles.jobFormInput} placeholder="Email para Contato *" placeholderTextColor="#6B7280" value={submitJobEmail} onChangeText={setSubmitJobEmail} keyboardType="email-address" autoCapitalize="none" />
-                <TextInput style={styles.jobFormInput} placeholder="Telefone/WhatsApp (opcional)" placeholderTextColor="#6B7280" value={submitJobPhone} onChangeText={setSubmitJobPhone} keyboardType="phone-pad" />
-                <TextInput style={styles.jobFormInput} placeholder="Cidade" placeholderTextColor="#6B7280" value={submitJobCity} onChangeText={setSubmitJobCity} />
-                <TextInput style={[styles.jobFormInput, { height: 80, textAlignVertical: 'top' }]} placeholder="Requisitos *" placeholderTextColor="#6B7280" value={submitJobRequirements} onChangeText={setSubmitJobRequirements} multiline />
-                <TextInput style={[styles.jobFormInput, { height: 100, textAlignVertical: 'top' }]} placeholder="Descrição da Vaga *" placeholderTextColor="#6B7280" value={submitJobDescription} onChangeText={setSubmitJobDescription} multiline />
+                    {/* New Job Form */}
+                    {showNewJobForm && (
+                      <View style={{ backgroundColor: '#1F2937', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#8B5CF6' }}>
+                        <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: 'bold', marginBottom: 10 }}>Nova Vaga</Text>
+                        <TextInput style={styles.jobFormInput} placeholder="Título da Vaga *" placeholderTextColor="#6B7280" value={newJobTitle} onChangeText={setNewJobTitle} />
+                        <TextInput style={styles.jobFormInput} placeholder="Cidade (deixe vazio para usar a da empresa)" placeholderTextColor="#6B7280" value={newJobCity} onChangeText={setNewJobCity} />
+                        <TextInput style={[styles.jobFormInput, { height: 80, textAlignVertical: 'top' }]} placeholder="Requisitos *" placeholderTextColor="#6B7280" value={newJobRequirements} onChangeText={setNewJobRequirements} multiline />
+                        <TextInput style={[styles.jobFormInput, { height: 100, textAlignVertical: 'top' }]} placeholder="Descrição da Vaga *" placeholderTextColor="#6B7280" value={newJobDescription} onChangeText={setNewJobDescription} multiline />
+                        <TouchableOpacity
+                          style={{ backgroundColor: '#10B981', borderRadius: 10, paddingVertical: 14, alignItems: 'center', opacity: newJobSubmitting ? 0.6 : 1 }}
+                          onPress={handleSubmitJob}
+                          disabled={newJobSubmitting}
+                        >
+                          <Text style={{ color: '#FFFFFF', fontWeight: 'bold' }}>{newJobSubmitting ? 'Publicando...' : 'Publicar Vaga'}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
 
-                <TouchableOpacity
-                  style={{ backgroundColor: '#8B5CF6', borderRadius: 10, paddingVertical: 14, alignItems: 'center', opacity: jobSubmitting ? 0.6 : 1 }}
-                  onPress={handleSubmitJob}
-                  disabled={jobSubmitting}
-                >
-                  <Text style={{ color: '#FFFFFF', fontWeight: 'bold', fontSize: 15 }}>
-                    {jobSubmitting ? 'Enviando...' : 'Enviar para Aprovação'}
-                  </Text>
-                </TouchableOpacity>
+                    {/* My Company Jobs */}
+                    {myCompanyJobs.length > 0 && (
+                      <View>
+                        <Text style={{ color: '#9CA3AF', fontSize: 13, fontWeight: '600', marginBottom: 8 }}>SUAS VAGAS ({myCompanyJobs.length})</Text>
+                        {myCompanyJobs.map((job: any) => (
+                          <View key={job.job_id} style={{ backgroundColor: '#1F2937', borderRadius: 12, padding: 14, marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>{job.job_title}</Text>
+                              <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 2 }}>{job.city ? getCityName(job.city) : 'Sem cidade'}</Text>
+                            </View>
+                            <TouchableOpacity
+                              style={{ backgroundColor: '#EF444420', padding: 8, borderRadius: 8 }}
+                              onPress={() => handleDeleteMyJob(job)}
+                            >
+                              <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ) : myCompany?.company?.status === 'blocked' ? (
+                  /* Company blocked */
+                  <View style={{ backgroundColor: '#1F2937', borderRadius: 16, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: '#EF444440' }}>
+                    <Ionicons name="ban" size={36} color="#EF4444" />
+                    <Text style={{ color: '#EF4444', fontSize: 16, fontWeight: 'bold', marginTop: 10 }}>Empresa Bloqueada</Text>
+                    <Text style={{ color: '#9CA3AF', fontSize: 13, textAlign: 'center', marginTop: 6 }}>
+                      Sua empresa foi bloqueada. Entre em contato com o administrador.
+                    </Text>
+                  </View>
+                ) : (
+                  /* Company rejected */
+                  <View style={{ backgroundColor: '#1F2937', borderRadius: 16, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: '#EF444440' }}>
+                    <Ionicons name="close-circle" size={36} color="#EF4444" />
+                    <Text style={{ color: '#EF4444', fontSize: 16, fontWeight: 'bold', marginTop: 10 }}>Cadastro Recusado</Text>
+                    <Text style={{ color: '#9CA3AF', fontSize: 13, textAlign: 'center', marginTop: 6 }}>
+                      O cadastro da sua empresa foi recusado. Entre em contato com o administrador para mais informações.
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
 

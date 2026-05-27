@@ -29,7 +29,7 @@ const ADMIN_EMAIL = 'israel.moraes03@gmail.com';
 // Backend URL for direct downloads
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://achaservico-backend.onrender.com';
 
-type TabType = 'dashboard' | 'providers' | 'users' | 'subscriptions' | 'reviews' | 'reports' | 'jobs';
+type TabType = 'dashboard' | 'providers' | 'users' | 'subscriptions' | 'reviews' | 'reports' | 'companies' | 'jobs';
 
 interface Stats {
   total_users: number;
@@ -131,6 +131,9 @@ export default function AdminScreen() {
   const [jobDescription, setJobDescription] = useState('');
   const [jobCity, setJobCity] = useState('');
   const [savingJob, setSavingJob] = useState(false);
+
+  // Companies states
+  const [companies, setCompanies] = useState<any[]>([]);
   const [bannerImage, setBannerImage] = useState<string | null>(null);
   const [bannerLink, setBannerLink] = useState('');
   const [currentBanner, setCurrentBanner] = useState<any>(null);
@@ -469,6 +472,78 @@ export default function AdminScreen() {
     }
   };
 
+  const fetchCompanies = async () => {
+    try {
+      const response = await api.get('/admin/companies');
+      setCompanies(response.data || []);
+    } catch (error) {
+      console.error('Error fetching companies:', error);
+    }
+  };
+
+  const handleApproveCompany = async (company: any) => {
+    try {
+      await api.put(`/admin/companies/${company.company_id}/approve`);
+      fetchCompanies();
+      setActionMessage('Empresa aprovada!');
+      setTimeout(() => setActionMessage(''), 3000);
+    } catch (error) {
+      setActionMessage('Erro ao aprovar empresa');
+      setTimeout(() => setActionMessage(''), 3000);
+    }
+  };
+
+  const handleRejectCompany = (company: any) => {
+    Alert.alert('Recusar Empresa', `Deseja recusar "${company.company_name}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Recusar', style: 'destructive', onPress: async () => {
+        try {
+          await api.put(`/admin/companies/${company.company_id}/reject`);
+          fetchCompanies();
+          setActionMessage('Empresa recusada');
+          setTimeout(() => setActionMessage(''), 3000);
+        } catch (error) {
+          setActionMessage('Erro ao recusar empresa');
+          setTimeout(() => setActionMessage(''), 3000);
+        }
+      }}
+    ]);
+  };
+
+  const handleBlockCompany = async (company: any) => {
+    Alert.alert('Bloquear Empresa', `Deseja bloquear "${company.company_name}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Bloquear', style: 'destructive', onPress: async () => {
+        try {
+          await api.put(`/admin/companies/${company.company_id}/block`);
+          fetchCompanies();
+          setActionMessage('Empresa bloqueada');
+          setTimeout(() => setActionMessage(''), 3000);
+        } catch (error) {
+          setActionMessage('Erro ao bloquear empresa');
+          setTimeout(() => setActionMessage(''), 3000);
+        }
+      }}
+    ]);
+  };
+
+  const handleDeleteCompany = (company: any) => {
+    Alert.alert('Excluir Empresa', `Deseja EXCLUIR permanentemente "${company.company_name}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Excluir', style: 'destructive', onPress: async () => {
+        try {
+          await api.delete(`/admin/companies/${company.company_id}`);
+          fetchCompanies();
+          setActionMessage('Empresa excluída');
+          setTimeout(() => setActionMessage(''), 3000);
+        } catch (error) {
+          setActionMessage('Erro ao excluir empresa');
+          setTimeout(() => setActionMessage(''), 3000);
+        }
+      }}
+    ]);
+  };
+
   const resetJobForm = () => {
     setJobCompanyName('');
     setJobTitle('');
@@ -775,6 +850,7 @@ export default function AdminScreen() {
       fetchReports(),
       fetchBanner(),
       fetchJobs(),
+      fetchCompanies(),
     ]);
     setIsLoading(false);
   }, []);
@@ -1045,6 +1121,7 @@ export default function AdminScreen() {
           { id: 'subscriptions', label: 'Assinaturas', icon: 'card' },
           { id: 'reviews', label: 'Avaliações', icon: 'star' },
           { id: 'reports', label: 'Denúncias', icon: 'flag' },
+          { id: 'companies', label: 'Empresas', icon: 'business' },
           { id: 'jobs', label: 'Vagas', icon: 'briefcase-outline' },
         ].map((tab) => (
           <TouchableOpacity
@@ -2269,6 +2346,119 @@ export default function AdminScreen() {
                           <Text style={styles.reportDeleteText}>Excluir</Text>
                         </TouchableOpacity>
                       </View>
+                    </View>
+                  ))
+                )}
+              </View>
+            )}
+
+            {/* ========== COMPANIES TAB ========== */}
+            {activeTab === 'companies' && (
+              <View>
+                <Text style={styles.sectionTitle}>
+                  Empresas ({companies.filter(c => c.status === 'pending').length} pendentes)
+                </Text>
+
+                {companies.length === 0 ? (
+                  <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                    <Ionicons name="business-outline" size={48} color="#374151" />
+                    <Text style={styles.emptyText}>Nenhuma empresa cadastrada</Text>
+                  </View>
+                ) : (
+                  companies.map((company) => (
+                    <View key={company.company_id} style={[styles.card, company.status === 'pending' && { borderWidth: 1, borderColor: '#F59E0B40' }]}>
+                      <View style={styles.cardHeader}>
+                        <View style={styles.cardInfo}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                            <Ionicons name="business" size={18} color="#8B5CF6" />
+                            <Text style={styles.cardTitle}>{company.company_name}</Text>
+                          </View>
+                          {company.cnpj && (
+                            <Text style={styles.cardDetail}>CNPJ: {company.cnpj}</Text>
+                          )}
+                          <Text style={styles.cardDetail}>{company.email}</Text>
+                          <Text style={styles.cardDetail}>{company.phone}</Text>
+                          {company.city && (
+                            <Text style={styles.cardDetail}>
+                              {company.city.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                            </Text>
+                          )}
+                          <Text style={{ color: '#8B5CF6', fontSize: 12, marginTop: 4 }}>
+                            Cadastrado por: {company.user_email}
+                          </Text>
+                        </View>
+                        <View style={[
+                          styles.statusBadge,
+                          { backgroundColor: company.status === 'approved' ? '#10B98120' : company.status === 'pending' ? '#F59E0B20' : '#EF444420' }
+                        ]}>
+                          <Text style={[
+                            styles.statusText,
+                            { color: company.status === 'approved' ? '#10B981' : company.status === 'pending' ? '#F59E0B' : '#EF4444' }
+                          ]}>
+                            {company.status === 'approved' ? 'Aprovada' : company.status === 'pending' ? 'Pendente' : company.status === 'blocked' ? 'Bloqueada' : 'Recusada'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Pending: Approve/Reject */}
+                      {company.status === 'pending' && (
+                        <View style={styles.cardActions}>
+                          <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: '#10B98120', flex: 1 }]}
+                            onPress={() => handleApproveCompany(company)}
+                          >
+                            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                            <Text style={[styles.actionText, { color: '#10B981' }]}>Aprovar</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: '#EF444420', flex: 1 }]}
+                            onPress={() => handleRejectCompany(company)}
+                          >
+                            <Ionicons name="close-circle" size={16} color="#EF4444" />
+                            <Text style={[styles.actionText, { color: '#EF4444' }]}>Recusar</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+
+                      {/* Approved: Block/Delete */}
+                      {company.status === 'approved' && (
+                        <View style={styles.cardActions}>
+                          <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: '#F59E0B20', flex: 1 }]}
+                            onPress={() => handleBlockCompany(company)}
+                          >
+                            <Ionicons name="ban" size={16} color="#F59E0B" />
+                            <Text style={[styles.actionText, { color: '#F59E0B' }]}>Bloquear</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: '#EF444420', flex: 1 }]}
+                            onPress={() => handleDeleteCompany(company)}
+                          >
+                            <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                            <Text style={[styles.actionText, { color: '#EF4444' }]}>Excluir</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+
+                      {/* Blocked/Rejected: Reapprove/Delete */}
+                      {(company.status === 'blocked' || company.status === 'rejected') && (
+                        <View style={styles.cardActions}>
+                          <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: '#10B98120', flex: 1 }]}
+                            onPress={() => handleApproveCompany(company)}
+                          >
+                            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                            <Text style={[styles.actionText, { color: '#10B981' }]}>Aprovar</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: '#EF444420', flex: 1 }]}
+                            onPress={() => handleDeleteCompany(company)}
+                          >
+                            <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                            <Text style={[styles.actionText, { color: '#EF4444' }]}>Excluir</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
                     </View>
                   ))
                 )}

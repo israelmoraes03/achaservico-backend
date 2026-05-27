@@ -759,6 +759,28 @@ class JobUpdate(BaseModel):
     city: Optional[str] = None
     is_active: Optional[bool] = None
 
+# ======================== COMPANY MODELS ========================
+
+class Company(BaseModel):
+    company_id: str = Field(default_factory=lambda: f"comp_{uuid.uuid4().hex[:12]}")
+    user_id: str
+    user_email: str
+    company_name: str
+    cnpj: Optional[str] = None
+    email: str
+    phone: str
+    city: str = ""
+    status: str = "pending"  # pending, approved, blocked
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class CompanyRegister(BaseModel):
+    company_name: str
+    cnpj: Optional[str] = None
+    email: str
+    phone: str
+    city: str = ""
+
 # ======================== STATIC DATA ========================
 
 CATEGORIES = [
@@ -3767,23 +3789,167 @@ async def get_job(job_id: str):
 
 @api_router.post("/jobs/submit")
 async def submit_job(request: Request, job_data: JobCreate):
-    """Submit a new job listing (any logged-in user). Goes to pending for admin approval."""
+    """Submit a new job listing (only approved companies). Goes live immediately."""
     user = await require_auth(request)
     
+    # Check if user has an approved company
+    company = await db.companies.find_one({"user_id": user.user_id, "status": "approved"})
+    if not company:
+        raise HTTPException(status_code=403, detail="Você precisa ter uma empresa aprovada para publicar vagas.")
+    
     job = Job(
-        company_name=job_data.company_name,
+        company_name=company.get("company_name", job_data.company_name),
         job_title=job_data.job_title,
-        email=job_data.email,
-        phone=job_data.phone,
+        email=company.get("email", job_data.email),
+        phone=company.get("phone", job_data.phone),
         requirements=job_data.requirements,
         description=job_data.description,
-        city=job_data.city,
-        status="pending",
+        city=job_data.city or company.get("city", ""),
+        status="approved",
         submitted_by=user.email,
     )
     
     await db.jobs.insert_one(job.dict())
-    return {"success": True, "job_id": job.job_id, "message": "Vaga enviada para aprovação! O administrador irá analisar em breve."}
+    return {"success": True, "job_id": job.job_id, "message": "Vaga publicada com sucesso!"}
+
+# ======================== COMPANY ENDPOINTS ========================
+
+@api_router.post("/companies/register")
+async def register_company(request: Request, data: CompanyRegister):
+    """Register a new company (any logged-in user)"""
+    user = await require_auth(request)
+    
+    # Check if user already has a company
+    existing = await db.companies.find_one({"user_id": user.user_id})
+    if existing:
+        status = existing.get("status", "pending")
+        if status == "approved":
+            raise HTTPException(status_code=400, detail="Você já possui uma empresa aprovada.")
+        elif status == "pending":
+            raise HTTPException(status_code=400, detail="Sua empresa já está em análise. Aguarde a aprovação.")
+        elif status == "blocked":
+            raise HTTPException(status_code=400, detail="Sua empresa foi bloqueada. Entre em contato com o administrador.")
+    
+    company = Company(
+        user_id=user.user_id,
+        user_email=user.email,
+        company_name=data.company_name,
+        cnpj=data.cnpj,
+        email=data.email,
+        phone=data.phone,
+        city=data.city,
+    )
+    
+    await db.companies.insert_one(company.dict())
+    return {"success": True, "company_id": company.company_id, "message": "Empresa cadastrada! Aguarde a aprovação do administrador."}
+
+@api_router.get("/companies/my")
+async def get_my_company(request: Request):
+    """Get current user's company status"""
+    user = await require_auth(request)
+    company = await db.companies.find_one({"user_id": user.user_id}, {"_id": 0})
+    if not company:
+        return {"has_company": False}
+    return {"has_company": True, "company": company}
+
+@api_router.get("/companies/my-jobs")
+async def get_my_company_jobs(request: Request):
+    """Get jobs for the current user's company"""
+    user = await require_auth(request)
+    company = await db.companies.find_one({"user_id": user.user_id, "status": "approved"})
+    if not company:
+        raise HTTPException(status_code=403, detail="Empresa não aprovada")
+    
+    jobs = await db.jobs.find(
+        {"submitted_by": user.email},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    return jobs
+
+@api_router.put("/companies/jobs/{job_id}")
+async def update_company_job(request: Request, job_id: str, job_data: JobUpdate):
+    """Update a job listing (company owner only)"""
+    user = await require_auth(request)
+    company = await db.companies.find_one({"user_id": user.user_id, "status": "approved"})
+    if not company:
+        raise HTTPException(status_code=403, detail="Empresa não aprovada")
+    
+    job = await db.jobs.find_one({"job_id": job_id, "submitted_by": user.email})
+    if not job:
+        raise HTTPException(status_code=404, detail="Vaga não encontrada ou sem permissão")
+    
+    update_fields = {k: v for k, v in job_data.dict().items() if v is not None}
+    update_fields["updated_at"] = datetime.now(timezone.utc)
+    
+    await db.jobs.update_one({"job_id": job_id}, {"$set": update_fields})
+    return {"success": True, "message": "Vaga atualizada!"}
+
+@api_router.delete("/companies/jobs/{job_id}")
+async def delete_company_job(request: Request, job_id: str):
+    """Delete a job listing (company owner only)"""
+    user = await require_auth(request)
+    company = await db.companies.find_one({"user_id": user.user_id, "status": "approved"})
+    if not company:
+        raise HTTPException(status_code=403, detail="Empresa não aprovada")
+    
+    result = await db.jobs.delete_one({"job_id": job_id, "submitted_by": user.email})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Vaga não encontrada ou sem permissão")
+    return {"success": True, "message": "Vaga excluída!"}
+
+# ======================== ADMIN COMPANY MANAGEMENT ========================
+
+@api_router.get("/admin/companies")
+async def admin_list_companies(request: Request):
+    """List all companies (admin only)"""
+    await require_admin(request)
+    companies = await db.companies.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return companies
+
+@api_router.put("/admin/companies/{company_id}/approve")
+async def admin_approve_company(request: Request, company_id: str):
+    """Approve a company (admin only)"""
+    await require_admin(request)
+    result = await db.companies.update_one(
+        {"company_id": company_id},
+        {"$set": {"status": "approved", "updated_at": datetime.now(timezone.utc)}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+    return {"success": True, "message": "Empresa aprovada!"}
+
+@api_router.put("/admin/companies/{company_id}/reject")
+async def admin_reject_company(request: Request, company_id: str):
+    """Reject a company (admin only)"""
+    await require_admin(request)
+    result = await db.companies.update_one(
+        {"company_id": company_id},
+        {"$set": {"status": "rejected", "updated_at": datetime.now(timezone.utc)}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+    return {"success": True, "message": "Empresa recusada."}
+
+@api_router.put("/admin/companies/{company_id}/block")
+async def admin_block_company(request: Request, company_id: str):
+    """Block a company (admin only)"""
+    await require_admin(request)
+    result = await db.companies.update_one(
+        {"company_id": company_id},
+        {"$set": {"status": "blocked", "updated_at": datetime.now(timezone.utc)}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+    return {"success": True, "message": "Empresa bloqueada."}
+
+@api_router.delete("/admin/companies/{company_id}")
+async def admin_delete_company(request: Request, company_id: str):
+    """Delete a company (admin only)"""
+    await require_admin(request)
+    result = await db.companies.delete_one({"company_id": company_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+    return {"success": True, "message": "Empresa excluída."}
 
 @api_router.post("/admin/jobs")
 async def create_job(request: Request, job_data: JobCreate):
