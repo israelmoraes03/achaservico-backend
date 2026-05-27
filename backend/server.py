@@ -3779,7 +3779,7 @@ async def submit_job(request: Request, job_data: JobCreate):
         description=job_data.description,
         city=job_data.city,
         status="pending",
-        submitted_by=user.get("email", ""),
+        submitted_by=user.email,
     )
     
     await db.jobs.insert_one(job.dict())
