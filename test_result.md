@@ -297,7 +297,7 @@ backend:
 
   - task: "Job Listings Feature"
     implemented: true
-    working: true
+    working: false
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
@@ -309,6 +309,9 @@ backend:
       - working: true
         agent: "testing"
         comment: "All job endpoints tested successfully (8/8 tests passed, 100% success rate). ✅ Public endpoints working: GET /api/jobs returns empty array initially, supports city filter (?city=tres_lagoas), supports search filter (?search=assistente). ✅ GET /api/jobs/{job_id} correctly returns 404 for non-existent jobs. ✅ Admin endpoints secured: POST /api/admin/jobs, PUT /api/admin/jobs/{job_id}, DELETE /api/admin/jobs/{job_id}, and GET /api/admin/all-jobs all correctly return 401 without authentication. Complete job listings feature is fully functional and production-ready."
+      - working: false
+        agent: "testing"
+        comment: "Updated Job Listings feature testing completed (7/8 tests passed, 87.5% success rate). ✅ WORKING: GET /api/jobs returns empty array (approved+active only), GET /api/jobs/filters returns {companies:[], cities:[]}, all admin endpoints (POST /api/admin/jobs, PUT /api/admin/jobs/{id}/approve, PUT /api/admin/jobs/{id}/reject, GET /api/admin/all-jobs, DELETE /api/admin/jobs/{id}) correctly return 401 without admin auth. ❌ CRITICAL BUG: POST /api/jobs/submit returns 500 instead of 401 when called without authentication. Root cause: Line 3771 uses get_current_user() which returns None, then line 3782 tries user.get('email') causing AttributeError. Fix: Change line 3771 from 'user = await get_current_user(request)' to 'user = await require_auth(request)' to properly raise 401."
 
 
 frontend:
@@ -432,6 +435,8 @@ agent_communication:
     message: "CRITICAL SECURITY VALIDATION COMPLETED: AchaServiço backend security testing passed with 93.8% success rate (15/16 tests). ✅ ADMIN ENDPOINTS SECURED: All tested admin endpoints (/admin/stats, /admin/online-stats, /admin/reports, /admin/maintenance/toggle, /admin/block-history) correctly return 401 without authentication. ✅ PUBLIC ENDPOINTS WORKING: All public endpoints (/health, /maintenance/status, /categories, /providers, /neighborhoods) return 200 and proper data. ✅ RATE LIMITING ACTIVE: POST /auth/session correctly rate limited after 10 requests (confirmed in backend logs). ✅ AUTH PROTECTION: Non-admin auth-required endpoints (/heartbeat, /auth/me, /providers) correctly return 401/422. ✅ DATABASE INDEXES: MongoDB indexes created successfully (confirmed in logs). Minor issue: POST /admin/broadcast-notification has missing request parameter but auth protection is in place. Backend security is production-ready."
   - agent: "testing"
     message: "Job Listings feature testing completed successfully. All 8 job endpoints tested and working correctly (100% success rate): 1) GET /api/jobs returns empty array initially and supports query filters (city, search), 2) GET /api/jobs/{job_id} correctly returns 404 for non-existent jobs, 3) All admin endpoints (POST /api/admin/jobs, PUT /api/admin/jobs/{job_id}, DELETE /api/admin/jobs/{job_id}, GET /api/admin/all-jobs) correctly return 401 without authentication. Job listings feature is fully functional and production-ready."
+  - agent: "testing"
+    message: "Updated Job Listings feature testing completed with CRITICAL BUG found (7/8 tests passed, 87.5% success rate). ✅ WORKING: GET /api/jobs returns empty array (approved+active only), GET /api/jobs/filters returns {companies:[], cities:[]}, all admin endpoints (POST /api/admin/jobs, PUT /api/admin/jobs/{id}/approve, PUT /api/admin/jobs/{id}/reject, GET /api/admin/all-jobs, DELETE /api/admin/jobs/{id}) correctly return 401 without admin auth. ❌ CRITICAL BUG: POST /api/jobs/submit returns 500 instead of 401 when called without authentication. Root cause: Line 3771 in server.py uses get_current_user() which returns None when unauthenticated, then line 3782 tries user.get('email') causing AttributeError: 'NoneType' object has no attribute 'get'. Fix required: Change line 3771 from 'user = await get_current_user(request)' to 'user = await require_auth(request)' to properly raise 401 HTTPException."
 
   - agent: "main"
     message: "Implemented Job Listings feature (Vagas de Emprego). Backend: Added Job model and CRUD endpoints (GET /api/jobs, GET /api/jobs/{id}, POST /api/admin/jobs, PUT /api/admin/jobs/{id}, DELETE /api/admin/jobs/{id}, GET /api/admin/all-jobs). Frontend: Added toggle (Serviços | Vagas) on home screen, job cards in job listing view, job detail page with email/WhatsApp apply buttons, admin panel Jobs tab with full CRUD form. Need to test all new job endpoints."
