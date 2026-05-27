@@ -112,6 +112,17 @@ export default function HomeScreen() {
   const [isLoadingJobs, setIsLoadingJobs] = useState(false);
   const [jobSearchQuery, setJobSearchQuery] = useState('');
   const [jobCityFilter, setJobCityFilter] = useState<string | null>(null);
+  const [jobAvailableCities, setJobAvailableCities] = useState<string[]>([]);
+  const [jobAvailableCompanies, setJobAvailableCompanies] = useState<string[]>([]);
+  const [showJobSubmitForm, setShowJobSubmitForm] = useState(false);
+  const [jobSubmitting, setJobSubmitting] = useState(false);
+  const [submitCompanyName, setSubmitCompanyName] = useState('');
+  const [submitJobTitle, setSubmitJobTitle] = useState('');
+  const [submitJobEmail, setSubmitJobEmail] = useState('');
+  const [submitJobPhone, setSubmitJobPhone] = useState('');
+  const [submitJobRequirements, setSubmitJobRequirements] = useState('');
+  const [submitJobDescription, setSubmitJobDescription] = useState('');
+  const [submitJobCity, setSubmitJobCity] = useState('');
 
   // Check if tutorial should be shown
   useEffect(() => {
@@ -215,8 +226,13 @@ export default function HomeScreen() {
       const params: any = {};
       if (jobCityFilter) params.city = jobCityFilter;
       if (jobSearchQuery) params.search = jobSearchQuery;
-      const response = await api.get('/jobs', { params });
-      setJobListings(response.data || []);
+      const [jobsRes, filtersRes] = await Promise.all([
+        api.get('/jobs', { params }),
+        api.get('/jobs/filters'),
+      ]);
+      setJobListings(jobsRes.data || []);
+      setJobAvailableCities(filtersRes.data?.cities || []);
+      setJobAvailableCompanies(filtersRes.data?.companies || []);
     } catch (error) {
       console.error('Error fetching jobs:', error);
     } finally {
@@ -231,6 +247,15 @@ export default function HomeScreen() {
     }
   }, [activeMainTab, fetchJobListings]);
 
+  const getCityName = (cityId: string) => {
+    if (!cityId) return '';
+    return cityId
+      .replace(/_/g, ' ')
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
   const getJobTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -241,6 +266,39 @@ export default function HomeScreen() {
     if (diffDays < 7) return `${diffDays} dias atrás`;
     if (diffDays < 30) return `${Math.floor(diffDays / 7)} sem. atrás`;
     return `${Math.floor(diffDays / 30)} mês(es) atrás`;
+  };
+
+  const handleSubmitJob = async () => {
+    if (!submitCompanyName.trim() || !submitJobTitle.trim() || !submitJobEmail.trim()) {
+      Alert.alert('Erro', 'Preencha pelo menos: Empresa, Vaga e Email');
+      return;
+    }
+    try {
+      setJobSubmitting(true);
+      await api.post('/jobs/submit', {
+        company_name: submitCompanyName.trim(),
+        job_title: submitJobTitle.trim(),
+        email: submitJobEmail.trim(),
+        phone: submitJobPhone.trim() || null,
+        requirements: submitJobRequirements.trim(),
+        description: submitJobDescription.trim(),
+        city: submitJobCity.trim(),
+      });
+      Alert.alert('Sucesso!', 'Sua vaga foi enviada para aprovação. O administrador irá analisar em breve.');
+      setShowJobSubmitForm(false);
+      setSubmitCompanyName('');
+      setSubmitJobTitle('');
+      setSubmitJobEmail('');
+      setSubmitJobPhone('');
+      setSubmitJobRequirements('');
+      setSubmitJobDescription('');
+      setSubmitJobCity('');
+    } catch (error: any) {
+      const msg = error?.response?.data?.detail || 'Erro ao enviar vaga. Faça login primeiro.';
+      Alert.alert('Erro', msg);
+    } finally {
+      setJobSubmitting(false);
+    }
   };
 
   const fetchData = useCallback(async () => {
@@ -431,13 +489,13 @@ export default function HomeScreen() {
           <Ionicons name="search" size={20} color="#6B7280" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Buscar serviço ou profissional..."
+            placeholder={activeMainTab === 'jobs' ? "Buscar vaga ou empresa..." : "Buscar serviço ou profissional..."}
             placeholderTextColor="#6B7280"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
+            value={activeMainTab === 'jobs' ? jobSearchQuery : searchQuery}
+            onChangeText={activeMainTab === 'jobs' ? setJobSearchQuery : setSearchQuery}
           />
-          {searchQuery ? (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
+          {(activeMainTab === 'jobs' ? jobSearchQuery : searchQuery) ? (
+            <TouchableOpacity onPress={() => activeMainTab === 'jobs' ? setJobSearchQuery('') : setSearchQuery('')}>
               <Ionicons name="close-circle" size={20} color="#6B7280" />
             </TouchableOpacity>
           ) : null}
@@ -934,6 +992,68 @@ export default function HomeScreen() {
         {/* ========== JOBS TAB CONTENT ========== */}
         {activeMainTab === 'jobs' && (
           <>
+            {/* Job City Filter Chips */}
+            {jobAvailableCities.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                <TouchableOpacity
+                  style={[styles.mainTabButton, !jobCityFilter && styles.mainTabButtonActive, { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: !jobCityFilter ? '#10B981' : '#1F2937', marginRight: 8 }]}
+                  onPress={() => setJobCityFilter(null)}
+                >
+                  <Text style={{ color: !jobCityFilter ? '#FFF' : '#9CA3AF', fontSize: 13, fontWeight: '600' }}>Todas</Text>
+                </TouchableOpacity>
+                {jobAvailableCities.map((city) => (
+                  <TouchableOpacity
+                    key={city}
+                    style={[{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: jobCityFilter === city ? '#10B981' : '#1F2937', marginRight: 8 }]}
+                    onPress={() => setJobCityFilter(jobCityFilter === city ? null : city)}
+                  >
+                    <Text style={{ color: jobCityFilter === city ? '#FFF' : '#9CA3AF', fontSize: 13, fontWeight: '600' }}>
+                      {getCityName(city)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
+            {/* Anunciar Vaga Button */}
+            {user && (
+              <TouchableOpacity
+                style={{ backgroundColor: '#8B5CF6', borderRadius: 12, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16 }}
+                onPress={() => setShowJobSubmitForm(!showJobSubmitForm)}
+              >
+                <Ionicons name={showJobSubmitForm ? 'close' : 'add-circle'} size={20} color="#FFFFFF" />
+                <Text style={{ color: '#FFFFFF', fontWeight: 'bold', fontSize: 15 }}>
+                  {showJobSubmitForm ? 'Cancelar' : 'Anunciar Vaga'}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Job Submit Form */}
+            {showJobSubmitForm && (
+              <View style={{ backgroundColor: '#1F2937', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#8B5CF6' }}>
+                <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', marginBottom: 12 }}>Anunciar Vaga</Text>
+                <Text style={{ color: '#9CA3AF', fontSize: 12, marginBottom: 12 }}>A vaga será analisada pelo administrador antes de ser publicada.</Text>
+                
+                <TextInput style={styles.jobFormInput} placeholder="Nome da Empresa *" placeholderTextColor="#6B7280" value={submitCompanyName} onChangeText={setSubmitCompanyName} />
+                <TextInput style={styles.jobFormInput} placeholder="Título da Vaga *" placeholderTextColor="#6B7280" value={submitJobTitle} onChangeText={setSubmitJobTitle} />
+                <TextInput style={styles.jobFormInput} placeholder="Email para Contato *" placeholderTextColor="#6B7280" value={submitJobEmail} onChangeText={setSubmitJobEmail} keyboardType="email-address" autoCapitalize="none" />
+                <TextInput style={styles.jobFormInput} placeholder="Telefone/WhatsApp (opcional)" placeholderTextColor="#6B7280" value={submitJobPhone} onChangeText={setSubmitJobPhone} keyboardType="phone-pad" />
+                <TextInput style={styles.jobFormInput} placeholder="Cidade" placeholderTextColor="#6B7280" value={submitJobCity} onChangeText={setSubmitJobCity} />
+                <TextInput style={[styles.jobFormInput, { height: 80, textAlignVertical: 'top' }]} placeholder="Requisitos *" placeholderTextColor="#6B7280" value={submitJobRequirements} onChangeText={setSubmitJobRequirements} multiline />
+                <TextInput style={[styles.jobFormInput, { height: 100, textAlignVertical: 'top' }]} placeholder="Descrição da Vaga *" placeholderTextColor="#6B7280" value={submitJobDescription} onChangeText={setSubmitJobDescription} multiline />
+
+                <TouchableOpacity
+                  style={{ backgroundColor: '#8B5CF6', borderRadius: 10, paddingVertical: 14, alignItems: 'center', opacity: jobSubmitting ? 0.6 : 1 }}
+                  onPress={handleSubmitJob}
+                  disabled={jobSubmitting}
+                >
+                  <Text style={{ color: '#FFFFFF', fontWeight: 'bold', fontSize: 15 }}>
+                    {jobSubmitting ? 'Enviando...' : 'Enviar para Aprovação'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             <Text style={styles.sectionTitle}>
               Vagas Disponíveis {jobListings.length > 0 && `(${jobListings.length})`}
             </Text>
@@ -1739,5 +1859,16 @@ const styles = StyleSheet.create({
   jobMetaText: {
     fontSize: 12,
     color: '#6B7280',
+  },
+  jobFormInput: {
+    backgroundColor: '#111827',
+    color: '#FFFFFF',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 10,
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: '#374151',
   },
 });

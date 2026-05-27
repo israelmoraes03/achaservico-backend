@@ -163,6 +163,7 @@ export default function AdminScreen() {
   const [newScheduleMessage, setNewScheduleMessage] = useState('');
   const [addingSchedule, setAddingSchedule] = useState(false);
   const [showAddSchedule, setShowAddSchedule] = useState(false);
+  const [newScheduleTarget, setNewScheduleTarget] = useState<'all' | 'providers' | 'clients'>('all');
 
   // Modal states
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -294,11 +295,12 @@ export default function AdminScreen() {
         time: newScheduleTime.trim(),
         title: newScheduleTitle.trim(),
         message: newScheduleMessage.trim(),
-        target: 'all'
+        target: newScheduleTarget
       });
       setNewScheduleTime('');
       setNewScheduleTitle('');
       setNewScheduleMessage('');
+      setNewScheduleTarget('all');
       setShowAddSchedule(false);
       fetchScheduledNotifications();
       setActionMessage('Notificação agendada criada!');
@@ -562,6 +564,43 @@ export default function AdminScreen() {
       setActionMessage('Erro ao alterar status');
       setTimeout(() => setActionMessage(''), 3000);
     }
+  };
+
+  const handleApproveJob = async (job: any) => {
+    try {
+      await api.put(`/admin/jobs/${job.job_id}/approve`);
+      fetchJobs();
+      setActionMessage('Vaga aprovada!');
+      setTimeout(() => setActionMessage(''), 3000);
+    } catch (error) {
+      setActionMessage('Erro ao aprovar vaga');
+      setTimeout(() => setActionMessage(''), 3000);
+    }
+  };
+
+  const handleRejectJob = async (job: any) => {
+    Alert.alert(
+      'Recusar Vaga',
+      `Deseja recusar a vaga "${job.job_title}" da empresa "${job.company_name}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Recusar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.put(`/admin/jobs/${job.job_id}/reject`);
+              fetchJobs();
+              setActionMessage('Vaga recusada');
+              setTimeout(() => setActionMessage(''), 3000);
+            } catch (error) {
+              setActionMessage('Erro ao recusar vaga');
+              setTimeout(() => setActionMessage(''), 3000);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const pickBannerImage = async () => {
@@ -1565,7 +1604,7 @@ export default function AdminScreen() {
                       maxLength={50}
                     />
                     <TextInput
-                      style={{ backgroundColor: '#1F2937', color: '#FFFFFF', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 12, minHeight: 60, textAlignVertical: 'top', borderWidth: 1, borderColor: '#374151' }}
+                      style={{ backgroundColor: '#1F2937', color: '#FFFFFF', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 8, minHeight: 60, textAlignVertical: 'top', borderWidth: 1, borderColor: '#374151' }}
                       placeholder="Mensagem..."
                       placeholderTextColor="#6B7280"
                       value={newScheduleMessage}
@@ -1574,6 +1613,37 @@ export default function AdminScreen() {
                       numberOfLines={2}
                       maxLength={200}
                     />
+                    {/* Target selector */}
+                    <Text style={{ color: '#9CA3AF', fontSize: 12, marginBottom: 6 }}>ENVIAR PARA:</Text>
+                    <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                      {[
+                        { key: 'all', label: 'Todos', icon: 'people' },
+                        { key: 'providers', label: 'Prestadores', icon: 'construct' },
+                        { key: 'clients', label: 'Clientes', icon: 'person' },
+                      ].map((opt) => (
+                        <TouchableOpacity
+                          key={opt.key}
+                          style={{
+                            flex: 1,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 4,
+                            paddingVertical: 8,
+                            borderRadius: 8,
+                            backgroundColor: newScheduleTarget === opt.key ? '#8B5CF6' : '#1F2937',
+                            borderWidth: 1,
+                            borderColor: newScheduleTarget === opt.key ? '#8B5CF6' : '#374151',
+                          }}
+                          onPress={() => setNewScheduleTarget(opt.key as any)}
+                        >
+                          <Ionicons name={opt.icon as any} size={14} color={newScheduleTarget === opt.key ? '#FFFFFF' : '#9CA3AF'} />
+                          <Text style={{ color: newScheduleTarget === opt.key ? '#FFFFFF' : '#9CA3AF', fontSize: 12, fontWeight: '600' }}>
+                            {opt.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                     <TouchableOpacity
                       style={{ backgroundColor: '#8B5CF6', borderRadius: 10, paddingVertical: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
                       onPress={handleAddScheduledNotification}
@@ -1620,6 +1690,14 @@ export default function AdminScreen() {
                           }}>
                             <Text style={{ color: notif.is_active ? '#10B981' : '#EF4444', fontSize: 10, fontWeight: 'bold' }}>
                               {notif.is_active ? 'ATIVO' : 'INATIVO'}
+                            </Text>
+                          </View>
+                          <View style={{
+                            backgroundColor: '#8B5CF620',
+                            paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6
+                          }}>
+                            <Text style={{ color: '#8B5CF6', fontSize: 10, fontWeight: 'bold' }}>
+                              {notif.target === 'providers' ? 'PRESTADORES' : notif.target === 'clients' ? 'CLIENTES' : 'TODOS'}
                             </Text>
                           </View>
                         </View>
@@ -2334,28 +2412,61 @@ export default function AdminScreen() {
                           <Text style={styles.cardDetail}>
                             {job.city ? job.city.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : 'Sem cidade'}
                           </Text>
-                          <Text style={styles.cardDetail}>
-                            {job.email}
-                          </Text>
-                          {job.phone && (
-                            <Text style={styles.cardDetail}>{job.phone}</Text>
+                          <Text style={styles.cardDetail}>{job.email}</Text>
+                          {job.submitted_by && job.submitted_by !== 'admin' && (
+                            <Text style={{ color: '#8B5CF6', fontSize: 12, marginTop: 2 }}>
+                              Enviado por: {job.submitted_by}
+                            </Text>
                           )}
                         </View>
-                        <TouchableOpacity
-                          onPress={() => handleToggleJobStatus(job)}
-                          style={[
+                        <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                          <View style={[
                             styles.statusBadge,
-                            { backgroundColor: job.is_active ? '#10B98120' : '#EF444420' }
-                          ]}
-                        >
-                          <Text style={[
-                            styles.statusText,
-                            { color: job.is_active ? '#10B981' : '#EF4444' }
+                            { backgroundColor: job.status === 'approved' ? '#10B98120' : job.status === 'pending' ? '#F59E0B20' : '#EF444420' }
                           ]}>
-                            {job.is_active ? 'Ativa' : 'Inativa'}
-                          </Text>
-                        </TouchableOpacity>
+                            <Text style={[
+                              styles.statusText,
+                              { color: job.status === 'approved' ? '#10B981' : job.status === 'pending' ? '#F59E0B' : '#EF4444' }
+                            ]}>
+                              {job.status === 'approved' ? 'Aprovada' : job.status === 'pending' ? 'Pendente' : 'Recusada'}
+                            </Text>
+                          </View>
+                          <TouchableOpacity
+                            onPress={() => handleToggleJobStatus(job)}
+                            style={[
+                              styles.statusBadge,
+                              { backgroundColor: job.is_active ? '#10B98120' : '#EF444420' }
+                            ]}
+                          >
+                            <Text style={[
+                              styles.statusText,
+                              { color: job.is_active ? '#10B981' : '#EF4444' }
+                            ]}>
+                              {job.is_active ? 'Ativa' : 'Inativa'}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
+
+                      {/* Approve/Reject buttons for pending jobs */}
+                      {job.status === 'pending' && (
+                        <View style={[styles.cardActions, { marginBottom: 8 }]}>
+                          <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: '#10B98120', flex: 1 }]}
+                            onPress={() => handleApproveJob(job)}
+                          >
+                            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                            <Text style={[styles.actionText, { color: '#10B981' }]}>Aprovar</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: '#EF444420', flex: 1 }]}
+                            onPress={() => handleRejectJob(job)}
+                          >
+                            <Ionicons name="close-circle" size={16} color="#EF4444" />
+                            <Text style={[styles.actionText, { color: '#EF4444' }]}>Recusar</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
 
                       <View style={styles.cardActions}>
                         <TouchableOpacity

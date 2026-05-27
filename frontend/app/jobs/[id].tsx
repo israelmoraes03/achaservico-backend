@@ -12,6 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as DocumentPicker from 'expo-document-picker';
+import * as MailComposer from 'expo-mail-composer';
 import api from '../../src/services/api';
 import { useAuth } from '../../src/context/AuthContext';
 
@@ -53,29 +55,72 @@ export default function JobDetailScreen() {
     }
   };
 
-  const handleApply = () => {
+  const handleApply = async () => {
     if (!job) return;
     
     const userName = user?.name || 'Candidato';
-    const subject = encodeURIComponent(`Candidatura - ${job.job_title} - ${userName}`);
-    const body = encodeURIComponent(
-      `Olá,\n\nTenho interesse na vaga de ${job.job_title} anunciada no AchaServiço.\n\nNome: ${userName}\n\nAguardo retorno.\n\nAtenciosamente,\n${userName}`
-    );
-    const mailUrl = `mailto:${job.email}?subject=${subject}&body=${body}`;
+    const subject = `Candidatura - ${job.job_title} - ${userName}`;
+    const body = `Olá,\n\nTenho interesse na vaga de ${job.job_title} anunciada no AchaServiço.\n\nNome: ${userName}\n\nAguardo retorno.\n\nAtenciosamente,\n${userName}`;
     
-    Linking.openURL(mailUrl).catch(() => {
-      Alert.alert(
-        'Email não disponível',
-        `Envie seu currículo para: ${job.email}\n\nAssunto: Candidatura - ${job.job_title}`,
-        [
-          { text: 'Copiar Email', onPress: () => {
-            // Copy to clipboard fallback
-            Alert.alert('Email', job.email);
-          }},
-          { text: 'OK' }
-        ]
-      );
-    });
+    // Check if MailComposer is available
+    const isAvailable = await MailComposer.isAvailableAsync();
+    
+    if (!isAvailable) {
+      // Fallback to mailto
+      const mailUrl = `mailto:${job.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      Linking.openURL(mailUrl).catch(() => {
+        Alert.alert('Email não disponível', `Envie seu currículo para: ${job.email}`);
+      });
+      return;
+    }
+
+    // Ask if user wants to attach resume
+    Alert.alert(
+      'Candidatar-se',
+      'Deseja anexar seu currículo?',
+      [
+        {
+          text: 'Sem Anexo',
+          onPress: async () => {
+            await MailComposer.composeAsync({
+              recipients: [job.email],
+              subject,
+              body,
+            });
+          }
+        },
+        {
+          text: 'Anexar Currículo',
+          onPress: async () => {
+            try {
+              const result = await DocumentPicker.getDocumentAsync({
+                type: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+                copyToCacheDirectory: true,
+              });
+              
+              if (!result.canceled && result.assets && result.assets.length > 0) {
+                const file = result.assets[0];
+                await MailComposer.composeAsync({
+                  recipients: [job.email],
+                  subject,
+                  body,
+                  attachments: [file.uri],
+                });
+              }
+            } catch (error) {
+              console.error('Error picking document:', error);
+              // Fallback: open composer without attachment
+              await MailComposer.composeAsync({
+                recipients: [job.email],
+                subject,
+                body,
+              });
+            }
+          }
+        },
+        { text: 'Cancelar', style: 'cancel' }
+      ]
+    );
   };
 
   const handleWhatsApp = () => {
@@ -192,8 +237,8 @@ export default function JobDetailScreen() {
         {/* Apply Buttons */}
         <View style={styles.applyContainer}>
           <TouchableOpacity style={styles.applyButton} onPress={handleApply}>
-            <Ionicons name="mail" size={20} color="#FFFFFF" />
-            <Text style={styles.applyButtonText}>Candidatar-se por Email</Text>
+            <Ionicons name="document-attach" size={20} color="#FFFFFF" />
+            <Text style={styles.applyButtonText}>Candidatar-se com Currículo</Text>
           </TouchableOpacity>
 
           {job.phone && (

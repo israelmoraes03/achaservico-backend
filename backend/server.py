@@ -734,6 +734,8 @@ class Job(BaseModel):
     requirements: str
     description: str
     city: str = ""
+    status: str = "pending"  # pending, approved, rejected
+    submitted_by: Optional[str] = None  # user email who submitted
     is_active: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -3721,8 +3723,8 @@ async def get_block_history(request: Request):
 
 @api_router.get("/jobs")
 async def list_jobs(city: Optional[str] = None, search: Optional[str] = None):
-    """List all active job listings (public endpoint)"""
-    query = {"is_active": True}
+    """List all active and approved job listings (public endpoint)"""
+    query = {"is_active": True, "status": "approved"}
     if city:
         query["city"] = city
     if search:
@@ -3735,6 +3737,26 @@ async def list_jobs(city: Optional[str] = None, search: Optional[str] = None):
     jobs = await db.jobs.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
     return jobs
 
+@api_router.get("/jobs/filters")
+async def get_job_filters():
+    """Get dynamic filters based on available approved jobs"""
+    pipeline_companies = [
+        {"$match": {"is_active": True, "status": "approved"}},
+        {"$group": {"_id": "$company_name"}},
+        {"$sort": {"_id": 1}}
+    ]
+    pipeline_cities = [
+        {"$match": {"is_active": True, "status": "approved", "city": {"$ne": ""}}},
+        {"$group": {"_id": "$city"}},
+        {"$sort": {"_id": 1}}
+    ]
+    companies = await db.jobs.aggregate(pipeline_companies).to_list(100)
+    cities = await db.jobs.aggregate(pipeline_cities).to_list(100)
+    return {
+        "companies": [c["_id"] for c in companies],
+        "cities": [c["_id"] for c in cities]
+    }
+
 @api_router.get("/jobs/{job_id}")
 async def get_job(job_id: str):
     """Get a specific job listing by ID"""
@@ -3743,9 +3765,29 @@ async def get_job(job_id: str):
         raise HTTPException(status_code=404, detail="Vaga não encontrada")
     return job
 
+@api_router.post("/jobs/submit")
+async def submit_job(request: Request, job_data: JobCreate):
+    """Submit a new job listing (any logged-in user). Goes to pending for admin approval."""
+    user = await get_current_user(request)
+    
+    job = Job(
+        company_name=job_data.company_name,
+        job_title=job_data.job_title,
+        email=job_data.email,
+        phone=job_data.phone,
+        requirements=job_data.requirements,
+        description=job_data.description,
+        city=job_data.city,
+        status="pending",
+        submitted_by=user.get("email", ""),
+    )
+    
+    await db.jobs.insert_one(job.dict())
+    return {"success": True, "job_id": job.job_id, "message": "Vaga enviada para aprovação! O administrador irá analisar em breve."}
+
 @api_router.post("/admin/jobs")
 async def create_job(request: Request, job_data: JobCreate):
-    """Create a new job listing (admin only)"""
+    """Create a new job listing (admin only - auto approved)"""
     await require_admin(request)
     
     job = Job(
@@ -3756,6 +3798,8 @@ async def create_job(request: Request, job_data: JobCreate):
         requirements=job_data.requirements,
         description=job_data.description,
         city=job_data.city,
+        status="approved",
+        submitted_by="admin",
     )
     
     await db.jobs.insert_one(job.dict())
@@ -3785,6 +3829,32 @@ async def delete_job(request: Request, job_id: str):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Vaga não encontrada")
     return {"success": True, "message": "Vaga excluída com sucesso!"}
+
+@api_router.put("/admin/jobs/{job_id}/approve")
+async def approve_job(request: Request, job_id: str):
+    """Approve a pending job listing (admin only)"""
+    await require_admin(request)
+    
+    result = await db.jobs.update_one(
+        {"job_id": job_id},
+        {"$set": {"status": "approved", "updated_at": datetime.now(timezone.utc)}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Vaga não encontrada")
+    return {"success": True, "message": "Vaga aprovada com sucesso!"}
+
+@api_router.put("/admin/jobs/{job_id}/reject")
+async def reject_job(request: Request, job_id: str):
+    """Reject a pending job listing (admin only)"""
+    await require_admin(request)
+    
+    result = await db.jobs.update_one(
+        {"job_id": job_id},
+        {"$set": {"status": "rejected", "updated_at": datetime.now(timezone.utc)}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Vaga não encontrada")
+    return {"success": True, "message": "Vaga recusada."}
 
 @api_router.get("/admin/all-jobs")
 async def admin_list_all_jobs(request: Request):
