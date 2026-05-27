@@ -247,15 +247,6 @@ export default function HomeScreen() {
     }
   }, [activeMainTab, fetchJobListings]);
 
-  const getCityName = (cityId: string) => {
-    if (!cityId) return '';
-    return cityId
-      .replace(/_/g, ' ')
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-  };
-
   const getJobTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -417,8 +408,14 @@ export default function HomeScreen() {
   };
 
   const getCityName = (cityId: string) => {
+    if (!cityId) return '';
     const city = cities.find(c => c.id === cityId);
-    return city?.name || cityId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    if (city?.name) return city.name;
+    return cityId
+      .replace(/_/g, ' ')
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
   };
 
   const renderStars = (rating: number) => {
