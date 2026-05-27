@@ -263,7 +263,7 @@ export default function HomeScreen() {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return 'Hoje';
+    if (diffDays <= 0) return 'Hoje';
     if (diffDays === 1) return 'Ontem';
     if (diffDays < 7) return `${diffDays} dias atrás`;
     if (diffDays < 30) return `${Math.floor(diffDays / 7)} sem. atrás`;
@@ -1152,66 +1152,25 @@ export default function HomeScreen() {
                     </Text>
                   </View>
                 ) : myCompany?.company?.status === 'approved' ? (
-                  /* Company approved - Job Management */
-                  <View>
-                    <View style={{ backgroundColor: '#1F2937', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#10B98140' }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          <Ionicons name="business" size={22} color="#10B981" />
-                          <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' }}>{myCompany.company.company_name}</Text>
-                        </View>
-                        <View style={{ backgroundColor: '#10B98120', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
-                          <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '600' }}>Aprovada</Text>
-                        </View>
+                  /* Company approved - Navigate to Dashboard */
+                  <View style={{ backgroundColor: '#1F2937', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#10B98140' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Ionicons name="business" size={22} color="#10B981" />
+                        <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' }}>{myCompany.company.company_name}</Text>
                       </View>
-                      
-                      <TouchableOpacity
-                        style={{ backgroundColor: '#8B5CF6', borderRadius: 10, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                        onPress={() => { setShowNewJobForm(!showNewJobForm); if (!showNewJobForm) fetchMyCompanyJobs(); }}
-                      >
-                        <Ionicons name={showNewJobForm ? 'close' : 'add-circle'} size={18} color="#FFFFFF" />
-                        <Text style={{ color: '#FFFFFF', fontWeight: 'bold', fontSize: 14 }}>{showNewJobForm ? 'Cancelar' : 'Publicar Nova Vaga'}</Text>
-                      </TouchableOpacity>
+                      <View style={{ backgroundColor: '#10B98120', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                        <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '600' }}>Aprovada</Text>
+                      </View>
                     </View>
-
-                    {/* New Job Form */}
-                    {showNewJobForm && (
-                      <View style={{ backgroundColor: '#1F2937', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#8B5CF6' }}>
-                        <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: 'bold', marginBottom: 10 }}>Nova Vaga</Text>
-                        <TextInput style={styles.jobFormInput} placeholder="Título da Vaga *" placeholderTextColor="#6B7280" value={newJobTitle} onChangeText={setNewJobTitle} />
-                        <TextInput style={styles.jobFormInput} placeholder="Cidade (deixe vazio para usar a da empresa)" placeholderTextColor="#6B7280" value={newJobCity} onChangeText={setNewJobCity} />
-                        <TextInput style={[styles.jobFormInput, { height: 80, textAlignVertical: 'top' }]} placeholder="Requisitos *" placeholderTextColor="#6B7280" value={newJobRequirements} onChangeText={setNewJobRequirements} multiline />
-                        <TextInput style={[styles.jobFormInput, { height: 100, textAlignVertical: 'top' }]} placeholder="Descrição da Vaga *" placeholderTextColor="#6B7280" value={newJobDescription} onChangeText={setNewJobDescription} multiline />
-                        <TouchableOpacity
-                          style={{ backgroundColor: '#10B981', borderRadius: 10, paddingVertical: 14, alignItems: 'center', opacity: newJobSubmitting ? 0.6 : 1 }}
-                          onPress={handleSubmitJob}
-                          disabled={newJobSubmitting}
-                        >
-                          <Text style={{ color: '#FFFFFF', fontWeight: 'bold' }}>{newJobSubmitting ? 'Publicando...' : 'Publicar Vaga'}</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-
-                    {/* My Company Jobs */}
-                    {myCompanyJobs.length > 0 && (
-                      <View>
-                        <Text style={{ color: '#9CA3AF', fontSize: 13, fontWeight: '600', marginBottom: 8 }}>SUAS VAGAS ({myCompanyJobs.length})</Text>
-                        {myCompanyJobs.map((job: any) => (
-                          <View key={job.job_id} style={{ backgroundColor: '#1F2937', borderRadius: 12, padding: 14, marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <View style={{ flex: 1 }}>
-                              <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>{job.job_title}</Text>
-                              <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 2 }}>{job.city ? getCityName(job.city) : 'Sem cidade'}</Text>
-                            </View>
-                            <TouchableOpacity
-                              style={{ backgroundColor: '#EF444420', padding: 8, borderRadius: 8 }}
-                              onPress={() => handleDeleteMyJob(job)}
-                            >
-                              <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                            </TouchableOpacity>
-                          </View>
-                        ))}
-                      </View>
-                    )}
+                    
+                    <TouchableOpacity
+                      style={{ backgroundColor: '#8B5CF6', borderRadius: 10, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                      onPress={() => router.push('/company/dashboard')}
+                    >
+                      <Ionicons name="briefcase" size={18} color="#FFFFFF" />
+                      <Text style={{ color: '#FFFFFF', fontWeight: 'bold', fontSize: 14 }}>Gerenciar Minhas Vagas</Text>
+                    </TouchableOpacity>
                   </View>
                 ) : myCompany?.company?.status === 'blocked' ? (
                   /* Company blocked */
