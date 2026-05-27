@@ -3768,7 +3768,7 @@ async def get_job(job_id: str):
 @api_router.post("/jobs/submit")
 async def submit_job(request: Request, job_data: JobCreate):
     """Submit a new job listing (any logged-in user). Goes to pending for admin approval."""
-    user = await get_current_user(request)
+    user = await require_auth(request)
     
     job = Job(
         company_name=job_data.company_name,
