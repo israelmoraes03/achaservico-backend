@@ -448,18 +448,30 @@ export default function HomeScreen() {
     }).catch(() => {});
   }, [fetchData, loadFavorites, loadUnreadCount]);
 
-  // Refresh unread count when screen comes into focus (after returning from notifications)
+  // Refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       if (isAuthenticated) {
         loadUnreadCount();
+        loadFavorites();
       }
-    }, [isAuthenticated, loadUnreadCount])
+      // Always refresh providers/jobs when screen gains focus
+      fetchProviders();
+    }, [isAuthenticated, loadUnreadCount, loadFavorites, fetchProviders])
   );
 
   useEffect(() => {
     fetchProviders();
   }, [fetchProviders]);
+
+  // Auto-refresh notification count every 30 seconds
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const interval = setInterval(() => {
+      loadUnreadCount();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, loadUnreadCount]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
