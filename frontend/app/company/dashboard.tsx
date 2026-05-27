@@ -35,6 +35,15 @@ export default function CompanyDashboard() {
   const [formDescription, setFormDescription] = useState('');
   const [formSubmitting, setFormSubmitting] = useState(false);
 
+  // Edit company info
+  const [showEditCompany, setShowEditCompany] = useState(false);
+  const [editCompanyName, setEditCompanyName] = useState('');
+  const [editCompanyCnpj, setEditCompanyCnpj] = useState('');
+  const [editCompanyEmail, setEditCompanyEmail] = useState('');
+  const [editCompanyPhone, setEditCompanyPhone] = useState('');
+  const [editCompanyCity, setEditCompanyCity] = useState('');
+  const [editingCompany, setEditingCompany] = useState(false);
+
   const fetchData = useCallback(async () => {
     try {
       const [companyRes, jobsRes] = await Promise.all([
@@ -71,6 +80,41 @@ export default function CompanyDashboard() {
   const onRefresh = () => {
     setRefreshing(true);
     fetchData();
+  };
+
+  const openEditCompany = () => {
+    if (company) {
+      setEditCompanyName(company.company_name || '');
+      setEditCompanyCnpj(company.cnpj || '');
+      setEditCompanyEmail(company.email || '');
+      setEditCompanyPhone(company.phone || '');
+      setEditCompanyCity(company.city || '');
+    }
+    setShowEditCompany(true);
+  };
+
+  const handleSaveCompanyInfo = async () => {
+    if (!editCompanyName.trim() || !editCompanyEmail.trim() || !editCompanyPhone.trim()) {
+      Alert.alert('Erro', 'Preencha pelo menos: Nome, Email e Telefone');
+      return;
+    }
+    try {
+      setEditingCompany(true);
+      await api.put('/companies/my', {
+        company_name: editCompanyName.trim(),
+        cnpj: editCompanyCnpj.trim() || null,
+        email: editCompanyEmail.trim(),
+        phone: editCompanyPhone.trim(),
+        city: editCompanyCity.trim(),
+      });
+      Alert.alert('Sucesso', 'Dados da empresa atualizados!');
+      setShowEditCompany(false);
+      fetchData();
+    } catch (error: any) {
+      Alert.alert('Erro', error?.response?.data?.detail || 'Erro ao atualizar dados');
+    } finally {
+      setEditingCompany(false);
+    }
   };
 
   const resetForm = () => {
@@ -194,6 +238,13 @@ export default function CompanyDashboard() {
       >
         {/* Company Info Card */}
         <View style={styles.infoCard}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <Text style={{ color: '#9CA3AF', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>DADOS DA EMPRESA</Text>
+            <TouchableOpacity onPress={openEditCompany} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons name="create-outline" size={14} color="#3B82F6" />
+              <Text style={{ color: '#3B82F6', fontSize: 12, fontWeight: '600' }}>Editar</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.infoRow}>
             <Ionicons name="mail" size={16} color="#9CA3AF" />
             <Text style={styles.infoText}>{company?.email}</Text>
@@ -208,7 +259,48 @@ export default function CompanyDashboard() {
               <Text style={styles.infoText}>{getCityName(company.city)}</Text>
             </View>
           )}
+          {company?.cnpj && (
+            <View style={styles.infoRow}>
+              <Ionicons name="document-text" size={16} color="#9CA3AF" />
+              <Text style={styles.infoText}>CNPJ: {company.cnpj}</Text>
+            </View>
+          )}
         </View>
+
+        {/* Edit Company Form */}
+        {showEditCompany && (
+          <View style={[styles.formCard, { borderColor: '#3B82F6' }]}>
+            <Text style={styles.formTitle}>Editar Dados da Empresa</Text>
+            
+            <Text style={styles.formLabel}>Nome da Empresa *</Text>
+            <TextInput style={styles.formInput} value={editCompanyName} onChangeText={setEditCompanyName} placeholderTextColor="#6B7280" />
+            
+            <Text style={styles.formLabel}>CNPJ (opcional)</Text>
+            <TextInput style={styles.formInput} value={editCompanyCnpj} onChangeText={setEditCompanyCnpj} placeholderTextColor="#6B7280" />
+            
+            <Text style={styles.formLabel}>Email Corporativo *</Text>
+            <TextInput style={styles.formInput} value={editCompanyEmail} onChangeText={setEditCompanyEmail} keyboardType="email-address" autoCapitalize="none" placeholderTextColor="#6B7280" />
+            
+            <Text style={styles.formLabel}>Telefone/WhatsApp *</Text>
+            <TextInput style={styles.formInput} value={editCompanyPhone} onChangeText={setEditCompanyPhone} keyboardType="phone-pad" placeholderTextColor="#6B7280" />
+            
+            <Text style={styles.formLabel}>Cidade</Text>
+            <TextInput style={styles.formInput} value={editCompanyCity} onChangeText={setEditCompanyCity} placeholderTextColor="#6B7280" />
+            
+            <View style={styles.formActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowEditCompany(false)}>
+                <Text style={styles.cancelBtnText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveBtn, { backgroundColor: '#3B82F6' }, editingCompany && { opacity: 0.6 }]}
+                onPress={handleSaveCompanyInfo}
+                disabled={editingCompany}
+              >
+                <Text style={styles.saveBtnText}>{editingCompany ? 'Salvando...' : 'Salvar'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* New Job Button */}
         <TouchableOpacity

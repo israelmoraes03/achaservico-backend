@@ -3852,6 +3852,35 @@ async def get_my_company(request: Request):
         return {"has_company": False}
     return {"has_company": True, "company": company}
 
+@api_router.put("/companies/my")
+async def update_my_company(request: Request, data: CompanyRegister):
+    """Update current user's company info"""
+    user = await require_auth(request)
+    company = await db.companies.find_one({"user_id": user.user_id})
+    if not company:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+    
+    old_email = company.get("email", "")
+    update_fields = {
+        "company_name": data.company_name,
+        "cnpj": data.cnpj,
+        "email": data.email,
+        "phone": data.phone,
+        "city": data.city,
+        "updated_at": datetime.now(timezone.utc),
+    }
+    await db.companies.update_one({"user_id": user.user_id}, {"$set": update_fields})
+    
+    # Also update email/phone/company_name on existing jobs
+    job_update = {
+        "company_name": data.company_name,
+        "email": data.email,
+        "phone": data.phone,
+    }
+    await db.jobs.update_many({"submitted_by": user.email}, {"$set": job_update})
+    
+    return {"success": True, "message": "Dados da empresa atualizados!"}
+
 @api_router.get("/companies/my-jobs")
 async def get_my_company_jobs(request: Request):
     """Get jobs for the current user's company"""
@@ -3932,15 +3961,27 @@ async def admin_reject_company(request: Request, company_id: str):
 
 @api_router.put("/admin/companies/{company_id}/block")
 async def admin_block_company(request: Request, company_id: str):
-    """Block a company (admin only)"""
+    """Block a company and deactivate all its jobs (admin only)"""
     await require_admin(request)
-    result = await db.companies.update_one(
+    
+    company = await db.companies.find_one({"company_id": company_id})
+    if not company:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+    
+    # Block the company
+    await db.companies.update_one(
         {"company_id": company_id},
         {"$set": {"status": "blocked", "updated_at": datetime.now(timezone.utc)}}
     )
-    if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="Empresa não encontrada")
-    return {"success": True, "message": "Empresa bloqueada."}
+    
+    # Deactivate all jobs from this company
+    result = await db.jobs.update_many(
+        {"submitted_by": company.get("user_email", "")},
+        {"$set": {"is_active": False}}
+    )
+    
+    jobs_blocked = result.modified_count
+    return {"success": True, "message": f"Empresa bloqueada e {jobs_blocked} vaga(s) desativada(s)."}
 
 @api_router.delete("/admin/companies/{company_id}")
 async def admin_delete_company(request: Request, company_id: str):
