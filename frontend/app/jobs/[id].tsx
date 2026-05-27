@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Linking,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +21,7 @@ import { useAuth } from '../../src/context/AuthContext';
 interface Job {
   job_id: string;
   company_name: string;
+  company_logo?: string;
   job_title: string;
   email: string;
   phone?: string;
@@ -27,6 +29,8 @@ interface Job {
   description: string;
   city: string;
   is_active: boolean;
+  attachment_url?: string;
+  attachment_name?: string;
   created_at: string;
 }
 
@@ -133,6 +137,13 @@ export default function JobDetailScreen() {
     Linking.openURL(url);
   };
 
+  const handleDownloadAttachment = () => {
+    if (!job?.attachment_url) return;
+    Linking.openURL(job.attachment_url).catch(() => {
+      Alert.alert('Erro', 'Não foi possível abrir o arquivo');
+    });
+  };
+
   const getCityName = (cityId: string) => {
     return cityId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
@@ -184,9 +195,13 @@ export default function JobDetailScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Company Card */}
         <View style={styles.companyCard}>
-          <View style={styles.companyIconContainer}>
-            <Ionicons name="business" size={36} color="#10B981" />
-          </View>
+          {job.company_logo ? (
+            <Image source={{ uri: job.company_logo }} style={styles.companyLogo} />
+          ) : (
+            <View style={styles.companyIconContainer}>
+              <Ionicons name="business" size={36} color="#10B981" />
+            </View>
+          )}
           <Text style={styles.companyName}>{job.company_name}</Text>
           <Text style={styles.jobTitle}>{job.job_title}</Text>
           
@@ -221,6 +236,21 @@ export default function JobDetailScreen() {
           </View>
           <Text style={styles.sectionText}>{job.description}</Text>
         </View>
+
+        {/* Attachment Section */}
+        {job.attachment_url && (
+          <TouchableOpacity style={styles.attachmentCard} onPress={handleDownloadAttachment}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="document-attach" size={20} color="#8B5CF6" />
+              <Text style={[styles.sectionTitle, { color: '#8B5CF6' }]}>Material Anexo</Text>
+            </View>
+            <View style={styles.attachmentRow}>
+              <Ionicons name="download-outline" size={18} color="#8B5CF6" />
+              <Text style={styles.attachmentText}>{job.attachment_name || 'Baixar arquivo'}</Text>
+              <Ionicons name="open-outline" size={16} color="#6B7280" />
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* Contact Info */}
         <View style={styles.section}>
@@ -298,6 +328,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
+  companyLogo: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#111827',
+    marginBottom: 16,
+  },
   companyIconContainer: {
     width: 72,
     height: 72,
@@ -355,6 +392,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#D1D5DB',
     lineHeight: 22,
+  },
+  // Attachment card
+  attachmentCard: {
+    backgroundColor: '#1F2937',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#8B5CF630',
+  },
+  attachmentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#111827',
+    padding: 12,
+    borderRadius: 10,
+  },
+  attachmentText: {
+    flex: 1,
+    color: '#D1D5DB',
+    fontSize: 14,
   },
   contactEmail: {
     fontSize: 15,

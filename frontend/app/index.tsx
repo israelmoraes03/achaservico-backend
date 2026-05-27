@@ -1216,9 +1216,13 @@ export default function HomeScreen() {
                   onPress={() => router.push(`/jobs/${job.job_id}`)}
                 >
                   <View style={styles.jobCardHeader}>
-                    <View style={styles.jobIconContainer}>
-                      <Ionicons name="business" size={24} color="#10B981" />
-                    </View>
+                    {job.company_logo ? (
+                      <Image source={{ uri: job.company_logo }} style={{ width: 48, height: 48, borderRadius: 24, marginRight: 12, backgroundColor: '#111827' }} />
+                    ) : (
+                      <View style={styles.jobIconContainer}>
+                        <Ionicons name="business" size={24} color="#10B981" />
+                      </View>
+                    )}
                     <View style={styles.jobCardInfo}>
                       <Text style={styles.jobCompanyName}>{job.company_name}</Text>
                       <Text style={styles.jobTitle}>{job.job_title}</Text>
@@ -1235,6 +1239,12 @@ export default function HomeScreen() {
                           <Ionicons name="time" size={12} color="#6B7280" />
                           <Text style={styles.jobMetaText}>{getJobTimeAgo(job.created_at)}</Text>
                         </View>
+                        {job.attachment_url && (
+                          <View style={styles.jobMetaItem}>
+                            <Ionicons name="attach" size={12} color="#8B5CF6" />
+                            <Text style={[styles.jobMetaText, { color: '#8B5CF6' }]}>Anexo</Text>
+                          </View>
+                        )}
                       </View>
                     </View>
                     <Ionicons name="chevron-forward" size={20} color="#6B7280" />

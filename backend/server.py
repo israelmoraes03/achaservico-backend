@@ -229,6 +229,32 @@ async def upload_to_cloudinary(base64_image: str, folder: str = "achaservico") -
         # Return original base64 if upload fails
         return base64_image
 
+async def upload_file_to_cloudinary(base64_file: str, folder: str = "achaservico/attachments", original_filename: str = "file") -> Optional[str]:
+    """
+    Upload a base64 file (PDF, DOC, etc.) to Cloudinary and return the URL.
+    Returns None if upload fails.
+    """
+    try:
+        if not os.environ.get('CLOUDINARY_CLOUD_NAME'):
+            logger.warning("Cloudinary not configured for file upload")
+            return None
+        
+        if base64_file.startswith('http'):
+            return base64_file
+        
+        result = cloudinary.uploader.upload(
+            base64_file,
+            folder=folder,
+            resource_type="raw",
+            public_id=f"{uuid.uuid4().hex[:12]}_{original_filename}",
+        )
+        
+        logger.info(f"File uploaded to Cloudinary: {result.get('secure_url')}")
+        return result.get('secure_url')
+    except Exception as e:
+        logger.error(f"Error uploading file to Cloudinary: {e}")
+        return None
+
 async def upload_images_to_cloudinary(images: List[str], folder: str = "achaservico") -> List[str]:
     """Upload multiple images to Cloudinary"""
     uploaded_urls = []
@@ -728,6 +754,7 @@ class SessionDataResponse(BaseModel):
 class Job(BaseModel):
     job_id: str = Field(default_factory=lambda: f"job_{uuid.uuid4().hex[:12]}")
     company_name: str
+    company_logo: Optional[str] = None  # Cloudinary URL for company logo
     job_title: str
     email: str
     phone: Optional[str] = None
@@ -737,6 +764,8 @@ class Job(BaseModel):
     status: str = "pending"  # pending, approved, rejected
     submitted_by: Optional[str] = None  # user email who submitted
     is_active: bool = True
+    attachment_url: Optional[str] = None  # Cloudinary URL for attached file
+    attachment_name: Optional[str] = None  # Original filename of attachment
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -748,6 +777,8 @@ class JobCreate(BaseModel):
     requirements: str
     description: str
     city: str = ""
+    attachment_base64: Optional[str] = None  # base64 file data
+    attachment_name: Optional[str] = None  # original filename
 
 class JobUpdate(BaseModel):
     company_name: Optional[str] = None
@@ -758,6 +789,9 @@ class JobUpdate(BaseModel):
     description: Optional[str] = None
     city: Optional[str] = None
     is_active: Optional[bool] = None
+    attachment_base64: Optional[str] = None  # base64 file data
+    attachment_name: Optional[str] = None  # original filename
+    remove_attachment: Optional[bool] = None  # flag to remove existing attachment
 
 # ======================== COMPANY MODELS ========================
 
@@ -770,6 +804,7 @@ class Company(BaseModel):
     email: str
     phone: str
     city: str = ""
+    logo: Optional[str] = None  # Cloudinary URL for company logo
     status: str = "pending"  # pending, approved, blocked
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -780,6 +815,7 @@ class CompanyRegister(BaseModel):
     email: str
     phone: str
     city: str = ""
+    logo: Optional[str] = None  # base64 or URL for company logo
 
 # ======================== STATIC DATA ========================
 
@@ -1790,7 +1826,7 @@ async def toggle_favorite(provider_id: str, request: Request):
                 await send_push_notification(
                     push_token=provider_user["push_token"],
                     title="Novo favorito! ⭐",
-                    body=f"Alguém adicionou você aos favoritos!",
+                    body="Alguém adicionou você aos favoritos!",
                     data={"type": "new_favorite", "notification_id": notification_entry.notification_id}
                 )
                 logger.info(f"Sent favorite push notification to provider {provider_id}")
@@ -3797,8 +3833,20 @@ async def submit_job(request: Request, job_data: JobCreate):
     if not company:
         raise HTTPException(status_code=403, detail="Você precisa ter uma empresa aprovada para publicar vagas.")
     
+    # Handle attachment upload
+    attachment_url = None
+    attachment_name = None
+    if job_data.attachment_base64 and job_data.attachment_name:
+        attachment_url = await upload_file_to_cloudinary(
+            job_data.attachment_base64, 
+            "achaservico/job_attachments",
+            job_data.attachment_name
+        )
+        attachment_name = job_data.attachment_name
+    
     job = Job(
         company_name=company.get("company_name", job_data.company_name),
+        company_logo=company.get("logo"),
         job_title=job_data.job_title,
         email=company.get("email", job_data.email),
         phone=company.get("phone", job_data.phone),
@@ -3807,6 +3855,8 @@ async def submit_job(request: Request, job_data: JobCreate):
         city=job_data.city or company.get("city", ""),
         status="approved",
         submitted_by=user.email,
+        attachment_url=attachment_url,
+        attachment_name=attachment_name,
     )
     
     await db.jobs.insert_one(job.dict())
@@ -3830,6 +3880,11 @@ async def register_company(request: Request, data: CompanyRegister):
         elif status == "blocked":
             raise HTTPException(status_code=400, detail="Sua empresa foi bloqueada. Entre em contato com o administrador.")
     
+    # Upload logo to Cloudinary if provided
+    logo_url = None
+    if data.logo:
+        logo_url = await upload_to_cloudinary(data.logo, "achaservico/company_logos")
+    
     company = Company(
         user_id=user.user_id,
         user_email=user.email,
@@ -3838,6 +3893,7 @@ async def register_company(request: Request, data: CompanyRegister):
         email=data.email,
         phone=data.phone,
         city=data.city,
+        logo=logo_url,
     )
     
     await db.companies.insert_one(company.dict())
@@ -3869,14 +3925,26 @@ async def update_my_company(request: Request, data: CompanyRegister):
         "city": data.city,
         "updated_at": datetime.now(timezone.utc),
     }
+    
+    # Handle logo upload
+    if data.logo:
+        if data.logo.startswith('http'):
+            update_fields["logo"] = data.logo  # Already a URL, keep as is
+        else:
+            update_fields["logo"] = await upload_to_cloudinary(data.logo, "achaservico/company_logos")
+    
     await db.companies.update_one({"user_id": user.user_id}, {"$set": update_fields})
     
-    # Also update email/phone/company_name on existing jobs
+    # Also update email/phone/company_name/logo on existing jobs
     job_update = {
         "company_name": data.company_name,
         "email": data.email,
         "phone": data.phone,
     }
+    # Update company_logo on jobs if logo was updated
+    if "logo" in update_fields:
+        job_update["company_logo"] = update_fields["logo"]
+    
     await db.jobs.update_many({"submitted_by": user.email}, {"$set": job_update})
     
     return {"success": True, "message": "Dados da empresa atualizados!"}
@@ -3907,7 +3975,25 @@ async def update_company_job(request: Request, job_id: str, job_data: JobUpdate)
     if not job:
         raise HTTPException(status_code=404, detail="Vaga não encontrada ou sem permissão")
     
-    update_fields = {k: v for k, v in job_data.dict().items() if v is not None}
+    update_fields = {}
+    for k, v in job_data.dict().items():
+        if v is not None and k not in ('attachment_base64', 'remove_attachment'):
+            update_fields[k] = v
+    
+    # Handle attachment
+    if job_data.remove_attachment:
+        update_fields["attachment_url"] = None
+        update_fields["attachment_name"] = None
+    elif job_data.attachment_base64 and job_data.attachment_name:
+        attachment_url = await upload_file_to_cloudinary(
+            job_data.attachment_base64,
+            "achaservico/job_attachments",
+            job_data.attachment_name
+        )
+        if attachment_url:
+            update_fields["attachment_url"] = attachment_url
+            update_fields["attachment_name"] = job_data.attachment_name
+    
     update_fields["updated_at"] = datetime.now(timezone.utc)
     
     await db.jobs.update_one({"job_id": job_id}, {"$set": update_fields})
@@ -3925,6 +4011,27 @@ async def delete_company_job(request: Request, job_id: str):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Vaga não encontrada ou sem permissão")
     return {"success": True, "message": "Vaga excluída!"}
+
+@api_router.put("/companies/jobs/{job_id}/toggle")
+async def toggle_company_job(request: Request, job_id: str):
+    """Toggle a job's active/inactive status (company owner only)"""
+    user = await require_auth(request)
+    company = await db.companies.find_one({"user_id": user.user_id, "status": "approved"})
+    if not company:
+        raise HTTPException(status_code=403, detail="Empresa não aprovada")
+    
+    job = await db.jobs.find_one({"job_id": job_id, "submitted_by": user.email})
+    if not job:
+        raise HTTPException(status_code=404, detail="Vaga não encontrada ou sem permissão")
+    
+    new_status = not job.get("is_active", True)
+    await db.jobs.update_one(
+        {"job_id": job_id},
+        {"$set": {"is_active": new_status, "updated_at": datetime.now(timezone.utc)}}
+    )
+    
+    status_text = "ativada" if new_status else "pausada"
+    return {"success": True, "is_active": new_status, "message": f"Vaga {status_text}!"}
 
 # ======================== ADMIN COMPANY MANAGEMENT ========================
 
@@ -3985,12 +4092,24 @@ async def admin_block_company(request: Request, company_id: str):
 
 @api_router.delete("/admin/companies/{company_id}")
 async def admin_delete_company(request: Request, company_id: str):
-    """Delete a company (admin only)"""
+    """Delete a company and all its associated jobs (admin only)"""
     await require_admin(request)
-    result = await db.companies.delete_one({"company_id": company_id})
-    if result.deleted_count == 0:
+    
+    # First, find the company to get user_email
+    company = await db.companies.find_one({"company_id": company_id})
+    if not company:
         raise HTTPException(status_code=404, detail="Empresa não encontrada")
-    return {"success": True, "message": "Empresa excluída."}
+    
+    user_email = company.get("user_email", "")
+    
+    # Delete all jobs associated with this company
+    jobs_result = await db.jobs.delete_many({"submitted_by": user_email})
+    jobs_deleted = jobs_result.deleted_count
+    
+    # Delete the company
+    await db.companies.delete_one({"company_id": company_id})
+    
+    return {"success": True, "message": f"Empresa excluída e {jobs_deleted} vaga(s) removida(s)."}
 
 @api_router.post("/admin/jobs")
 async def create_job(request: Request, job_data: JobCreate):
@@ -4474,19 +4593,19 @@ async def mercadopago_callback(
             logger.info(f"Mercado Pago subscription activated via callback for provider: {provider_id}")
         
         # Redirect to success page or deep link
-        return HTMLResponse(content=f"""
+        return HTMLResponse(content="""
         <html>
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Pagamento Confirmado</title>
             <style>
-                body {{ font-family: Arial, sans-serif; background: #0A0A0A; color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }}
-                .container {{ text-align: center; padding: 40px; }}
-                .icon {{ font-size: 80px; margin-bottom: 20px; }}
-                h1 {{ color: #10B981; margin-bottom: 10px; }}
-                p {{ color: #9CA3AF; margin-bottom: 30px; }}
-                .btn {{ background: #10B981; color: white; padding: 15px 30px; border-radius: 10px; text-decoration: none; font-weight: bold; }}
+                body { font-family: Arial, sans-serif; background: #0A0A0A; color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+                .container { text-align: center; padding: 40px; }
+                .icon { font-size: 80px; margin-bottom: 20px; }
+                h1 { color: #10B981; margin-bottom: 10px; }
+                p { color: #9CA3AF; margin-bottom: 30px; }
+                .btn { background: #10B981; color: white; padding: 15px 30px; border-radius: 10px; text-decoration: none; font-weight: bold; }
             </style>
         </head>
         <body>
@@ -4501,19 +4620,19 @@ async def mercadopago_callback(
         """, status_code=200)
     
     elif status == "pending" or collection_status == "pending":
-        return HTMLResponse(content=f"""
+        return HTMLResponse(content="""
         <html>
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Pagamento Pendente</title>
             <style>
-                body {{ font-family: Arial, sans-serif; background: #0A0A0A; color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }}
-                .container {{ text-align: center; padding: 40px; }}
-                .icon {{ font-size: 80px; margin-bottom: 20px; }}
-                h1 {{ color: #F59E0B; margin-bottom: 10px; }}
-                p {{ color: #9CA3AF; margin-bottom: 30px; }}
-                .btn {{ background: #F59E0B; color: white; padding: 15px 30px; border-radius: 10px; text-decoration: none; font-weight: bold; }}
+                body { font-family: Arial, sans-serif; background: #0A0A0A; color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+                .container { text-align: center; padding: 40px; }
+                .icon { font-size: 80px; margin-bottom: 20px; }
+                h1 { color: #F59E0B; margin-bottom: 10px; }
+                p { color: #9CA3AF; margin-bottom: 30px; }
+                .btn { background: #F59E0B; color: white; padding: 15px 30px; border-radius: 10px; text-decoration: none; font-weight: bold; }
             </style>
         </head>
         <body>
@@ -4528,19 +4647,19 @@ async def mercadopago_callback(
         """, status_code=200)
     
     else:
-        return HTMLResponse(content=f"""
+        return HTMLResponse(content="""
         <html>
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Pagamento Não Concluído</title>
             <style>
-                body {{ font-family: Arial, sans-serif; background: #0A0A0A; color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }}
-                .container {{ text-align: center; padding: 40px; }}
-                .icon {{ font-size: 80px; margin-bottom: 20px; }}
-                h1 {{ color: #EF4444; margin-bottom: 10px; }}
-                p {{ color: #9CA3AF; margin-bottom: 30px; }}
-                .btn {{ background: #374151; color: white; padding: 15px 30px; border-radius: 10px; text-decoration: none; font-weight: bold; }}
+                body { font-family: Arial, sans-serif; background: #0A0A0A; color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+                .container { text-align: center; padding: 40px; }
+                .icon { font-size: 80px; margin-bottom: 20px; }
+                h1 { color: #EF4444; margin-bottom: 10px; }
+                p { color: #9CA3AF; margin-bottom: 30px; }
+                .btn { background: #374151; color: white; padding: 15px 30px; border-radius: 10px; text-decoration: none; font-weight: bold; }
             </style>
         </head>
         <body>

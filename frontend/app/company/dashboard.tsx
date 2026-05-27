@@ -9,10 +9,15 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  Image,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import api from '../../src/services/api';
 import { useAuth } from '../../src/context/AuthContext';
 
@@ -34,6 +39,8 @@ export default function CompanyDashboard() {
   const [formRequirements, setFormRequirements] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formSubmitting, setFormSubmitting] = useState(false);
+  const [formAttachment, setFormAttachment] = useState<any>(null); // {uri, name, base64}
+  const [existingAttachment, setExistingAttachment] = useState<any>(null); // {url, name}
 
   // Edit company info
   const [showEditCompany, setShowEditCompany] = useState(false);
@@ -42,6 +49,7 @@ export default function CompanyDashboard() {
   const [editCompanyEmail, setEditCompanyEmail] = useState('');
   const [editCompanyPhone, setEditCompanyPhone] = useState('');
   const [editCompanyCity, setEditCompanyCity] = useState('');
+  const [editCompanyLogo, setEditCompanyLogo] = useState<string | null>(null); // base64 or URL
   const [editingCompany, setEditingCompany] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -82,6 +90,8 @@ export default function CompanyDashboard() {
     fetchData();
   };
 
+  // ========== COMPANY EDIT ==========
+
   const openEditCompany = () => {
     if (company) {
       setEditCompanyName(company.company_name || '');
@@ -89,8 +99,35 @@ export default function CompanyDashboard() {
       setEditCompanyEmail(company.email || '');
       setEditCompanyPhone(company.phone || '');
       setEditCompanyCity(company.city || '');
+      setEditCompanyLogo(company.logo || null);
     }
     setShowEditCompany(true);
+  };
+
+  const pickCompanyLogo = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permissão necessária', 'Precisamos de acesso à galeria para selecionar a foto.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        setEditCompanyLogo(`data:image/jpeg;base64,${asset.base64}`);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Erro', 'Erro ao selecionar imagem');
+    }
   };
 
   const handleSaveCompanyInfo = async () => {
@@ -100,13 +137,17 @@ export default function CompanyDashboard() {
     }
     try {
       setEditingCompany(true);
-      await api.put('/companies/my', {
+      const payload: any = {
         company_name: editCompanyName.trim(),
         cnpj: editCompanyCnpj.trim() || null,
         email: editCompanyEmail.trim(),
         phone: editCompanyPhone.trim(),
         city: editCompanyCity.trim(),
-      });
+      };
+      if (editCompanyLogo) {
+        payload.logo = editCompanyLogo;
+      }
+      await api.put('/companies/my', payload);
       Alert.alert('Sucesso', 'Dados da empresa atualizados!');
       setShowEditCompany(false);
       fetchData();
@@ -117,11 +158,15 @@ export default function CompanyDashboard() {
     }
   };
 
+  // ========== JOB FORM ==========
+
   const resetForm = () => {
     setFormTitle('');
     setFormCity('');
     setFormRequirements('');
     setFormDescription('');
+    setFormAttachment(null);
+    setExistingAttachment(null);
     setEditingJob(null);
     setShowForm(false);
   };
@@ -132,7 +177,40 @@ export default function CompanyDashboard() {
     setFormCity(job.city || '');
     setFormRequirements(job.requirements || '');
     setFormDescription(job.description || '');
+    setFormAttachment(null);
+    if (job.attachment_url) {
+      setExistingAttachment({ url: job.attachment_url, name: job.attachment_name || 'Arquivo' });
+    } else {
+      setExistingAttachment(null);
+    }
     setShowForm(true);
+  };
+
+  const pickAttachment = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/*'],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const file = result.assets[0];
+        // Read file as base64
+        const base64 = await FileSystem.readAsStringAsync(file.uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        const mimeType = file.mimeType || 'application/octet-stream';
+        setFormAttachment({
+          name: file.name,
+          base64: `data:${mimeType};base64,${base64}`,
+        });
+        setExistingAttachment(null);
+      }
+    } catch (error) {
+      console.error('Error picking document:', error);
+      Alert.alert('Erro', 'Erro ao selecionar arquivo');
+    }
   };
 
   const handleSaveJob = async () => {
@@ -143,15 +221,22 @@ export default function CompanyDashboard() {
     try {
       setFormSubmitting(true);
       if (editingJob) {
-        await api.put(`/companies/jobs/${editingJob.job_id}`, {
+        const payload: any = {
           job_title: formTitle.trim(),
           city: formCity.trim() || company?.city || '',
           requirements: formRequirements.trim(),
           description: formDescription.trim(),
-        });
+        };
+        if (formAttachment) {
+          payload.attachment_base64 = formAttachment.base64;
+          payload.attachment_name = formAttachment.name;
+        } else if (!existingAttachment && editingJob.attachment_url) {
+          payload.remove_attachment = true;
+        }
+        await api.put(`/companies/jobs/${editingJob.job_id}`, payload);
         Alert.alert('Sucesso', 'Vaga atualizada!');
       } else {
-        await api.post('/jobs/submit', {
+        const payload: any = {
           company_name: company?.company_name || '',
           job_title: formTitle.trim(),
           email: company?.email || '',
@@ -159,7 +244,12 @@ export default function CompanyDashboard() {
           requirements: formRequirements.trim(),
           description: formDescription.trim(),
           city: formCity.trim() || company?.city || '',
-        });
+        };
+        if (formAttachment) {
+          payload.attachment_base64 = formAttachment.base64;
+          payload.attachment_name = formAttachment.name;
+        }
+        await api.post('/jobs/submit', payload);
         Alert.alert('Sucesso', 'Vaga publicada!');
       }
       resetForm();
@@ -171,8 +261,27 @@ export default function CompanyDashboard() {
     }
   };
 
+  // ========== JOB ACTIONS ==========
+
+  const handleToggleJob = async (job: any) => {
+    const action = job.is_active ? 'Pausar' : 'Ativar';
+    Alert.alert(`${action} Vaga`, `Deseja ${action.toLowerCase()} "${job.job_title}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: action, onPress: async () => {
+          try {
+            await api.put(`/companies/jobs/${job.job_id}/toggle`);
+            fetchData();
+          } catch (error) {
+            Alert.alert('Erro', 'Erro ao alterar status da vaga');
+          }
+        }
+      }
+    ]);
+  };
+
   const handleDeleteJob = (job: any) => {
-    Alert.alert('Excluir Vaga', `Deseja excluir "${job.job_title}"?`, [
+    Alert.alert('Excluir Vaga', `Deseja excluir "${job.job_title}" permanentemente?`, [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Excluir', style: 'destructive',
@@ -188,6 +297,8 @@ export default function CompanyDashboard() {
       }
     ]);
   };
+
+  // ========== HELPERS ==========
 
   const getCityName = (cityId: string) => {
     if (!cityId) return '';
@@ -238,13 +349,25 @@ export default function CompanyDashboard() {
       >
         {/* Company Info Card */}
         <View style={styles.infoCard}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <Text style={{ color: '#9CA3AF', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>DADOS DA EMPRESA</Text>
             <TouchableOpacity onPress={openEditCompany} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Ionicons name="create-outline" size={14} color="#3B82F6" />
               <Text style={{ color: '#3B82F6', fontSize: 12, fontWeight: '600' }}>Editar</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Company Logo */}
+          <View style={{ alignItems: 'center', marginBottom: 12 }}>
+            {company?.logo ? (
+              <Image source={{ uri: company.logo }} style={styles.companyLogo} />
+            ) : (
+              <View style={styles.companyLogoPlaceholder}>
+                <Ionicons name="business" size={32} color="#6B7280" />
+              </View>
+            )}
+          </View>
+
           <View style={styles.infoRow}>
             <Ionicons name="mail" size={16} color="#9CA3AF" />
             <Text style={styles.infoText}>{company?.email}</Text>
@@ -271,7 +394,23 @@ export default function CompanyDashboard() {
         {showEditCompany && (
           <View style={[styles.formCard, { borderColor: '#3B82F6' }]}>
             <Text style={styles.formTitle}>Editar Dados da Empresa</Text>
-            
+
+            {/* Logo Picker */}
+            <Text style={styles.formLabel}>Logo da Empresa</Text>
+            <TouchableOpacity onPress={pickCompanyLogo} style={styles.logoPickerBtn}>
+              {editCompanyLogo ? (
+                <Image source={{ uri: editCompanyLogo }} style={styles.logoPreview} />
+              ) : (
+                <View style={styles.logoPickerPlaceholder}>
+                  <Ionicons name="camera" size={24} color="#6B7280" />
+                  <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 4 }}>Selecionar Logo</Text>
+                </View>
+              )}
+              <View style={styles.logoPickerOverlay}>
+                <Ionicons name="camera" size={16} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
+
             <Text style={styles.formLabel}>Nome da Empresa *</Text>
             <TextInput style={styles.formInput} value={editCompanyName} onChangeText={setEditCompanyName} placeholderTextColor="#6B7280" />
             
@@ -327,6 +466,25 @@ export default function CompanyDashboard() {
             
             <Text style={styles.formLabel}>Descrição *</Text>
             <TextInput style={[styles.formInput, { height: 100, textAlignVertical: 'top' }]} placeholder="Descrição detalhada da vaga..." placeholderTextColor="#6B7280" value={formDescription} onChangeText={setFormDescription} multiline />
+
+            {/* Attachment Section */}
+            <Text style={styles.formLabel}>Arquivo / Material (opcional)</Text>
+            {(formAttachment || existingAttachment) ? (
+              <View style={styles.attachmentPreview}>
+                <Ionicons name="document-attach" size={20} color="#10B981" />
+                <Text style={styles.attachmentName} numberOfLines={1}>
+                  {formAttachment?.name || existingAttachment?.name}
+                </Text>
+                <TouchableOpacity onPress={() => { setFormAttachment(null); setExistingAttachment(null); }}>
+                  <Ionicons name="close-circle" size={20} color="#EF4444" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.attachBtn} onPress={pickAttachment}>
+                <Ionicons name="attach" size={18} color="#8B5CF6" />
+                <Text style={styles.attachBtnText}>Anexar PDF, DOC ou Imagem</Text>
+              </TouchableOpacity>
+            )}
             
             <View style={styles.formActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={resetForm}>
@@ -389,11 +547,17 @@ export default function CompanyDashboard() {
                       <Ionicons name="time" size={13} color="#6B7280" />
                       <Text style={styles.jobCardMetaText}>{getTimeAgo(job.created_at)}</Text>
                     </View>
+                    {job.attachment_url && (
+                      <View style={styles.jobCardMetaItem}>
+                        <Ionicons name="attach" size={13} color="#8B5CF6" />
+                        <Text style={[styles.jobCardMetaText, { color: '#8B5CF6' }]}>Anexo</Text>
+                      </View>
+                    )}
                   </View>
                 </View>
-                <View style={[styles.statusBadge, { backgroundColor: job.is_active ? '#10B98120' : '#EF444420' }]}>
-                  <Text style={[styles.statusText, { color: job.is_active ? '#10B981' : '#EF4444' }]}>
-                    {job.is_active ? 'Ativa' : 'Inativa'}
+                <View style={[styles.statusBadge, { backgroundColor: job.is_active ? '#10B98120' : '#F59E0B20' }]}>
+                  <Text style={[styles.statusText, { color: job.is_active ? '#10B981' : '#F59E0B' }]}>
+                    {job.is_active ? 'Ativa' : 'Pausada'}
                   </Text>
                 </View>
               </View>
@@ -403,13 +567,21 @@ export default function CompanyDashboard() {
 
               {/* Actions */}
               <View style={styles.jobCardActions}>
+                <TouchableOpacity
+                  style={[styles.toggleBtn, { backgroundColor: job.is_active ? '#F59E0B20' : '#10B98120' }]}
+                  onPress={() => handleToggleJob(job)}
+                >
+                  <Ionicons name={job.is_active ? 'pause-circle' : 'play-circle'} size={16} color={job.is_active ? '#F59E0B' : '#10B981'} />
+                  <Text style={[styles.toggleBtnText, { color: job.is_active ? '#F59E0B' : '#10B981' }]}>
+                    {job.is_active ? 'Pausar' : 'Ativar'}
+                  </Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.editBtn} onPress={() => handleEditJob(job)}>
                   <Ionicons name="create-outline" size={16} color="#3B82F6" />
                   <Text style={styles.editBtnText}>Editar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDeleteJob(job)}>
                   <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                  <Text style={styles.deleteBtnText}>Excluir</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -439,6 +611,13 @@ const styles = StyleSheet.create({
   infoCard: {
     backgroundColor: '#1F2937', borderRadius: 12, padding: 14, marginBottom: 12, gap: 8,
   },
+  companyLogo: {
+    width: 72, height: 72, borderRadius: 36, backgroundColor: '#111827',
+  },
+  companyLogoPlaceholder: {
+    width: 72, height: 72, borderRadius: 36, backgroundColor: '#111827',
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#374151',
+  },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   infoText: { color: '#D1D5DB', fontSize: 14 },
   newJobBtn: {
@@ -466,6 +645,36 @@ const styles = StyleSheet.create({
     flex: 1, backgroundColor: '#10B981', paddingVertical: 12, borderRadius: 8, alignItems: 'center',
   },
   saveBtnText: { color: '#FFFFFF', fontWeight: '600' },
+  // Logo picker
+  logoPickerBtn: {
+    alignSelf: 'center', marginBottom: 12, position: 'relative',
+  },
+  logoPreview: {
+    width: 80, height: 80, borderRadius: 40, backgroundColor: '#111827',
+  },
+  logoPickerPlaceholder: {
+    width: 80, height: 80, borderRadius: 40, backgroundColor: '#111827',
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#374151', borderStyle: 'dashed',
+  },
+  logoPickerOverlay: {
+    position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14,
+    backgroundColor: '#3B82F6', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: '#1F2937',
+  },
+  // Attachment
+  attachBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#111827',
+    paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10,
+    borderWidth: 1, borderColor: '#374151', borderStyle: 'dashed', marginBottom: 8,
+  },
+  attachBtnText: { color: '#8B5CF6', fontSize: 13, fontWeight: '600' },
+  attachmentPreview: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#111827',
+    paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, marginBottom: 8,
+    borderWidth: 1, borderColor: '#10B98140',
+  },
+  attachmentName: { flex: 1, color: '#D1D5DB', fontSize: 13 },
+  // Search
   searchContainer: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#1F2937',
     borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, gap: 8, marginBottom: 12,
@@ -479,20 +688,25 @@ const styles = StyleSheet.create({
   },
   jobCardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   jobCardTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', marginBottom: 6 },
-  jobCardMeta: { flexDirection: 'row', gap: 14 },
+  jobCardMeta: { flexDirection: 'row', gap: 14, flexWrap: 'wrap' },
   jobCardMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   jobCardMetaText: { color: '#6B7280', fontSize: 12 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   statusText: { fontSize: 11, fontWeight: '700' },
   jobPreviewText: { color: '#9CA3AF', fontSize: 13, marginTop: 10, lineHeight: 18 },
-  jobCardActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  jobCardActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  toggleBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    paddingVertical: 10, borderRadius: 8,
+  },
+  toggleBtnText: { fontWeight: '600', fontSize: 13 },
   editBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
     backgroundColor: '#3B82F620', paddingVertical: 10, borderRadius: 8,
   },
   editBtnText: { color: '#3B82F6', fontWeight: '600', fontSize: 13 },
   deleteBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    width: 44, alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#EF444420', paddingVertical: 10, borderRadius: 8,
   },
   deleteBtnText: { color: '#EF4444', fontWeight: '600', fontSize: 13 },
