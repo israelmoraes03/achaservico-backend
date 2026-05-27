@@ -631,7 +631,7 @@ export default function AdminScreen() {
 
   const handleToggleJobStatus = async (job: any) => {
     try {
-      await api.put(`/admin/jobs/${job.job_id}`, { is_active: !job.is_active });
+      await api.put(`/admin/jobs/${job.job_id}/toggle-active`);
       fetchJobs();
       setActionMessage(job.is_active ? 'Vaga desativada' : 'Vaga ativada');
       setTimeout(() => setActionMessage(''), 3000);
@@ -2659,6 +2659,15 @@ export default function AdminScreen() {
                       )}
 
                       <View style={styles.cardActions}>
+                        <TouchableOpacity
+                          style={[styles.actionButton, { backgroundColor: job.is_active ? '#F59E0B20' : '#10B98120', flex: 1 }]}
+                          onPress={() => handleToggleJobStatus(job)}
+                        >
+                          <Ionicons name={job.is_active ? 'pause-circle' : 'play-circle'} size={16} color={job.is_active ? '#F59E0B' : '#10B981'} />
+                          <Text style={[styles.actionText, { color: job.is_active ? '#F59E0B' : '#10B981' }]}>
+                            {job.is_active ? 'Pausar' : 'Ativar'}
+                          </Text>
+                        </TouchableOpacity>
                         <TouchableOpacity
                           style={[styles.actionButton, { backgroundColor: '#3B82F620', flex: 1 }]}
                           onPress={() => handleEditJob(job)}

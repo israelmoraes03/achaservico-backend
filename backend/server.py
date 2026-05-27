@@ -4044,15 +4044,37 @@ async def admin_list_companies(request: Request):
 
 @api_router.put("/admin/companies/{company_id}/approve")
 async def admin_approve_company(request: Request, company_id: str):
-    """Approve a company (admin only)"""
+    """Approve (or unblock) a company and reactivate its jobs (admin only)"""
     await require_admin(request)
+    
+    company = await db.companies.find_one({"company_id": company_id})
+    if not company:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+    
+    was_blocked = company.get("status") == "blocked"
+    
     result = await db.companies.update_one(
         {"company_id": company_id},
         {"$set": {"status": "approved", "updated_at": datetime.now(timezone.utc)}}
     )
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Empresa não encontrada")
-    return {"success": True, "message": "Empresa aprovada!"}
+    
+    # If company was blocked, reactivate all its jobs
+    jobs_reactivated = 0
+    if was_blocked:
+        user_email = company.get("user_email", "")
+        if user_email:
+            jobs_result = await db.jobs.update_many(
+                {"submitted_by": user_email},
+                {"$set": {"is_active": True}}
+            )
+            jobs_reactivated = jobs_result.modified_count
+    
+    msg = "Empresa aprovada!"
+    if jobs_reactivated > 0:
+        msg = f"Empresa desbloqueada e {jobs_reactivated} vaga(s) reativada(s)!"
+    return {"success": True, "message": msg}
 
 @api_router.put("/admin/companies/{company_id}/reject")
 async def admin_reject_company(request: Request, company_id: str):
@@ -4181,6 +4203,24 @@ async def reject_job(request: Request, job_id: str):
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Vaga não encontrada")
     return {"success": True, "message": "Vaga recusada."}
+
+@api_router.put("/admin/jobs/{job_id}/toggle-active")
+async def admin_toggle_job_active(request: Request, job_id: str):
+    """Toggle a job's active/inactive status (admin only)"""
+    await require_admin(request)
+    
+    job = await db.jobs.find_one({"job_id": job_id})
+    if not job:
+        raise HTTPException(status_code=404, detail="Vaga não encontrada")
+    
+    new_status = not job.get("is_active", True)
+    await db.jobs.update_one(
+        {"job_id": job_id},
+        {"$set": {"is_active": new_status, "updated_at": datetime.now(timezone.utc)}}
+    )
+    
+    status_text = "ativada" if new_status else "desativada"
+    return {"success": True, "is_active": new_status, "message": f"Vaga {status_text}!"}
 
 @api_router.get("/admin/all-jobs")
 async def admin_list_all_jobs(request: Request):
