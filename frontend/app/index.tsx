@@ -126,6 +126,7 @@ export default function HomeScreen() {
   const [regCompanyEmail, setRegCompanyEmail] = useState('');
   const [regCompanyPhone, setRegCompanyPhone] = useState('');
   const [regCompanyCity, setRegCompanyCity] = useState('');
+  const [showRegCityDropdown, setShowRegCityDropdown] = useState(false);
   const [regSubmitting, setRegSubmitting] = useState(false);
   // Company jobs management
   const [myCompanyJobs, setMyCompanyJobs] = useState<any[]>([]);
@@ -1158,7 +1159,34 @@ export default function HomeScreen() {
                         <TextInput style={styles.jobFormInput} placeholder="CNPJ (opcional)" placeholderTextColor="#6B7280" value={regCompanyCnpj} onChangeText={setRegCompanyCnpj} />
                         <TextInput style={styles.jobFormInput} placeholder="Email Corporativo *" placeholderTextColor="#6B7280" value={regCompanyEmail} onChangeText={setRegCompanyEmail} keyboardType="email-address" autoCapitalize="none" />
                         <TextInput style={styles.jobFormInput} placeholder="Telefone/WhatsApp *" placeholderTextColor="#6B7280" value={regCompanyPhone} onChangeText={setRegCompanyPhone} keyboardType="phone-pad" />
-                        <TextInput style={styles.jobFormInput} placeholder="Cidade" placeholderTextColor="#6B7280" value={regCompanyCity} onChangeText={setRegCompanyCity} />
+                        <TouchableOpacity
+                          style={[styles.jobFormInput, { justifyContent: 'center' }]}
+                          onPress={() => setShowRegCityDropdown(!showRegCityDropdown)}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <Text style={{ color: regCompanyCity ? '#FFFFFF' : '#6B7280', fontSize: 14 }}>
+                              {regCompanyCity ? (cities.find((c: any) => c.id === regCompanyCity)?.name || regCompanyCity) : 'Cidade'}
+                            </Text>
+                            <Ionicons name={showRegCityDropdown ? 'chevron-up' : 'chevron-down'} size={16} color="#6B7280" />
+                          </View>
+                        </TouchableOpacity>
+                        {showRegCityDropdown && (
+                          <View style={{ backgroundColor: '#111827', borderRadius: 10, borderWidth: 1, borderColor: '#374151', marginBottom: 8, maxHeight: 180 }}>
+                            <ScrollView nestedScrollEnabled>
+                              {cities.map((city: any) => (
+                                <TouchableOpacity
+                                  key={city.id}
+                                  style={{ paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: '#1F293780' }}
+                                  onPress={() => { setRegCompanyCity(city.id); setShowRegCityDropdown(false); }}
+                                >
+                                  <Text style={{ color: regCompanyCity === city.id ? '#10B981' : '#D1D5DB', fontSize: 14 }}>
+                                    {city.name} - {city.state}
+                                  </Text>
+                                </TouchableOpacity>
+                              ))}
+                            </ScrollView>
+                          </View>
+                        )}
                         <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
                           <TouchableOpacity
                             style={{ flex: 1, backgroundColor: '#374151', paddingVertical: 12, borderRadius: 8, alignItems: 'center' }}

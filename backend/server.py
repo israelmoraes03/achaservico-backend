@@ -3790,13 +3790,30 @@ async def list_jobs(city: Optional[str] = None, search: Optional[str] = None):
     """List all active and approved job listings (public endpoint)"""
     query = {"is_active": True, "status": "approved"}
     if city:
-        query["city"] = city
+        # Match by city ID or city name (case-insensitive, with/without accents)
+        city_name = city.replace("_", " ")
+        query["$or"] = query.get("$or", [])
+        city_conditions = [
+            {"city": city},
+            {"city": {"$regex": f"^{city_name}$", "$options": "i"}},
+        ]
+        # Also try to find the full city name from CITIES list
+        city_obj = next((c for c in CITIES if c["id"] == city), None)
+        if city_obj:
+            city_conditions.append({"city": city_obj["name"]})
+            city_conditions.append({"city": {"$regex": f"^{city_obj['name']}$", "$options": "i"}})
+        query["$or"] = city_conditions
     if search:
-        query["$or"] = [
+        search_conditions = [
             {"company_name": {"$regex": search, "$options": "i"}},
             {"job_title": {"$regex": search, "$options": "i"}},
             {"description": {"$regex": search, "$options": "i"}},
         ]
+        if "$or" in query:
+            # Combine city and search with $and
+            query = {"is_active": True, "status": "approved", "$and": [{"$or": query["$or"]}, {"$or": search_conditions}]}
+        else:
+            query["$or"] = search_conditions
     
     jobs = await db.jobs.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
     return jobs
