@@ -38,9 +38,21 @@ export default function CompanyDashboard() {
   const [formCity, setFormCity] = useState('');
   const [formRequirements, setFormRequirements] = useState('');
   const [formDescription, setFormDescription] = useState('');
+  const [formQuantity, setFormQuantity] = useState('1');
+  const [formTargetAudience, setFormTargetAudience] = useState('todos');
   const [formSubmitting, setFormSubmitting] = useState(false);
-  const [formAttachment, setFormAttachment] = useState<any>(null); // {uri, name, base64}
-  const [existingAttachment, setExistingAttachment] = useState<any>(null); // {url, name}
+  const [formAttachment, setFormAttachment] = useState<any>(null);
+  const [existingAttachment, setExistingAttachment] = useState<any>(null);
+  const [showCityPicker, setShowCityPicker] = useState(false);
+  const [cities, setCities] = useState<any[]>([]);
+
+  const TARGET_OPTIONS = [
+    { id: 'todos', label: 'Todos' },
+    { id: 'homem', label: 'Homem' },
+    { id: 'mulher', label: 'Mulher' },
+    { id: 'pcd', label: 'PCD' },
+    { id: 'lgbt', label: 'LGBT' },
+  ];
 
   // Edit company info
   const [showEditCompany, setShowEditCompany] = useState(false);
@@ -54,13 +66,15 @@ export default function CompanyDashboard() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [companyRes, jobsRes] = await Promise.all([
+      const [companyRes, jobsRes, citiesRes] = await Promise.all([
         api.get('/companies/my'),
         api.get('/companies/my-jobs'),
+        api.get('/cities'),
       ]);
       setCompany(companyRes.data?.company || null);
       setJobs(jobsRes.data || []);
       setFilteredJobs(jobsRes.data || []);
+      setCities(citiesRes.data || []);
     } catch (error) {
       console.error('Error fetching company data:', error);
     } finally {
@@ -165,6 +179,8 @@ export default function CompanyDashboard() {
     setFormCity('');
     setFormRequirements('');
     setFormDescription('');
+    setFormQuantity('1');
+    setFormTargetAudience('todos');
     setFormAttachment(null);
     setExistingAttachment(null);
     setEditingJob(null);
@@ -177,6 +193,8 @@ export default function CompanyDashboard() {
     setFormCity(job.city || '');
     setFormRequirements(job.requirements || '');
     setFormDescription(job.description || '');
+    setFormQuantity(String(job.quantity || 1));
+    setFormTargetAudience(job.target_audience || 'todos');
     setFormAttachment(null);
     if (job.attachment_url) {
       setExistingAttachment({ url: job.attachment_url, name: job.attachment_name || 'Arquivo' });
@@ -226,6 +244,8 @@ export default function CompanyDashboard() {
           city: formCity.trim() || company?.city || '',
           requirements: formRequirements.trim(),
           description: formDescription.trim(),
+          quantity: parseInt(formQuantity) || 1,
+          target_audience: formTargetAudience,
         };
         if (formAttachment) {
           payload.attachment_base64 = formAttachment.base64;
@@ -244,6 +264,8 @@ export default function CompanyDashboard() {
           requirements: formRequirements.trim(),
           description: formDescription.trim(),
           city: formCity.trim() || company?.city || '',
+          quantity: parseInt(formQuantity) || 1,
+          target_audience: formTargetAudience,
         };
         if (formAttachment) {
           payload.attachment_base64 = formAttachment.base64;
@@ -458,8 +480,59 @@ export default function CompanyDashboard() {
             <Text style={styles.formLabel}>Título da Vaga *</Text>
             <TextInput style={styles.formInput} placeholder="Ex: Assistente Administrativo" placeholderTextColor="#6B7280" value={formTitle} onChangeText={setFormTitle} />
             
-            <Text style={styles.formLabel}>Cidade (vazio = usa a da empresa)</Text>
-            <TextInput style={styles.formInput} placeholder="Ex: Três Lagoas" placeholderTextColor="#6B7280" value={formCity} onChangeText={setFormCity} />
+            <Text style={styles.formLabel}>Cidade *</Text>
+            <TouchableOpacity
+              style={styles.formInput}
+              onPress={() => setShowCityPicker(!showCityPicker)}
+            >
+              <Text style={{ color: formCity ? '#FFFFFF' : '#6B7280', fontSize: 14 }}>
+                {formCity ? cities.find((c: any) => c.id === formCity)?.name || formCity : 'Selecione a cidade'}
+              </Text>
+            </TouchableOpacity>
+            {showCityPicker && (
+              <View style={{ backgroundColor: '#111827', borderRadius: 10, borderWidth: 1, borderColor: '#374151', marginBottom: 8, maxHeight: 200 }}>
+                <ScrollView nestedScrollEnabled>
+                  {cities.map((city: any) => (
+                    <TouchableOpacity
+                      key={city.id}
+                      style={{ paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: '#1F293780' }}
+                      onPress={() => { setFormCity(city.id); setShowCityPicker(false); }}
+                    >
+                      <Text style={{ color: formCity === city.id ? '#10B981' : '#D1D5DB', fontSize: 14 }}>
+                        {city.name} - {city.state}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.formLabel}>Qtd. de Vagas</Text>
+                <TextInput style={styles.formInput} placeholder="1" placeholderTextColor="#6B7280" value={formQuantity} onChangeText={setFormQuantity} keyboardType="numeric" />
+              </View>
+              <View style={{ flex: 2 }}>
+                <Text style={styles.formLabel}>Público-Alvo</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                  {TARGET_OPTIONS.map(opt => (
+                    <TouchableOpacity
+                      key={opt.id}
+                      onPress={() => setFormTargetAudience(opt.id)}
+                      style={{
+                        paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8,
+                        backgroundColor: formTargetAudience === opt.id ? '#10B981' : '#111827',
+                        borderWidth: 1, borderColor: formTargetAudience === opt.id ? '#10B981' : '#374151',
+                      }}
+                    >
+                      <Text style={{ color: formTargetAudience === opt.id ? '#FFFFFF' : '#9CA3AF', fontSize: 12, fontWeight: '600' }}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
             
             <Text style={styles.formLabel}>Requisitos *</Text>
             <TextInput style={[styles.formInput, { height: 80, textAlignVertical: 'top' }]} placeholder="Requisitos para a vaga..." placeholderTextColor="#6B7280" value={formRequirements} onChangeText={setFormRequirements} multiline />

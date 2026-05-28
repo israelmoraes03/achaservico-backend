@@ -112,6 +112,7 @@ export default function HomeScreen() {
   const [isLoadingJobs, setIsLoadingJobs] = useState(false);
   const [jobSearchQuery, setJobSearchQuery] = useState('');
   const [jobCityFilter, setJobCityFilter] = useState<string | null>(null);
+  const [showJobCityDropdown, setShowJobCityDropdown] = useState(false);
   const [jobAvailableCities, setJobAvailableCities] = useState<string[]>([]);
   const [jobAvailableCompanies, setJobAvailableCompanies] = useState<string[]>([]);
   const [showJobSubmitForm, setShowJobSubmitForm] = useState(false);
@@ -761,7 +762,7 @@ export default function HomeScreen() {
           >
             <View style={styles.providerBannerContent}>
               <View style={styles.providerBannerIcon}>
-                <Ionicons name="briefcase" size={28} color="#FFFFFF" />
+                <Ionicons name="briefcase" size={22} color="#FFFFFF" />
               </View>
               <View style={styles.providerBannerText}>
                 <Text style={styles.providerBannerTitle}>Seja um Prestador!</Text>
@@ -1081,28 +1082,50 @@ export default function HomeScreen() {
         {/* ========== JOBS TAB CONTENT ========== */}
         {activeMainTab === 'jobs' && (
           <>
-            {/* Job City Filter Chips */}
-            {jobAvailableCities.length > 0 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                <TouchableOpacity
-                  style={[styles.mainTabButton, !jobCityFilter && styles.mainTabButtonActive, { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: !jobCityFilter ? '#10B981' : '#1F2937', marginRight: 8 }]}
-                  onPress={() => setJobCityFilter(null)}
-                >
-                  <Text style={{ color: !jobCityFilter ? '#FFF' : '#9CA3AF', fontSize: 13, fontWeight: '600' }}>Todas</Text>
-                </TouchableOpacity>
-                {jobAvailableCities.map((city) => (
-                  <TouchableOpacity
-                    key={city}
-                    style={[{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: jobCityFilter === city ? '#10B981' : '#1F2937', marginRight: 8 }]}
-                    onPress={() => setJobCityFilter(jobCityFilter === city ? null : city)}
-                  >
-                    <Text style={{ color: jobCityFilter === city ? '#FFF' : '#9CA3AF', fontSize: 13, fontWeight: '600' }}>
-                      {getCityName(city)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            )}
+            {/* Job City Filter Dropdown */}
+            <View style={{ marginBottom: 12, paddingHorizontal: 0 }}>
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                  backgroundColor: '#1F2937', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
+                  borderWidth: 1, borderColor: jobCityFilter ? '#10B981' : '#374151',
+                }}
+                onPress={() => setShowJobCityDropdown(!showJobCityDropdown)}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="location" size={16} color={jobCityFilter ? '#10B981' : '#6B7280'} />
+                  <Text style={{ color: jobCityFilter ? '#FFFFFF' : '#9CA3AF', fontSize: 14 }}>
+                    {jobCityFilter ? getCityName(jobCityFilter) : 'Todas as cidades'}
+                  </Text>
+                </View>
+                <Ionicons name={showJobCityDropdown ? 'chevron-up' : 'chevron-down'} size={18} color="#6B7280" />
+              </TouchableOpacity>
+              {showJobCityDropdown && (
+                <View style={{ backgroundColor: '#1F2937', borderRadius: 10, marginTop: 4, borderWidth: 1, borderColor: '#374151', maxHeight: 250 }}>
+                  <ScrollView nestedScrollEnabled>
+                    <TouchableOpacity
+                      style={{ paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: '#111827' }}
+                      onPress={() => { setJobCityFilter(null); setShowJobCityDropdown(false); }}
+                    >
+                      <Text style={{ color: !jobCityFilter ? '#10B981' : '#D1D5DB', fontSize: 14, fontWeight: !jobCityFilter ? '700' : '400' }}>
+                        Todas as cidades
+                      </Text>
+                    </TouchableOpacity>
+                    {cities.map((city: any) => (
+                      <TouchableOpacity
+                        key={city.id}
+                        style={{ paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: '#111827' }}
+                        onPress={() => { setJobCityFilter(city.id); setShowJobCityDropdown(false); }}
+                      >
+                        <Text style={{ color: jobCityFilter === city.id ? '#10B981' : '#D1D5DB', fontSize: 14, fontWeight: jobCityFilter === city.id ? '700' : '400' }}>
+                          {city.name} - {city.state}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
 
             {/* Company Section - Registration or Management */}
             {user && (
@@ -1775,42 +1798,42 @@ const styles = StyleSheet.create({
   // Banner - Seja um Prestador (para novos usuários)
   providerBanner: {
     marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 16,
+    marginBottom: 12,
+    borderRadius: 12,
     backgroundColor: '#FF6B35',
     shadowColor: '#FF6B35',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
     overflow: 'hidden',
   },
   providerBannerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
   providerBannerIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 12,
   },
   providerBannerText: {
     flex: 1,
   },
   providerBannerTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   providerBannerSubtitle: {
-    fontSize: 13,
+    fontSize: 11,
     color: 'rgba(255, 255, 255, 0.9)',
   },
   // Banner - Dashboard (para prestadores existentes)

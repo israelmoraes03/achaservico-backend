@@ -217,6 +217,30 @@ export default function JobDetailScreen() {
               <Text style={styles.metaText}>{getTimeAgo(job.created_at)}</Text>
             </View>
           </View>
+
+          {/* Quantity and Target Audience badges */}
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+            {(job as any).quantity && (job as any).quantity > 0 && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#3B82F620', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+                <Ionicons name="people" size={14} color="#3B82F6" />
+                <Text style={{ color: '#3B82F6', fontSize: 12, fontWeight: '600' }}>{(job as any).quantity} vaga(s)</Text>
+              </View>
+            )}
+            {(job as any).target_audience && (job as any).target_audience !== 'todos' && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#8B5CF620', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+                <Ionicons name="person" size={14} color="#8B5CF6" />
+                <Text style={{ color: '#8B5CF6', fontSize: 12, fontWeight: '600' }}>
+                  {(job as any).target_audience === 'homem' ? 'Homem' : (job as any).target_audience === 'mulher' ? 'Mulher' : (job as any).target_audience === 'pcd' ? 'PCD' : (job as any).target_audience === 'lgbt' ? 'LGBT' : 'Todos'}
+                </Text>
+              </View>
+            )}
+            {(job as any).target_audience === 'todos' && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#10B98120', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+                <Ionicons name="people" size={14} color="#10B981" />
+                <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '600' }}>Todos os públicos</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {/* Requirements Section */}

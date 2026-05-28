@@ -761,6 +761,8 @@ class Job(BaseModel):
     requirements: str
     description: str
     city: str = ""
+    quantity: int = 1  # Number of open positions
+    target_audience: str = "todos"  # todos, homem, mulher, pcd, lgbt
     status: str = "pending"  # pending, approved, rejected
     submitted_by: Optional[str] = None  # user email who submitted
     is_active: bool = True
@@ -777,6 +779,8 @@ class JobCreate(BaseModel):
     requirements: str
     description: str
     city: str = ""
+    quantity: int = 1
+    target_audience: str = "todos"
     attachment_base64: Optional[str] = None  # base64 file data
     attachment_name: Optional[str] = None  # original filename
 
@@ -788,6 +792,8 @@ class JobUpdate(BaseModel):
     requirements: Optional[str] = None
     description: Optional[str] = None
     city: Optional[str] = None
+    quantity: Optional[int] = None
+    target_audience: Optional[str] = None
     is_active: Optional[bool] = None
     attachment_base64: Optional[str] = None  # base64 file data
     attachment_name: Optional[str] = None  # original filename
@@ -3853,6 +3859,8 @@ async def submit_job(request: Request, job_data: JobCreate):
         requirements=job_data.requirements,
         description=job_data.description,
         city=job_data.city or company.get("city", ""),
+        quantity=job_data.quantity,
+        target_audience=job_data.target_audience,
         status="approved",
         submitted_by=user.email,
         attachment_url=attachment_url,
