@@ -15,7 +15,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Tire fotos para seu perfil e avaliações",
         "NSPhotoLibraryUsageDescription": "Selecione fotos para seu perfil",
-        "NSLocationWhenInUseUsageDescription": "Encontre prestadores perto de você"
+        "NSLocationWhenInUseUsageDescription": "Encontre prestadores perto de você",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "entitlements": {
         "com.apple.developer.applesignin": ["Default"]
