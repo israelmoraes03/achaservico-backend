@@ -40,12 +40,6 @@
     }
   },
   "submit": {
-    "production": {
-      "ios": {
-        "appleId": "saragomeshh@gmail.com",
-        "ascAppId": "",
-        "appleTeamId": ""
-      }
-    }
+    "production": {}
   }
 }
