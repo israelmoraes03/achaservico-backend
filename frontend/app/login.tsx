@@ -13,10 +13,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as AppleAuthentication from 'expo-apple-authentication';
 
 export default function LoginScreen() {
-  const { login, loginWithApple, isLoading, isAuthenticated } = useAuth();
+  const { login, isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
 
   React.useEffect(() => {
@@ -105,26 +104,7 @@ export default function LoginScreen() {
             </LinearGradient>
           </TouchableOpacity>
 
-          {/* Apple Sign-In Button - iOS only */}
-          {Platform.OS === 'ios' && (
-            <TouchableOpacity
-              style={styles.appleButtonWrapper}
-              onPress={loginWithApple}
-              disabled={isLoading}
-              activeOpacity={0.9}
-            >
-              <View style={styles.appleButton}>
-                {isLoading ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Ionicons name="logo-apple" size={22} color="#FFFFFF" style={{ marginRight: 10 }} />
-                    <Text style={styles.appleButtonText}>Entrar com Apple</Text>
-                  </>
-                )}
-              </View>
-            </TouchableOpacity>
-          )}
+          {/* Apple Sign-In Button - will be enabled when iOS capabilities are properly configured */}
         </View>
 
         {/* Divider */}

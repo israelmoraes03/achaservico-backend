@@ -69,9 +69,10 @@
           "icon": "./assets/images/icon.png",
           "color": "#10B981",
           "defaultChannel": "default",
-          "enableBackgroundRemoteNotifications": true
+          "enableBackgroundRemoteNotifications": false
         }
       ],
+      "./plugins/withCleanEntitlements.js",
       "expo-font",
       "expo-web-browser",
       "expo-mail-composer"
