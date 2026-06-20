@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Delete old provisioning profile via Build Credentials menu"""
 import pexpect
 import os
 import sys
@@ -12,70 +13,117 @@ env['EXPO_ASC_API_KEY_PATH'] = '/app/frontend/AuthKey_M33RXKZJN9.p8'
 env['EXPO_ASC_KEY_ID'] = 'M33RXKZJN9'
 env['EXPO_ASC_ISSUER_ID'] = '017a6689-6907-4d98-8e92-3ea733e40f1c'
 env['EXPO_APPLE_TEAM_ID'] = 'XC7JZ45JKY'
-env['EXPO_APPLE_TEAM_TYPE'] = 'INDIVIDUAL'
 
-print("=== Starting iOS build (capabilities removed) ===")
+DOWN = '\x1b[B'
+
+def nav_down(child, n):
+    for _ in range(n):
+        child.send(DOWN)
+        time.sleep(0.15)
+
+print("=== Managing iOS credentials ===")
 child = pexpect.spawn(
-    'npx eas-cli build --platform ios --profile preview-ios --no-wait',
+    'npx eas-cli credentials -p ios',
     env=env,
-    timeout=300,
+    timeout=180,
     encoding='utf-8',
-    maxread=10000,
+    maxread=100000,
 )
 child.logfile = sys.stdout
 
-while True:
+state = 'profile_select'
+max_rounds = 25
+
+for round_num in range(1, max_rounds + 1):
     try:
-        index = child.expect([
-            r'Would you like to set up Push',  # Push
-            r'Generate a new Apple Provisioning',  # New prov profile
-            r'Generate a new Apple Distribution',  # New dist cert
-            r'\(Y/n\)',
-            r'\(y/N\)',
-            r'Use arrow-keys',
-            r'Apple ID:',
-            r'Password',
-            r'expo\.dev.*builds',  # Build URL
-            pexpect.EOF,
-            pexpect.TIMEOUT,
-        ], timeout=120)
+        idx = child.expect([
+            r'Which build profile',         # 0
+            r'Select your Apple Team',      # 1
+            r'What do you want to do',      # 2
+            r'Are you sure',               # 3
+            r'\(Y/n\)',                    # 4
+            r'\(y/N\)',                    # 5
+            r'successfully removed',        # 6
+            r'successfully deleted',        # 7
+            r'Apple ID:',                  # 8
+            r'Password',                   # 9
+            pexpect.EOF,                   # 10
+            pexpect.TIMEOUT,               # 11
+        ], timeout=25)
         
-        if index == 0:  # Push notifications
+        print(f"\n[R{round_num} state={state} match={idx}]")
+        
+        if idx == 0:  # Build profile
+            time.sleep(0.3)
+            nav_down(child, 2)  # to preview-ios
+            child.sendline('')
+            
+        elif idx == 1:  # Team type
+            time.sleep(0.3)
+            nav_down(child, 2)  # to Individual
+            child.sendline('')
+            
+        elif idx == 2:  # What do you want to do
             time.sleep(0.5)
-            child.send('\x1b[B')  # Down to No
-            time.sleep(0.3)
-            child.sendline('')
-        elif index == 1:  # New prov profile
+            if state == 'profile_select':
+                # First menu: select "Build Credentials" (1st option - no arrows needed)
+                child.sendline('')  # Select first option
+                state = 'build_creds'
+            elif state == 'build_creds':
+                # Build Credentials submenu - options are usually:
+                # 1. Distribution Certificate: Use existing / set up
+                # 2. Provisioning Profile: Update / Remove
+                # We need "Provisioning Profile" related option
+                # Go down 1 to Provisioning Profile
+                nav_down(child, 1)
+                child.sendline('')
+                state = 'prov_profile'
+            elif state == 'prov_profile':
+                # Provisioning Profile submenu - find "Remove"
+                # Options might be: Update, Remove, Go back
+                # Go down to Remove
+                nav_down(child, 1)
+                child.sendline('')
+                state = 'removing'
+            elif state == 'removing':
+                # We might be back at another menu
+                nav_down(child, 1)
+                child.sendline('')
+            else:
+                child.sendline('')
+                
+        elif idx == 3:  # Are you sure
             child.sendline('Y')
-        elif index == 2:  # New dist cert
+            
+        elif idx == 4:  # Y/n
             child.sendline('Y')
-        elif index == 3:  # Y/n
-            child.sendline('Y')
-        elif index == 4:  # y/N
+            
+        elif idx == 5:  # y/N
             child.sendline('y')
-        elif index == 5:  # Arrow menu
-            time.sleep(0.3)
-            child.sendline('')
-        elif index == 6:  # Apple ID
+            
+        elif idx in [6, 7]:  # Success
+            print("\n\n=== PROVISIONING PROFILE DELETED! ===\n")
             child.sendcontrol('c')
             break
-        elif index == 7:  # Password
+            
+        elif idx in [8, 9]:  # Apple auth - abort
+            print("\n=== Apple ID required - aborting ===")
             child.sendcontrol('c')
             break
-        elif index == 8:  # Build URL shown
-            time.sleep(2)
-        elif index == 9:  # EOF
-            print("\n=== BUILD COMPLETED ===")
+            
+        elif idx == 10:  # EOF
             break
-        elif index == 10:  # TIMEOUT
-            print("\n=== TIMEOUT ===")
+            
+        elif idx == 11:  # TIMEOUT
+            print(f"\n[Timeout at R{round_num}]")
+            child.sendcontrol('c')
             break
+            
     except pexpect.exceptions.EOF:
-        print("\n=== PROCESS ENDED ===")
         break
     except Exception as e:
-        print(f"\n=== ERROR: {e} ===")
+        print(f"\n[Error: {e}]")
         break
 
 child.close()
-print(f"\nExit code: {child.exitstatus}")
+print(f"\nExit: {child.exitstatus}")
