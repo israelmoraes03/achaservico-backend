@@ -1344,6 +1344,105 @@ async def google_signin(request: Request, response: Response):
         logger.error(f"Google sign-in error: {e}")
         raise HTTPException(status_code=500, detail="Erro interno no login")
 
+@api_router.post("/auth/apple-signin")
+@limiter.limit("10/minute")
+async def apple_signin(request: Request, response: Response):
+    """Apple Sign-In - verify Apple identity token and create/login user"""
+    try:
+        body = await request.json()
+        identity_token = body.get("identity_token")
+        email = body.get("email")
+        full_name = body.get("full_name")
+        apple_user_id = body.get("apple_user_id")
+        
+        if not identity_token and not apple_user_id:
+            raise HTTPException(status_code=400, detail="Token ou ID Apple não fornecido")
+        
+        # Apple only sends email on FIRST sign-in, after that we look up by apple_user_id
+        if not email and apple_user_id:
+            # Try to find existing user by apple_user_id
+            existing = await db.users.find_one({"apple_user_id": apple_user_id})
+            if existing:
+                email = existing.get("email")
+            else:
+                raise HTTPException(status_code=400, detail="Email não disponível. Tente novamente.")
+        
+        if not email:
+            raise HTTPException(status_code=400, detail="Email não encontrado")
+        
+        name = full_name or email.split("@")[0]
+        
+        # Find or create user
+        user = await db.users.find_one({"email": email})
+        
+        if user:
+            if user.get("is_blocked"):
+                raise HTTPException(status_code=403, detail="Conta bloqueada")
+            
+            update_data = {
+                "last_login": datetime.now(timezone.utc),
+                "apple_user_id": apple_user_id,
+            }
+            if full_name and full_name != email.split("@")[0]:
+                update_data["name"] = full_name
+                
+            await db.users.update_one({"email": email}, {"$set": update_data})
+            user_id = user["user_id"]
+            name = full_name or user.get("name", name)
+        else:
+            user_id = str(uuid.uuid4())
+            new_user = {
+                "user_id": user_id,
+                "email": email,
+                "name": name,
+                "picture": "",
+                "is_provider": False,
+                "is_blocked": False,
+                "apple_user_id": apple_user_id,
+                "created_at": datetime.now(timezone.utc),
+                "last_login": datetime.now(timezone.utc),
+            }
+            await db.users.insert_one(new_user)
+            logger.info(f"New user created via Apple Sign-In: {email}")
+        
+        # Create session
+        session_token = str(uuid.uuid4())
+        await db.user_sessions.insert_one({
+            "session_token": session_token,
+            "user_id": user_id,
+            "email": email,
+            "created_at": datetime.now(timezone.utc),
+        })
+        
+        is_admin = email == "israel.moraes03@gmail.com"
+        provider = await db.providers.find_one({"user_id": user_id})
+        
+        now = datetime.now(timezone(timedelta(hours=-4)))
+        await db.access_logs.insert_one({
+            "user_id": user_id,
+            "user_type": "provider" if provider else "client",
+            "date": now.strftime("%Y-%m-%d"),
+            "timestamp": datetime.now(timezone.utc),
+        })
+        
+        return {
+            "user": {
+                "user_id": user_id,
+                "email": email,
+                "name": name,
+                "picture": "",
+                "is_provider": bool(provider),
+                "is_admin": is_admin,
+            },
+            "session_token": session_token,
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Apple sign-in error: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno no login")
+
 @api_router.post("/auth/google-signin-token")
 @limiter.limit("10/minute")
 async def google_signin_access_token(request: Request, response: Response):

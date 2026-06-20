@@ -20,6 +20,15 @@
         "EXPO_PUBLIC_BACKEND_URL": "https://achaservico-backend.onrender.com"
       }
     },
+    "preview-ios": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_BACKEND_URL": "https://achaservico-backend.onrender.com"
+      }
+    },
     "production": {
       "android": {
         "buildType": "app-bundle",
@@ -31,6 +40,12 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "saragomeshh@gmail.com",
+        "ascAppId": "",
+        "appleTeamId": ""
+      }
+    }
   }
 }

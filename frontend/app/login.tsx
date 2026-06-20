@@ -6,15 +6,17 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
 export default function LoginScreen() {
-  const { login, isLoading, isAuthenticated } = useAuth();
+  const { login, loginWithApple, isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
 
   React.useEffect(() => {
@@ -102,6 +104,27 @@ export default function LoginScreen() {
               )}
             </LinearGradient>
           </TouchableOpacity>
+
+          {/* Apple Sign-In Button - iOS only */}
+          {Platform.OS === 'ios' && (
+            <TouchableOpacity
+              style={styles.appleButtonWrapper}
+              onPress={loginWithApple}
+              disabled={isLoading}
+              activeOpacity={0.9}
+            >
+              <View style={styles.appleButton}>
+                {isLoading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons name="logo-apple" size={22} color="#FFFFFF" style={{ marginRight: 10 }} />
+                    <Text style={styles.appleButtonText}>Entrar com Apple</Text>
+                  </>
+                )}
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Divider */}
@@ -245,6 +268,25 @@ const styles = StyleSheet.create({
     color: '#0A0A0A',
   },
   googleButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  appleButtonWrapper: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginTop: 12,
+  },
+  appleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    backgroundColor: '#000000',
+    borderRadius: 14,
+  },
+  appleButtonText: {
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '600',

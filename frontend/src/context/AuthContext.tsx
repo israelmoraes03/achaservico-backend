@@ -6,6 +6,7 @@ import { Platform, Alert, AppState, AppStateStatus } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import api from '../services/api';
 
 // Complete any pending auth sessions (MUST be at module level)
@@ -45,6 +46,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: () => Promise<void>;
+  loginWithApple: () => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -681,6 +683,81 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return Promise.resolve();
   };
 
+  const loginWithApple = async () => {
+    try {
+      setIsLoading(true);
+      
+      if (Platform.OS !== 'ios') {
+        Alert.alert('Erro', 'Login com Apple só disponível no iOS');
+        setIsLoading(false);
+        return;
+      }
+      
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      
+      const fullName = credential.fullName
+        ? `${credential.fullName.givenName || ''} ${credential.fullName.familyName || ''}`.trim()
+        : null;
+      
+      const resp = await api.post('/auth/apple-signin', {
+        identity_token: credential.identityToken,
+        email: credential.email,
+        full_name: fullName,
+        apple_user_id: credential.user,
+      }, { timeout: 15000 });
+      
+      if (!isMountedRef.current) return;
+      
+      const userData = resp?.data?.user;
+      const sessionToken = resp?.data?.session_token;
+      
+      if (!userData || !sessionToken) {
+        console.log('Invalid response from apple-signin');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (userData.blocked || userData.is_blocked) {
+        showBlockedAlert();
+        setIsLoading(false);
+        return;
+      }
+      
+      await AsyncStorage.setItem('session_token', sessionToken);
+      api.defaults.headers.common['Authorization'] = `Bearer ${sessionToken}`;
+      if (isMountedRef.current) setUser(userData);
+      
+      let isProviderUser = false;
+      try {
+        const meResponse = await api.get('/auth/me', { timeout: 10000 });
+        if (isMountedRef.current && meResponse?.data?.provider) {
+          setProvider(meResponse.data.provider);
+          isProviderUser = true;
+        }
+      } catch (e) {
+        console.log('No provider profile');
+      }
+      
+      await registerPushToken(isProviderUser);
+    } catch (error: any) {
+      if (error.code === 'ERR_REQUEST_CANCELED') {
+        console.log('Apple Sign-In cancelled by user');
+      } else {
+        console.error('Apple sign-in error:', error?.response?.data || error?.message);
+        if (Platform.OS !== 'web') {
+          Alert.alert('Erro no login', 'Não foi possível fazer login com Apple. Tente novamente.');
+        }
+      }
+    } finally {
+      if (isMountedRef.current) setIsLoading(false);
+    }
+  };
+
   const refreshUser = async () => {
     try {
       const token = await AsyncStorage.getItem('session_token');
@@ -703,6 +780,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         isAuthenticated: !!user,
         login,
+        loginWithApple,
         logout,
         refreshUser,
       }}
