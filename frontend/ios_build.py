@@ -2,6 +2,7 @@
 import pexpect
 import os
 import sys
+import time
 
 os.chdir('/app/frontend')
 
@@ -26,42 +27,53 @@ child.logfile = sys.stdout
 while True:
     try:
         index = child.expect([
-            r'\?.*\(Y/n\)',          # Y/n question
-            r'\?.*\(y/N\)',          # y/N question
-            r'›.*Generate new',      # Generate new option
-            r'›.*Create',            # Create option
-            r'Would you like',       # Would you like...
-            r'Do you want',          # Do you want...
-            r'Select.*team',         # Select team
-            r'Log in',               # Log in prompt
-            r'Which.*would',         # Which would you like
+            r'Push Notifications.*project',  # Push notification question
+            r'Generate a new Apple Distribution',  # Generate dist cert
+            r'Generate a new Apple Provisioning',  # Generate prov profile
+            r'\(Y/n\)',          # Y/n question
+            r'\(y/N\)',          # y/N question  
+            r'Would you like to set up Push',  # Push notification setup
+            r'don\'t ask again',  # option with don't ask again
+            r'Apple ID:',  # Apple ID prompt - skip
+            r'Password',  # Password prompt - skip
             pexpect.EOF,
             pexpect.TIMEOUT,
         ], timeout=120)
         
-        if index == 0:  # Y/n
+        if index == 0:  # Push notifications question
+            # Select "No, don't ask again"
+            time.sleep(0.5)
+            child.send('\x1b[B')  # Arrow down
+            time.sleep(0.3)
+            child.send('\x1b[B')  # Arrow down again to "No, don't ask again"
+            time.sleep(0.3)
+            child.sendline('')
+        elif index == 1:  # Generate dist cert
             child.sendline('Y')
-        elif index == 1:  # y/N
+        elif index == 2:  # Generate prov profile
+            child.sendline('Y')
+        elif index == 3:  # Y/n
+            child.sendline('Y')
+        elif index == 4:  # y/N
             child.sendline('y')
-        elif index == 2:  # Generate new
+        elif index == 5:  # Would you like push
+            time.sleep(0.5)
+            child.send('\x1b[B')  # Arrow down to No
+            time.sleep(0.3)
             child.sendline('')
-        elif index == 3:  # Create
+        elif index == 6:  # don't ask again visible
             child.sendline('')
-        elif index == 4:  # Would you like
-            child.sendline('y')
-        elif index == 5:  # Do you want
-            child.sendline('y')
-        elif index == 6:  # Select team
-            child.sendline('')
-        elif index == 7:  # Log in
-            child.sendline('')
-        elif index == 8:  # Which would
-            child.sendline('')
+        elif index == 7:  # Apple ID prompt
+            child.sendcontrol('c')
+            break
+        elif index == 8:  # Password prompt
+            child.sendcontrol('c')
+            break
         elif index == 9:  # EOF
             print("\n=== BUILD PROCESS COMPLETED ===")
             break
         elif index == 10:  # TIMEOUT
-            print("\n=== TIMEOUT - checking status ===")
+            print("\n=== TIMEOUT ===")
             break
     except pexpect.exceptions.EOF:
         print("\n=== PROCESS ENDED ===")
