@@ -14,6 +14,7 @@ env['EXPO_ASC_ISSUER_ID'] = '017a6689-6907-4d98-8e92-3ea733e40f1c'
 env['EXPO_APPLE_TEAM_ID'] = 'XC7JZ45JKY'
 env['EXPO_APPLE_TEAM_TYPE'] = 'INDIVIDUAL'
 
+print("=== Starting iOS build (capabilities removed) ===")
 child = pexpect.spawn(
     'npx eas-cli build --platform ios --profile preview-ios --no-wait',
     env=env,
@@ -21,56 +22,50 @@ child = pexpect.spawn(
     encoding='utf-8',
     maxread=10000,
 )
-
 child.logfile = sys.stdout
 
 while True:
     try:
         index = child.expect([
-            r'Push Notifications.*project',  # Push notification question
-            r'Generate a new Apple Distribution',  # Generate dist cert
-            r'Generate a new Apple Provisioning',  # Generate prov profile
-            r'\(Y/n\)',          # Y/n question
-            r'\(y/N\)',          # y/N question  
-            r'Would you like to set up Push',  # Push notification setup
-            r'don\'t ask again',  # option with don't ask again
-            r'Apple ID:',  # Apple ID prompt - skip
-            r'Password',  # Password prompt - skip
+            r'Would you like to set up Push',  # Push
+            r'Generate a new Apple Provisioning',  # New prov profile
+            r'Generate a new Apple Distribution',  # New dist cert
+            r'\(Y/n\)',
+            r'\(y/N\)',
+            r'Use arrow-keys',
+            r'Apple ID:',
+            r'Password',
+            r'expo\.dev.*builds',  # Build URL
             pexpect.EOF,
             pexpect.TIMEOUT,
         ], timeout=120)
         
-        if index == 0:  # Push notifications question
-            # Select "No, don't ask again"
+        if index == 0:  # Push notifications
             time.sleep(0.5)
-            child.send('\x1b[B')  # Arrow down
-            time.sleep(0.3)
-            child.send('\x1b[B')  # Arrow down again to "No, don't ask again"
+            child.send('\x1b[B')  # Down to No
             time.sleep(0.3)
             child.sendline('')
-        elif index == 1:  # Generate dist cert
+        elif index == 1:  # New prov profile
             child.sendline('Y')
-        elif index == 2:  # Generate prov profile
+        elif index == 2:  # New dist cert
             child.sendline('Y')
         elif index == 3:  # Y/n
             child.sendline('Y')
         elif index == 4:  # y/N
             child.sendline('y')
-        elif index == 5:  # Would you like push
-            time.sleep(0.5)
-            child.send('\x1b[B')  # Arrow down to No
+        elif index == 5:  # Arrow menu
             time.sleep(0.3)
             child.sendline('')
-        elif index == 6:  # don't ask again visible
-            child.sendline('')
-        elif index == 7:  # Apple ID prompt
+        elif index == 6:  # Apple ID
             child.sendcontrol('c')
             break
-        elif index == 8:  # Password prompt
+        elif index == 7:  # Password
             child.sendcontrol('c')
             break
+        elif index == 8:  # Build URL shown
+            time.sleep(2)
         elif index == 9:  # EOF
-            print("\n=== BUILD PROCESS COMPLETED ===")
+            print("\n=== BUILD COMPLETED ===")
             break
         elif index == 10:  # TIMEOUT
             print("\n=== TIMEOUT ===")

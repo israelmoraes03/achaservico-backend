@@ -18,10 +18,8 @@
         "NSLocationWhenInUseUsageDescription": "Encontre prestadores perto de você",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "entitlements": {
-        "com.apple.developer.applesignin": ["Default"]
-      },
-      "usesAppleSignIn": true
+      "entitlements": {},
+      "usesAppleSignIn": false
     },
     "android": {
       "adaptiveIcon": {
@@ -50,7 +48,6 @@
       "expo-router",
       "expo-file-system",
       "expo-document-picker",
-      "expo-apple-authentication",
       [
         "expo-splash-screen",
         {
