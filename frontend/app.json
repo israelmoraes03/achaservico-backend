@@ -11,15 +11,17 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.achaservico.app",
-      "buildNumber": "3",
+      "buildNumber": "4",
       "infoPlist": {
         "NSCameraUsageDescription": "Tire fotos para seu perfil e avaliações",
         "NSPhotoLibraryUsageDescription": "Selecione fotos para seu perfil",
         "NSLocationWhenInUseUsageDescription": "Encontre prestadores perto de você",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "entitlements": {},
-      "usesAppleSignIn": false
+      "entitlements": {
+        "aps-environment": "production"
+      },
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
@@ -48,6 +50,7 @@
       "expo-router",
       "expo-file-system",
       "expo-document-picker",
+      "expo-apple-authentication",
       [
         "expo-splash-screen",
         {
@@ -68,11 +71,9 @@
         {
           "icon": "./assets/images/icon.png",
           "color": "#10B981",
-          "defaultChannel": "default",
-          "enableBackgroundRemoteNotifications": false
+          "defaultChannel": "default"
         }
       ],
-      "./plugins/withCleanEntitlements.js",
       "expo-font",
       "expo-web-browser",
       "expo-mail-composer"

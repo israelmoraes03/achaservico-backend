@@ -13,16 +13,29 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
 export default function LoginScreen() {
-  const { login, isLoading, isAuthenticated } = useAuth();
+  const { login, loginWithApple, isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
+  const [isAppleAvailable, setIsAppleAvailable] = React.useState(false);
 
   React.useEffect(() => {
     if (isAuthenticated) {
       router.replace('/');
     }
   }, [isAuthenticated]);
+
+  // Check if Apple Sign-In is available (iOS only)
+  React.useEffect(() => {
+    const checkAppleAvailability = async () => {
+      if (Platform.OS === 'ios') {
+        const available = await AppleAuthentication.isAvailableAsync();
+        setIsAppleAvailable(available);
+      }
+    };
+    checkAppleAvailability();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -104,7 +117,26 @@ export default function LoginScreen() {
             </LinearGradient>
           </TouchableOpacity>
 
-          {/* Apple Sign-In Button - will be enabled when iOS capabilities are properly configured */}
+          {/* Apple Sign-In Button - iOS only */}
+          {isAppleAvailable && (
+            <TouchableOpacity
+              style={styles.appleButtonWrapper}
+              onPress={loginWithApple}
+              disabled={isLoading}
+              activeOpacity={0.9}
+            >
+              <View style={styles.appleButton}>
+                {isLoading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons name="logo-apple" size={24} color="#FFFFFF" style={{ marginRight: 12 }} />
+                    <Text style={styles.appleButtonText}>Entrar com Apple</Text>
+                  </>
+                )}
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Divider */}

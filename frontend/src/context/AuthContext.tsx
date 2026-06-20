@@ -6,6 +6,7 @@ import { Platform, Alert, AppState, AppStateStatus } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import api from '../services/api';
 
 // Complete any pending auth sessions (MUST be at module level)
