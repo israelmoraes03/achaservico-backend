@@ -686,6 +686,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithApple = async () => {
     try {
       setIsLoading(true);
+      console.log('=== Starting Apple Sign-In ===');
       
       if (Platform.OS !== 'ios') {
         Alert.alert('Erro', 'Login com Apple só disponível no iOS');
@@ -693,12 +694,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       
+      console.log('Calling AppleAuthentication.signInAsync...');
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
       });
+      console.log('Apple credential received:', credential ? 'yes' : 'no');
       
       const fullName = credential.fullName
         ? `${credential.fullName.givenName || ''} ${credential.fullName.familyName || ''}`.trim()
