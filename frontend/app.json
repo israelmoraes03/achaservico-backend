@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.achaservico.app",
-      "buildNumber": "4",
+      "buildNumber": "5",
       "infoPlist": {
         "NSCameraUsageDescription": "Tire fotos para seu perfil e avaliações",
         "NSPhotoLibraryUsageDescription": "Selecione fotos para seu perfil",
@@ -19,7 +19,8 @@
         "ITSAppUsesNonExemptEncryption": false
       },
       "entitlements": {
-        "aps-environment": "production"
+        "aps-environment": "production",
+        "com.apple.developer.applesignin": ["Default"]
       },
       "usesAppleSignIn": true
     },
