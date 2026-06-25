@@ -748,12 +748,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       await registerPushToken(isProviderUser);
     } catch (error: any) {
-      if (error.code === 'ERR_REQUEST_CANCELED') {
+      console.log('=== Apple Sign-In Error ===');
+      console.log('Error code:', error?.code);
+      console.log('Error message:', error?.message);
+      console.log('Full error:', JSON.stringify(error, null, 2));
+      
+      if (error.code === 'ERR_REQUEST_CANCELED' || error.code === 'ERR_CANCELED') {
         console.log('Apple Sign-In cancelled by user');
       } else {
         console.error('Apple sign-in error:', error?.response?.data || error?.message);
         if (Platform.OS !== 'web') {
-          Alert.alert('Erro no login', 'Não foi possível fazer login com Apple. Tente novamente.');
+          Alert.alert(
+            'Erro no login', 
+            `Não foi possível fazer login com Apple.\n\nDetalhes: ${error?.message || 'Erro desconhecido'}\n\nTente usar o Login com Google.`
+          );
         }
       }
     } finally {
