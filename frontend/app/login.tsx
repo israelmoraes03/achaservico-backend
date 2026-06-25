@@ -30,8 +30,20 @@ export default function LoginScreen() {
   React.useEffect(() => {
     const checkAppleAvailability = async () => {
       if (Platform.OS === 'ios') {
-        const available = await AppleAuthentication.isAvailableAsync();
-        setIsAppleAvailable(available);
+        try {
+          const available = await AppleAuthentication.isAvailableAsync();
+          console.log('Apple Sign-In available:', available);
+          setIsAppleAvailable(available);
+          // Fallback: if check fails, still show button on iOS 13+
+          if (!available) {
+            // Show button anyway on iOS, Apple will handle errors
+            setIsAppleAvailable(true);
+          }
+        } catch (error) {
+          console.log('Apple Sign-In check error:', error);
+          // Show button anyway on iOS
+          setIsAppleAvailable(true);
+        }
       }
     };
     checkAppleAvailability();
