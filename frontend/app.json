@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.achaservico.app",
-      "buildNumber": "7",
+      "buildNumber": "8",
       "infoPlist": {
         "NSCameraUsageDescription": "Tire fotos para seu perfil e avaliações",
         "NSPhotoLibraryUsageDescription": "Selecione fotos para seu perfil",

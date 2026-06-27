@@ -695,24 +695,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       console.log('Calling AppleAuthentication.signInAsync...');
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      });
+      let credential;
+      try {
+        credential = await AppleAuthentication.signInAsync({
+          requestedScopes: [
+            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+            AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          ],
+        });
+      } catch (appleError: any) {
+        console.log('Apple Auth Error:', appleError);
+        Alert.alert(
+          'Erro Apple Auth',
+          `Código: ${appleError?.code || 'N/A'}\n\nMensagem: ${appleError?.message || 'Desconhecido'}\n\nDetalhes: ${JSON.stringify(appleError, null, 2)}`
+        );
+        setIsLoading(false);
+        return;
+      }
+      
       console.log('Apple credential received:', credential ? 'yes' : 'no');
+      console.log('Credential user:', credential?.user);
+      console.log('Credential email:', credential?.email);
+      console.log('Credential fullName:', JSON.stringify(credential?.fullName));
       
       const fullName = credential.fullName
         ? `${credential.fullName.givenName || ''} ${credential.fullName.familyName || ''}`.trim()
         : null;
       
-      const resp = await api.post('/auth/apple-signin', {
-        identity_token: credential.identityToken,
-        email: credential.email,
-        full_name: fullName,
-        apple_user_id: credential.user,
-      }, { timeout: 15000 });
+      console.log('Sending to backend...');
+      let resp;
+      try {
+        resp = await api.post('/auth/apple-signin', {
+          identity_token: credential.identityToken,
+          email: credential.email,
+          full_name: fullName,
+          apple_user_id: credential.user,
+        }, { timeout: 15000 });
+        console.log('Backend response:', resp?.status);
+      } catch (backendError: any) {
+        console.log('Backend Error:', backendError);
+        Alert.alert(
+          'Erro no Servidor',
+          `Status: ${backendError?.response?.status || 'N/A'}\n\nMensagem: ${backendError?.response?.data?.detail || backendError?.message || 'Desconhecido'}\n\nURL: /auth/apple-signin`
+        );
+        setIsLoading(false);
+        return;
+      }
       
       if (!isMountedRef.current) return;
       
