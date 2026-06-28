@@ -1041,13 +1041,23 @@ async def get_current_user(request: Request) -> Optional[User]:
     if not session:
         return None
     
-    expires_at = session["expires_at"]
+    # Handle missing expires_at field
+    expires_at = session.get("expires_at")
+    if not expires_at:
+        # Session without expiration - consider valid for 7 days from creation
+        logger.warning(f"Session without expires_at field, using default expiration")
+        return await _get_user_from_session(session)
+    
     if expires_at.tzinfo is None:
         expires_at = expires_at.replace(tzinfo=timezone.utc)
     
     if expires_at < datetime.now(timezone.utc):
         return None
     
+    return await _get_user_from_session(session)
+
+async def _get_user_from_session(session: dict) -> Optional[User]:
+    """Helper to get user from session"""
     user_doc = await db.users.find_one({"user_id": session["user_id"]}, {"_id": 0})
     if user_doc:
         return User(**user_doc)
