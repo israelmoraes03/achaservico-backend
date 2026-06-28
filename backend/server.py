@@ -1743,66 +1743,97 @@ async def get_provider(provider_id: str):
 @limiter.limit("3/minute")
 async def create_provider(provider_data: ProviderCreate, request: Request):
     """Create a new provider profile (requires auth)"""
-    user = await require_auth(request)
-    
-    existing = await db.providers.find_one({"user_id": user.user_id})
-    if existing:
-        raise HTTPException(status_code=400, detail="Você já possui um perfil de prestador")
-    
-    # Upload images to Cloudinary
-    provider_dict = provider_data.model_dump()
-    if provider_dict.get('profile_image'):
-        provider_dict['profile_image'] = await upload_to_cloudinary(
-            provider_dict['profile_image'], 
-            folder="achaservico/profiles"
-        )
-    if provider_dict.get('service_photos'):
-        provider_dict['service_photos'] = await upload_images_to_cloudinary(
-            provider_dict['service_photos'],
-            folder="achaservico/services"
-        )
-    
-    # ESTRATÉGIA 100% GRÁTIS: Novos prestadores começam ativos sem data de expiração
-    provider = Provider(
-        user_id=user.user_id,
-        subscription_status="active",  # Já começa ativo
-        subscription_expires_at=None,  # Sem expiração - gratuito permanente
-        is_active=True,
-        **provider_dict
-    )
-    
-    await db.providers.insert_one(provider.model_dump())
-    
-    # Criar registro de assinatura (sem expiração)
-    subscription = Subscription(
-        provider_id=provider.provider_id,
-        user_id=user.user_id,
-        status="active",
-        payment_method="free",  # Gratuito
-        started_at=datetime.now(timezone.utc),
-        expires_at=None  # Sem expiração
-    )
-    await db.subscriptions.insert_one(subscription.model_dump())
-    
-    await db.users.update_one(
-        {"user_id": user.user_id},
-        {"$set": {"is_provider": True}}
-    )
-    
-    # Send email notification to admin about new provider registration (non-blocking)
     try:
-        await send_admin_notification_email(
-            provider_name=provider.name,
-            provider_email=user.email,
-            categories=provider.categories,
-            cities=provider.cities,
-            phone=provider.phone
+        user = await require_auth(request)
+        logger.info(f"Creating provider for user: {user.user_id}")
+        
+        existing = await db.providers.find_one({"user_id": user.user_id})
+        if existing:
+            raise HTTPException(status_code=400, detail="Você já possui um perfil de prestador")
+        
+        # Upload images to Cloudinary
+        provider_dict = provider_data.model_dump()
+        logger.info(f"Provider data received: name={provider_dict.get('name')}, categories={provider_dict.get('categories')}")
+        
+        if provider_dict.get('profile_image'):
+            logger.info("Uploading profile image...")
+            try:
+                provider_dict['profile_image'] = await upload_to_cloudinary(
+                    provider_dict['profile_image'], 
+                    folder="achaservico/profiles"
+                )
+                logger.info(f"Profile image uploaded: {provider_dict['profile_image'][:50]}...")
+            except Exception as img_error:
+                logger.error(f"Error uploading profile image: {img_error}")
+                provider_dict['profile_image'] = None
+                
+        if provider_dict.get('service_photos'):
+            logger.info(f"Uploading {len(provider_dict['service_photos'])} service photos...")
+            try:
+                provider_dict['service_photos'] = await upload_images_to_cloudinary(
+                    provider_dict['service_photos'],
+                    folder="achaservico/services"
+                )
+                logger.info(f"Service photos uploaded: {len(provider_dict['service_photos'])} photos")
+            except Exception as photos_error:
+                logger.error(f"Error uploading service photos: {photos_error}")
+                provider_dict['service_photos'] = []
+        
+        # ESTRATÉGIA 100% GRÁTIS: Novos prestadores começam ativos sem data de expiração
+        logger.info("Creating provider object...")
+        provider = Provider(
+            user_id=user.user_id,
+            subscription_status="active",  # Já começa ativo
+            subscription_expires_at=None,  # Sem expiração - gratuito permanente
+            is_active=True,
+            **provider_dict
         )
+        
+        logger.info(f"Inserting provider into database: {provider.provider_id}")
+        await db.providers.insert_one(provider.model_dump())
+        logger.info("Provider inserted successfully")
+        
+        # Criar registro de assinatura (sem expiração)
+        subscription = Subscription(
+            provider_id=provider.provider_id,
+            user_id=user.user_id,
+            status="active",
+            payment_method="free",  # Gratuito
+            started_at=datetime.now(timezone.utc),
+            expires_at=None  # Sem expiração
+        )
+        await db.subscriptions.insert_one(subscription.model_dump())
+        logger.info("Subscription created")
+        
+        await db.users.update_one(
+            {"user_id": user.user_id},
+            {"$set": {"is_provider": True}}
+        )
+        logger.info("User updated to is_provider=True")
+        
+        # Send email notification to admin about new provider registration (non-blocking)
+        try:
+            await send_admin_notification_email(
+                provider_name=provider.name,
+                provider_email=user.email,
+                categories=provider.categories,
+                cities=provider.cities,
+                phone=provider.phone
+            )
+        except Exception as e:
+            # Log error but don't fail the registration
+            logger.warning(f"Failed to send admin notification email: {e}")
+        
+        logger.info(f"Provider created successfully: {provider.provider_id}")
+        return provider
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        # Log error but don't fail the registration
-        print(f"Warning: Failed to send admin notification email: {e}")
-    
-    return provider
+        logger.error(f"Error creating provider: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
 
 @api_router.put("/providers/{provider_id}")
 async def update_provider(provider_id: str, provider_data: ProviderUpdate, request: Request):
