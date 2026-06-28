@@ -1933,6 +1933,56 @@ async def toggle_provider_availability(provider_id: str, request: Request):
     
     return {"success": True, "is_active": new_status}
 
+# ======================== USER PROFILE ========================
+
+class UserProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    picture: Optional[str] = None
+
+@api_router.get("/users/me")
+async def get_current_user_profile(request: Request):
+    """Get current user's profile"""
+    user = await require_auth(request)
+    
+    user_data = await db.users.find_one({"user_id": user.user_id}, {"_id": 0})
+    if not user_data:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    # Check if profile is complete (has phone)
+    user_data["profile_complete"] = bool(user_data.get("phone"))
+    
+    return user_data
+
+@api_router.put("/users/me")
+async def update_user_profile(profile: UserProfileUpdate, request: Request):
+    """Update current user's profile"""
+    user = await require_auth(request)
+    
+    update_data = {}
+    if profile.name:
+        update_data["name"] = profile.name
+    if profile.phone:
+        # Clean phone number - remove non-digits except +
+        clean_phone = ''.join(c for c in profile.phone if c.isdigit() or c == '+')
+        update_data["phone"] = clean_phone
+    if profile.picture:
+        update_data["picture"] = profile.picture
+    
+    if not update_data:
+        raise HTTPException(status_code=400, detail="Nenhum dado para atualizar")
+    
+    await db.users.update_one(
+        {"user_id": user.user_id},
+        {"$set": update_data}
+    )
+    
+    # Return updated user
+    user_data = await db.users.find_one({"user_id": user.user_id}, {"_id": 0})
+    user_data["profile_complete"] = bool(user_data.get("phone"))
+    
+    return user_data
+
 # ======================== FAVORITES ========================
 
 @api_router.get("/users/favorites")

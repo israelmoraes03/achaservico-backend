@@ -62,6 +62,7 @@ interface User {
   user_id: string;
   email: string;
   name: string;
+  phone?: string;
   is_provider: boolean;
   blocked?: boolean;
   created_at: string;
@@ -1984,7 +1985,7 @@ export default function AdminScreen() {
                   <Ionicons name="search" size={20} color="#6B7280" style={styles.searchIcon} />
                   <TextInput
                     style={styles.searchInput}
-                    placeholder="Buscar por nome ou email..."
+                    placeholder="Buscar por nome, email ou telefone..."
                     placeholderTextColor="#6B7280"
                     value={searchQuery}
                     onChangeText={setSearchQuery}
@@ -2005,7 +2006,8 @@ export default function AdminScreen() {
                       const query = searchQuery.toLowerCase();
                       return (
                         user.name?.toLowerCase().includes(query) ||
-                        user.email?.toLowerCase().includes(query)
+                        user.email?.toLowerCase().includes(query) ||
+                        user.phone?.includes(query.replace(/\D/g, ''))
                       );
                     })
                     .map((user) => (
@@ -2014,6 +2016,14 @@ export default function AdminScreen() {
                         <View style={styles.cardInfo}>
                           <Text style={styles.cardTitle}>{user.name}</Text>
                           <Text style={styles.cardSubtitle}>{user.email}</Text>
+                          {user.phone && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                              <Ionicons name="call-outline" size={14} color="#10B981" />
+                              <Text style={[styles.cardDetail, { color: '#10B981', marginLeft: 4 }]}>
+                                {user.phone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')}
+                              </Text>
+                            </View>
+                          )}
                           <Text style={styles.cardDetail}>
                             Cadastro: {formatDate(user.created_at)}
                           </Text>
