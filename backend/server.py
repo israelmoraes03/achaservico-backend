@@ -1803,7 +1803,11 @@ async def create_provider(provider_data: ProviderCreate, request: Request):
         )
         
         logger.info(f"Inserting provider into database: {provider.provider_id}")
-        await db.providers.insert_one(provider.model_dump())
+        provider_dict_final = provider.model_dump()
+        # Remove None datetime fields to avoid serialization issues
+        if provider_dict_final.get('subscription_expires_at') is None:
+            del provider_dict_final['subscription_expires_at']
+        await db.providers.insert_one(provider_dict_final)
         logger.info("Provider inserted successfully")
         
         # Criar registro de assinatura (sem expiração)
@@ -1815,7 +1819,11 @@ async def create_provider(provider_data: ProviderCreate, request: Request):
             started_at=datetime.now(timezone.utc),
             expires_at=None  # Sem expiração
         )
-        await db.subscriptions.insert_one(subscription.model_dump())
+        subscription_dict = subscription.model_dump()
+        # Remove expires_at if None to avoid serialization issues
+        if subscription_dict.get('expires_at') is None:
+            del subscription_dict['expires_at']
+        await db.subscriptions.insert_one(subscription_dict)
         logger.info("Subscription created")
         
         await db.users.update_one(
