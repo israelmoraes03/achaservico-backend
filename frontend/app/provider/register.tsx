@@ -304,14 +304,22 @@ export default function ProviderRegisterScreen() {
       // Go to dashboard where user can choose payment method (PIX or Card)
       router.replace('/provider/dashboard');
     } catch (error: any) {
-      const message = error.response?.data?.detail || 'Erro ao criar perfil. Tente novamente.';
+      console.log('=== Provider Registration Error ===');
+      console.log('Error response:', error.response?.data);
+      console.log('Error status:', error.response?.status);
+      console.log('Error message:', error.message);
+      
+      const message = error.response?.data?.detail || error.message || 'Erro ao criar perfil. Tente novamente.';
       
       // Handle specific error cases
       if (message.includes('já possui')) {
         // Go to dashboard if already has profile
         router.replace('/provider/dashboard');
       } else {
-        setErrorMessage(message);
+        // Show detailed error for debugging
+        const detailedError = `${message}\n\nStatus: ${error.response?.status || 'N/A'}\nDetalhes: ${JSON.stringify(error.response?.data || {})}`;
+        setErrorMessage(detailedError);
+        Alert.alert('Erro no Cadastro', detailedError);
       }
     } finally {
       setIsSubmitting(false);
