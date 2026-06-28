@@ -1355,17 +1355,30 @@ async def apple_signin(request: Request, response: Response):
         full_name = body.get("full_name")
         apple_user_id = body.get("apple_user_id")
         
+        logger.info(f"Apple Sign-In attempt - email: {email}, apple_user_id: {apple_user_id[:20] if apple_user_id else 'None'}...")
+        
         if not identity_token and not apple_user_id:
             raise HTTPException(status_code=400, detail="Token ou ID Apple não fornecido")
         
         # Apple only sends email on FIRST sign-in, after that we look up by apple_user_id
-        if not email and apple_user_id:
-            # Try to find existing user by apple_user_id
-            existing = await db.users.find_one({"apple_user_id": apple_user_id})
-            if existing:
-                email = existing.get("email")
-            else:
-                raise HTTPException(status_code=400, detail="Email não disponível. Tente novamente.")
+        existing_user = None
+        if apple_user_id:
+            existing_user = await db.users.find_one({"apple_user_id": apple_user_id})
+            if existing_user:
+                logger.info(f"Found existing user by apple_user_id: {existing_user.get('email')}")
+                email = existing_user.get("email")
+        
+        # If still no email and no existing user, try to find by email if provided
+        if not existing_user and email:
+            existing_user = await db.users.find_one({"email": email})
+            if existing_user:
+                logger.info(f"Found existing user by email: {email}")
+        
+        # If no email and no existing user, create with apple_user_id as identifier
+        if not email and not existing_user:
+            # Generate a placeholder email using apple_user_id
+            email = f"apple_{apple_user_id[:12]}@appleid.private"
+            logger.info(f"No email provided, using placeholder: {email}")
         
         if not email:
             raise HTTPException(status_code=400, detail="Email não encontrado")
@@ -1373,7 +1386,7 @@ async def apple_signin(request: Request, response: Response):
         name = full_name or email.split("@")[0]
         
         # Find or create user
-        user = await db.users.find_one({"email": email})
+        user = existing_user or await db.users.find_one({"email": email})
         
         if user:
             if user.get("is_blocked"):
