@@ -64,7 +64,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Function to register push notification token
   const registerPushToken = useCallback(async (isProvider: boolean) => {
     try {
-      if (Platform.OS === 'web') return;
+      console.log('=== Registering Push Token ===');
+      console.log('Platform:', Platform.OS);
+      console.log('Is Provider:', isProvider);
+      
+      if (Platform.OS === 'web') {
+        console.log('Web platform, skipping push token');
+        return;
+      }
       
       if (!Device.isDevice) {
         console.log('Push notifications require a physical device');
@@ -72,11 +79,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      console.log('Existing permission status:', existingStatus);
       let finalStatus = existingStatus;
       
       if (existingStatus !== 'granted') {
+        console.log('Requesting push notification permission...');
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
+        console.log('New permission status:', finalStatus);
       }
       
       if (finalStatus !== 'granted') {
@@ -85,17 +95,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+      console.log('Project ID:', projectId);
+      
       const token = await Notifications.getExpoPushTokenAsync({
         projectId: projectId,
       });
       
-      console.log('Push token:', token.data);
+      console.log('Push token obtained:', token.data);
 
       const endpoint = isProvider ? '/providers/register-push-token' : '/users/register-push-token';
-      await api.post(endpoint, { push_token: token.data });
+      console.log('Registering to endpoint:', endpoint);
+      
+      const response = await api.post(endpoint, { push_token: token.data });
+      console.log('Push token registration response:', response.status);
       console.log('Push token registered successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.log('Error registering push token:', error);
+      console.log('Error details:', error?.response?.data || error?.message);
     }
   }, []);
 
